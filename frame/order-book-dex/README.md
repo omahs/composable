@@ -35,5 +35,3 @@ So that proffered account is of same level of trust as usual for now.
 ### Links
 
 [1]: https://research.csiro.au/blockchainpatterns/general-patterns/blockchain-payment-patterns/token-swap/
-[2]: https://medium.com/polkadot-network/xcm-the-cross-consensus-message-format-3b77b1373392
-[3]: https://wiki.polkadot.network/docs/learn-bridges

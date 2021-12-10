@@ -43,7 +43,7 @@ pub mod pallet {
 			tokens::WithdrawConsequence,
 			Currency, IsType, UnixTime,
 		},
-		Parameter, Twox64Concat,
+		Parameter, Twox64Concat, StorageMap,
 	};
 	use scale_info::TypeInfo;
 
@@ -97,7 +97,17 @@ pub mod pallet {
 	#[derive(Encode, Decode, Default, TypeInfo)]
 	pub struct Order<OrderId> {
 		pub id: OrderId,
+		
 	}
+
+	/// All registered buys
+	#[pallet::storage]
+	#[pallet::getter(fn buys)]
+	pub type Buys<T:Config> = StorageMap<
+		_,
+		Twox64Concat
+	>
+
 
 	#[pallet::storage]
 	#[pallet::getter(fn orders)]
@@ -138,7 +148,7 @@ pub mod pallet {
 			amount: Self::Balance,
 			amm_slippage: Permill,
 		) -> Result<Self::OrderId, DispatchError> {
-			todo!()
+			
 		}
 
 		fn ask(
