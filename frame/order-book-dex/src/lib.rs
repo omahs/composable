@@ -43,7 +43,7 @@ pub mod pallet {
 			tokens::WithdrawConsequence,
 			Currency, IsType, UnixTime,
 		},
-		Parameter, Twox64Concat, StorageMap,
+		Parameter, Twox64Concat, StorageMap, tests::Config,
 	};
 	use scale_info::TypeInfo;
 
@@ -79,12 +79,18 @@ pub mod pallet {
 		type Privilege: InspectPrivilegeGroup<AccountId = Self::AccountId, GroupId = Self::GroupId>;
 	}
 
+	// type aliases
+	pub type OrderIdOf<T> = <T as Config>::Orderbook::OrderId;
+	pub type OrderOf<T> = Order<OrderIdOf<T>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
 	pub enum Event<T: Config> {}
 
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+
+	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -95,18 +101,23 @@ pub mod pallet {
 
 	/// auction can span several dex orders within its lifetime
 	#[derive(Encode, Decode, Default, TypeInfo)]
-	pub struct Order<OrderId> {
+	pub struct Order<OrderId, AssetId> {
 		pub id: OrderId,
-		
+		pub asset_id: AssetId,
 	}
+
+	
 
 	/// All registered buys
 	#[pallet::storage]
 	#[pallet::getter(fn buys)]
 	pub type Buys<T:Config> = StorageMap<
 		_,
-		Twox64Concat
-	>
+		Twox64Concat,
+		T::OrderId, 
+		OrderOf<T>,
+		ValueQuery,
+	>;
 
 
 	#[pallet::storage]

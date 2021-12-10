@@ -6,6 +6,24 @@ Here is we design cross chain DEX. It will have interfaces like if it is on chai
 
 Our DEX represents SELL side of traditional OB.
 
+## Order book designs
+
+### HydraDX
+
+https://github.com/galacticcouncil/Basilisk-node/tree/master/pallets/exchange
+
+- Intention to sell (a,b) and buy (b,a) are added during block
+- Each block cleaned, so no data retained in block about intentions
+- If exact matches found, than sell via OB
+- If not exact found, sell remaining on AMM
+- Can be used without AMM if set AMM allowance to low percentage or disable on runtime
+
+### Example in Solidity
+
+
+
+https://github.com/PacktPublishing/Blockchain-Development-for-Finance-Projects/blob/master/Chapter%208/contracts/orderbook.sol
+
 ## What it is about?
 
 First, what is exchanges of tokens across change?
