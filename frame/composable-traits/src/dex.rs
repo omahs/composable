@@ -89,6 +89,7 @@ pub trait Orderbook {
 	) -> Result<(), DispatchError>;
 
 	/// sell. exchanges specified amount of asset to other at market price.
+	/// `amm_slippage` - allow maxima slippage of order
 	fn market_sell(
 		account: &Self::AccountId,
 		asset: Self::AssetId,

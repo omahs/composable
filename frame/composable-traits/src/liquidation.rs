@@ -16,7 +16,6 @@ pub trait Liquidate {
 		target_account: &Self::AccountId,
 		total_amount: Self::Balance,
 	) -> Result<Self::LiquidationId, DispatchError>;
-	fn is_liquidation_completed(liquidation_id: &Self::LiquidationId) -> bool;
 }
 
 impl<T: Orderbook> Liquidate for T {
@@ -40,8 +39,5 @@ impl<T: Orderbook> Liquidate for T {
 			total_amount,
 			Permill::from_perthousand(0),
 		)
-	}
-	fn is_liquidation_completed(liquidation_id: &Self::LiquidationId) -> bool {
-		<T as Orderbook>::is_order_executed(liquidation_id)
 	}
 }
