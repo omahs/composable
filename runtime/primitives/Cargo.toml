@@ -26,3 +26,6 @@ std = [
 	"composable-traits/std",
     "scale-info/std",
 ]
+develop = [
+	"xcm"
+]

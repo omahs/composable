@@ -37,6 +37,9 @@ pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "p
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "17a791edf431d7d7aee1ea3dfaeeb7bc21944301" }
 governance-registry = { package = "pallet-governance-registry", path = "../governance-registry", default-features = false }
 
+[package.metadata.cargo-udeps.ignore]
+development = ["governance-registry"]
+
 [features]
 default = ["std"]
 std = [
