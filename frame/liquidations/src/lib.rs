@@ -32,7 +32,7 @@ pub mod pallet {
 	use codec::{Codec, FullCodec};
 	use composable_traits::{
 		auction::DutchAuction,
-		dex::{Orderbook, SimpleExchange},
+		dex::{Orderbook, AmmExchange},
 		lending::Lending,
 		liquidation::Liquidate,
 		math::LiftedFixedBalance,

@@ -42,12 +42,12 @@ support::construct_runtime!(
 mod dex {
 	use super::*;
 	pub struct Dex;
-	use composable_traits::dex::SimpleExchange;
+	use composable_traits::dex::AmmExchange;
 	use orml_tokens::Pallet;
 	use orml_traits::MultiCurrency;
 	use sp_runtime::{DispatchError, Perbill};
 
-	impl SimpleExchange for Dex {
+	impl AmmExchange for Dex {
 		type AssetId = CurrencyId;
 		type Balance = u64;
 		type AccountId = u64;

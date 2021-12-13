@@ -30,7 +30,7 @@ pub mod pallet {
 	use codec::{Codec, Decode, Encode, FullCodec};
 	use composable_traits::{
 		auction::{AuctionState, AuctionStepFunction, DutchAuction},
-		dex::{Orderbook, Price, SimpleExchange},
+		dex::{Orderbook, Price, AmmExchange},
 		loans::{DeFiComposableConfig, DurationSeconds, PriceStructure, Timestamp, ONE_HOUR},
 		math::{LiftedFixedBalance, SafeArithmetic, WrappingNext},
 		privilege::InspectPrivilegeGroup,
