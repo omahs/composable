@@ -9,11 +9,15 @@ use sp_runtime::{DispatchError, Permill};
 
 use sp_std::vec::Vec;
 
-/// Describes a simple exchanges which does not allow advanced configurations such as slippage.
-pub trait SimpleExchange {
-	type AssetId;
-	type Balance;
+/// type parameters for traits in pure defi area
+pub trait DeFiTrait {
+	type AssetId: AssetIdLike;
+	type Balance : BalanceLike;
 	type AccountId;
+}
+
+/// Immediate AMM exchange. Either resolves trade immediately or returns error (mostly because of lack of liquidity).
+pub trait AmmExchange : DeFiTrait {	
 	type Error;
 
 	/// Obtains the current price for a given asset, possibly routing through multiple markets.
@@ -57,18 +61,36 @@ impl<GroupId, Balance> Price<GroupId, Balance> {
 	}
 }
 
+// orderdboox dex = amm + order book + matcher
+// amm - to sell if price is better or to sell after failed ob sell with some slippages
+// orderbook - can be fully  off chain (i did not found at all in hydra storage in their dex pallet - so store order only for one block and delete on finalization),  or on chain
+// matchmaker  - can operate only if there is off chain component (so it matches only there orders which likely to success onto onchain)
+// all 3 ob work like that (hydra, polkadex - closed source, only as per docs, and examples from solidity)
+// matcher can be of different logic - who is served first? biggest ask/bid, fifo, etc...
+// sell - i have exactly X and can receive approximately Y. and buy - i want exactly Y, can spend approximately X. so these are very symmetrical up to slippage.
+// thats is by order book can be 2 collection of sell and buy by asset id, or it can be one collection of intentions (from, too) => amount, type.
+//  9. i tried to find and read code of more on chain order books, like solana serum, but their codebase and patters are way complicated (but seems cool)
+//  10. hydradx code is opinionated about matched order priority, not sure if that is good order.
+// so for liqudations ordebook is very simple, just sells and buys, and any caller from on chain can take any of these if observers  good position. no matcher on chain.
+// documing all this along the way.
+
+// so we have simple on chain order book with external matcher (anybody can observer and take)
+
+
+/// This order book is not fully DEX as it has not matching engine.
+pub trait SimpleOrderBook : DeFiTrait {
+
+}
+
 /// see for examples:
 /// - https://github.com/galacticcouncil/Basilisk-node/blob/master/pallets/exchange/src/lib.rs
 /// - https://github.com/Polkadex-Substrate/polkadex-aura-node/blob/master/pallets/polkadex/src/lib.rs
 /// expected that failed exchanges are notified by events.
-pub trait Orderbook {
-	type AssetId;
-	type Balance;
-	type AccountId;
+pub trait OrderbookDex: DeFiTrait {
 	type OrderId;
 	type GroupId;
 
-	/// sell. exchanges specified amount of asset to other at specific price
+	/// Sell. exchanges specified amount of asset to other at specific price
 	/// `source_total_price` normalized
 	/// `amm_slippage` set to zero to avoid AMM sell
 	/// for remote auction we should  have sent some random to make sure we have idempotent request
@@ -108,9 +130,10 @@ pub trait Orderbook {
 	) -> Result<(), DispatchError>;
 }
 
+
+
 /// Implement AMM curve from "StableSwap - efficient mechanism for Stablecoin liquidity by Micheal
 /// Egorov" Also blog at https://miguelmota.com/blog/understanding-stableswap-curve/ has very good explanation.
-
 pub trait CurveAmm {
 	/// The asset ID type
 	type AssetId;

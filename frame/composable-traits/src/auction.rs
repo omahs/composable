@@ -1,6 +1,6 @@
 use crate::{
 	dex::Orderbook,
-	loans::{DurationSeconds, Timestamp},
+	loans::{DurationSeconds, Timestamp}, currency::{AssetIdLike, BalanceLike},
 };
 use frame_support::pallet_prelude::*;
 use scale_info::TypeInfo;
@@ -55,6 +55,7 @@ pub struct LinearDecrease {
 	/// Seconds after auction start when the price reaches zero
 	pub total: DurationSeconds,
 }
+
 
 #[derive(Default, Decode, Encode, Clone, TypeInfo)]
 pub struct StairstepExponentialDecrease {
