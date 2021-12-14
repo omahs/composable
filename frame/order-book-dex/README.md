@@ -78,3 +78,25 @@ So that proffered account is of same level of trust as usual for now.
 ### Links
 
 [1]: https://research.csiro.au/blockchainpatterns/general-patterns/blockchain-payment-patterns/token-swap/
+
+
+/// see for examples:
+/// - https://github.com/galacticcouncil/Basilisk-node/blob/master/pallets/exchange/src/lib.rs
+/// - https://github.com/Polkadex-Substrate/polkadex-aura-node/blob/master/pallets/polkadex/src/lib.rs
+/// expected that failed exchanges are notified by events.
+
+
+// orderdboox dex = amm + order book + matcher
+// amm - to sell if price is better or to sell after failed ob sell with some slippages
+// orderbook - can be fully  off chain (i did not found at all in hydra storage in their dex pallet - so store order only for one block and delete on finalization),  or on chain
+// matchmaker  - can operate only if there is off chain component (so it matches only there orders which likely to success onto onchain)
+// all 3 ob work like that (hydra, polkadex - closed source, only as per docs, and examples from solidity)
+// matcher can be of different logic - who is served first? biggest ask/bid, fifo, etc...
+// sell - i have exactly X and can receive approximately Y. and buy - i want exactly Y, can spend approximately X. so these are very symmetrical up to slippage.
+// thats is by order book can be 2 collection of sell and buy by asset id, or it can be one collection of intentions (from, too) => amount, type.
+//  9. i tried to find and read code of more on chain order books, like solana serum, but their codebase and patters are way complicated (but seems cool)
+//  10. hydradx code is opinionated about matched order priority, not sure if that is good order.
+// so for liqudations ordebook is very simple, just sells and buys, and any caller from on chain can take any of these if observers  good position. no matcher on chain.
+// documing all this along the way.
+
+// so we have simple on chain order book with external matcher (anybody can observer and take)

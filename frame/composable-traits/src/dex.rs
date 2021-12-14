@@ -6,13 +6,15 @@ use frame_support::{
 };
 use scale_info::TypeInfo;
 use sp_runtime::{DispatchError, Permill};
-
 use sp_std::vec::Vec;
 
 /// type parameters for traits in pure defi area
 pub trait DeFiTrait {
+	/// The asset ID type
 	type AssetId: AssetIdLike;
+	/// The balance type of an account
 	type Balance : BalanceLike;
+	/// The user account identifier type for the runtime	
 	type AccountId;
 }
 
@@ -35,18 +37,6 @@ pub trait AmmExchange : DeFiTrait {
 	) -> Result<Self::Balance, DispatchError>;
 }
 
-pub struct TakeResult<BALANCE> {
-	pub amount: BALANCE,
-	pub total_price: BALANCE,
-}
-
-pub struct SellOrder<OrderId, AccountId> {
-	pub id: OrderId,
-	/// account holding sell order amount.
-	/// if it becomes empty or non existing, and there was no direct call from seller to cancel
-	/// order, it means amount was sold
-	pub account: AccountId,
-}
 
 #[derive(Encode, Decode)]
 pub enum Price<GroupId, Balance> {
@@ -61,87 +51,79 @@ impl<GroupId, Balance> Price<GroupId, Balance> {
 	}
 }
 
-// orderdboox dex = amm + order book + matcher
-// amm - to sell if price is better or to sell after failed ob sell with some slippages
-// orderbook - can be fully  off chain (i did not found at all in hydra storage in their dex pallet - so store order only for one block and delete on finalization),  or on chain
-// matchmaker  - can operate only if there is off chain component (so it matches only there orders which likely to success onto onchain)
-// all 3 ob work like that (hydra, polkadex - closed source, only as per docs, and examples from solidity)
-// matcher can be of different logic - who is served first? biggest ask/bid, fifo, etc...
-// sell - i have exactly X and can receive approximately Y. and buy - i want exactly Y, can spend approximately X. so these are very symmetrical up to slippage.
-// thats is by order book can be 2 collection of sell and buy by asset id, or it can be one collection of intentions (from, too) => amount, type.
-//  9. i tried to find and read code of more on chain order books, like solana serum, but their codebase and patters are way complicated (but seems cool)
-//  10. hydradx code is opinionated about matched order priority, not sure if that is good order.
-// so for liqudations ordebook is very simple, just sells and buys, and any caller from on chain can take any of these if observers  good position. no matcher on chain.
-// documing all this along the way.
 
-// so we have simple on chain order book with external matcher (anybody can observer and take)
-
-
-/// This order book is not fully DEX as it has not matching engine.
-pub trait SimpleOrderBook : DeFiTrait {
-
+/// given `base`, how much `quote` needed for unit
+/// see [currency pair](https://www.investopedia.com/terms/c/currencypair.asp)
+pub struct CurrencyPair<AssetId> {
+	pub base: AssetId,
+	/// counter currency
+	pub quote: AssetId,
 }
 
-/// see for examples:
-/// - https://github.com/galacticcouncil/Basilisk-node/blob/master/pallets/exchange/src/lib.rs
-/// - https://github.com/Polkadex-Substrate/polkadex-aura-node/blob/master/pallets/polkadex/src/lib.rs
-/// expected that failed exchanges are notified by events.
-pub trait OrderbookDex: DeFiTrait {
-	type OrderId;
-	type GroupId;
+/// take `quote` currency and give `base` currency
+pub struct Sell<AssetId, Price> {
+	pub pair: CurrencyPair<AssetId>,
+	/// minimal amount of `quote` for given unit of `base` 
+	pub amount: Price,
+}
 
-	/// Sell. exchanges specified amount of asset to other at specific price
-	/// `source_total_price` normalized
-	/// `amm_slippage` set to zero to avoid AMM sell
-	/// for remote auction we should  have sent some random to make sure we have idempotent request
-	fn post(
+/// take `base` currency and give `quote` currency back
+pub struct Buy<AssetId, Balance> {
+	pub pair: CurrencyPair<AssetId>,
+	/// maximal price of `base` in `quote` 
+	pub amount: Price,
+}
+
+/// This order book is not fully DEX as it has no matching engine.
+/// How to sell in market price using this orderbook? 
+/// Request existing orders summary and send with `ask`/`bid` with proper amount. 
+/// Or create new trait which is market aware, market sell api.
+/// How to I see success for my operations?
+/// Observer events or on chain history or your account state for give currency.
+pub trait LimitOrderbook : DeFiTrait {
+	type OrderId;
+	/// if there is AMM,  and [Self::AmmConfiguration] allows for that, than can use DEX to sell some amount if it is good enough
+	type AmmDex;
+	/// amm configuration parameter
+	type AmmConfiguration;
+	/// sell for price given or higher 
+	/// `account_from` - account requesting sell 
+	fn ask(
 		account_from: &Self::AccountId,
-		asset: Self::AssetId,
-		want: Self::AssetId,
-		source_amount: Self::Balance,
-		source_total_price: Price<Self::GroupId, Self::Balance>,
-		amm_slippage: Permill,
-	) -> Result<SellOrder<Self::OrderId, Self::AccountId>, DispatchError>;
+		order: Sell<Self::AssetId, Self::Balance>,		
+		in_amount: Self::Balance,
+		amm: AmmConfiguration,
+	) -> Result<Self::OrderId, DispatchError>;
+
+	///  buy for price given or lower
+	fn bid(
+		account_from: &Self::AccountId,
+		order: Buy<Self::AssetId, Self::Balance>,		
+		in_amount: Self::Balance,
+		amm: AmmConfiguration,
+	) -> Result<Self::OrderId, DispatchError>;
 
 	/// updates same existing order with new price
 	/// to avoid overpay, use `take` with `up_to` price
 	fn patch(
 		order_id: Self::OrderId,
-		price: Price<Self::GroupId, Self::Balance>,
+		price: Self::Balance,
 	) -> Result<(), DispatchError>;
-
-	/// sell. exchanges specified amount of asset to other at market price.
-	/// `amm_slippage` - allow maxima slippage of order
-	fn market_sell(
+	
+	/// take order. get not found error if order never existed or was removed.
+	/// `price` - for `sell` order it is maximal value are you to pay for `base`, for `buy` order it is minimal value you are eager to accept for `base`
+	/// `amount` - amount of `base` you are ready to exchange for this order
+	fn take(
 		account: &Self::AccountId,
-		asset: Self::AssetId,
-		want: Self::AssetId,
-		amount: Self::Balance,
-		amm_slippage: Permill,
-	) -> Result<Self::OrderId, DispatchError>;
-
-	/// ask to take order. get not found error if order never existed or was removed. got conflict
-	/// error if order still on chain but was executed. please subscribe to events dispatched or
-	/// check your balance or check blockchain history to validate your won the order.
-	fn ask(
-		account: &Self::AccountId,
-		orders: impl Iterator<Item = Self::OrderId>,
-		up_to: Self::Balance,
+		order: Self::OrderId,
+		amount : Self::Balance,
+		price: Self::Balance,
 	) -> Result<(), DispatchError>;
 }
 
-
-
-/// Implement AMM curve from "StableSwap - efficient mechanism for Stablecoin liquidity by Micheal
-/// Egorov" Also blog at https://miguelmota.com/blog/understanding-stableswap-curve/ has very good explanation.
-pub trait CurveAmm {
-	/// The asset ID type
-	type AssetId;
-	/// The balance type of an account
-	type Balance;
-	/// The user account identifier type for the runtime
-	type AccountId;
-
+/// Implement AMM curve from [StableSwap - efficient mechanism for Stablecoin liquidity by Micheal Egorov](https://curve.fi/files/stableswap-paper.pdf) 
+/// Also blog at [Understanding stableswap curve](https://miguelmota.com/blog/understanding-stableswap-curve/) as explanation.
+pub trait CurveAmm : DeFiTrait {
 	/// Current number of pools (also ID for the next created pool)
 	fn pool_count() -> PoolId;
 
