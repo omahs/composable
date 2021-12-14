@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(clippy::many_single_char_names)]
+use codec::FullCodec;
 use frame_support::{
 	codec::{Decode, Encode},
 	sp_runtime::Perbill,
@@ -56,33 +57,64 @@ impl<GroupId, Balance> Price<GroupId, Balance> {
 
 /// given `base`, how much `quote` needed for unit
 /// see [currency pair](https://www.investopedia.com/terms/c/currencypair.asp)
+#[derive(Encode, Decode, TypeInfo)]
 pub struct CurrencyPair<AssetId> {
+	/// See [Base Currency](https://www.investopedia.com/terms/b/basecurrency.asp)
 	pub base: AssetId,
 	/// counter currency
 	pub quote: AssetId,
 }
 
 /// take `quote` currency and give `base` currency
+#[derive(Encode, Decode, TypeInfo)]
 pub struct Sell<AssetId, Balance> {
 	pub pair: CurrencyPair<AssetId>,
 	/// minimal amount of `quote` for given unit of `base` 
-	pub amount: Balance,
+	pub limit: Balance,
 }
 
 impl<AssetId, Balance> Sell<AssetId, Balance> {
 	pub fn new(base: AssetId, quote: AssetId, quote_amount: Balance) -> Self {
 		Self {
-			amount : quote_amount,
+			limit : quote_amount,
 			pair : CurrencyPair { base, quote}
 		}
 	}
 }
 
 /// take `base` currency and give `quote` currency back
+#[derive(Encode, Decode, TypeInfo)]
 pub struct Buy<AssetId, Balance> {
 	pub pair: CurrencyPair<AssetId>,
 	/// maximal price of `base` in `quote` 
-	pub amount: Balance,
+	pub limit: Balance,
+}
+
+#[derive(Encode, Decode, TypeInfo)]
+pub struct Take<Balance> {
+	pub amount : Self::Balance,
+	/// direction depends on referenced order type
+	pub limit: Self::Balance,
+}
+
+/// take nothing
+impl<Balance: Default> Default for Take<Balance> {
+    fn default() -> Self {
+        Self { amount: Default::default(), limit: Default::default() }
+    }
+}
+
+impl<AssetId : Default> Default for CurrencyPair<AssetId> {
+    fn default() -> Self {
+        Self { base: Default::default(), quote: Default::default() }
+    }
+}
+
+/// nothing bad in selling nothing
+impl<AssetId: Default, Balance : Default> Default for Buy<AssetId, Balance> {
+    fn default() -> Self {
+        Self { pair: Default::default(), limit: Default::default() }
+    }
 }
 
 /// This order book is not fully DEX as it has no matching engine.
@@ -92,27 +124,25 @@ pub struct Buy<AssetId, Balance> {
 /// How to I see success for my operations?
 /// Observer events or on chain history or your account state for give currency.
 pub trait LimitOrderbook : DeFiTrait {
-	type OrderId;
+	type OrderId : FullCodec + Copy + Eq + PartialEq + TypeInfo;
 	/// if there is AMM,  and [Self::AmmConfiguration] allows for that, than can use DEX to sell some amount if it is good enough
 	type AmmDex : MultiAssetAmm;
 	/// amm configuration parameter
 	type AmmConfiguration : Default;
-	/// sell for price given or higher 
-	/// - `account_from` - account requesting sell 
+	/// sell base asset for price given or higher 
+	/// - `from_to` - account requesting sell 
 	fn ask(
-		from: &Self::AccountId,
-		to: &Self::AccountId,
+		from_to: &Self::AccountId,
 		order: Sell<Self::AssetId, Self::Balance>,		
-		in_amount: Self::Balance,
+		base_amount: Self::Balance,
 		amm: Self::AmmConfiguration,
 	) -> Result<Self::OrderId, DispatchError>;
 
-	///  buy for price given or lower
+	///  buy base asset for price given or lower
 	fn bid(
-		account_from: &Self::AccountId,
-		to: &Self::AccountId,
+		from_to: &Self::AccountId,		
 		order: Buy<Self::AssetId, Self::Balance>,		
-		in_amount: Self::Balance,
+		base_amount: Self::Balance,
 		amm: Self::AmmConfiguration,
 	) -> Result<Self::OrderId, DispatchError>;
 
@@ -127,11 +157,9 @@ pub trait LimitOrderbook : DeFiTrait {
 	/// `limit` - for `sell` order it is maximal value are you to pay for `base`, for `buy` order it is minimal value you are eager to accept for `base`
 	/// `amount` - amount of `base` you are ready to exchange for this order
 	fn take(
-		from: &Self::AccountId,
-		to: &Self::AccountId,
+		from_to: &Self::AccountId,
 		order: Self::OrderId,
-		amount : Self::Balance,
-		limit: Self::Balance,
+		take : Take<Self::Balance>,
 	) -> Result<(), DispatchError>;
 }
 

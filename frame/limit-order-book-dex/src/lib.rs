@@ -30,19 +30,18 @@ pub mod pallet {
 	use codec::{Codec, Decode, Encode, FullCodec};
 	use composable_traits::{
 		auction::{AuctionState, AuctionStepFunction, DutchAuction},
-		dex::{AmmExchange, LimitOrderbook, LimitOrderbook, Price},
+		dex::{AmmExchange, LimitOrderbook, Price, Buy, Sell, Take},
 		loans::{DurationSeconds, Timestamp, ONE_HOUR},
-		math::{LiftedFixedBalance, SafeArithmetic, WrappingNext},
+		math::{LiftedFixedBalance, SafeArithmetic, WrappingNext}, defi::DeFiComposableConfig,
 	};
 	use frame_support::{
 		ensure,
-		pallet_prelude::{MaybeSerializeDeserialize, ValueQuery},
+		pallet_prelude::*,
 		traits::{
 			fungibles::{Inspect, Mutate, Transfer},
 			tokens::WithdrawConsequence,
 			Currency, IsType, UnixTime,
-		},
-		Parameter, StorageMap, Twox64Concat,
+		},		
 	};
 	use scale_info::TypeInfo;
 
@@ -62,22 +61,23 @@ pub mod pallet {
 
 	#[pallet::config]
 	#[pallet::disable_frame_system_supertrait_check]
-	pub trait Config: DeFiComposableConfig {
+	pub trait Config: DeFiComposableConfig + frame_system::Config  {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type UnixTime: UnixTime;
 		type Orderbook: LimitOrderbook<
 			AssetId = Self::AssetId,
 			Balance = Self::Balance,
-			AccountId = Self::AccountId,
+			AccountId = <Self as frame_system::Config>::AccountId,
 			OrderId = Self::DexOrderId,
 		>;
-		type DexOrderId: FullCodec + Default + TypeInfo;
-		type OrderId: FullCodec + Clone + Debug + Eq + Default + WrappingNext + TypeInfo;		
+		type DexOrderId: FullCodec + Copy + Eq + PartialEq + TypeInfo;
+		type OrderId: FullCodec + Clone + Debug + Eq + Default + WrappingNext + TypeInfo + sp_std::hash::Hash + WrappingAdd;		
 	}
 
 	// type aliases
-	pub type OrderIdOf<T> = <T as Config>::Orderbook::OrderId;
-	pub type OrderOf<T> = Order<OrderIdOf<T>>;
+	pub type OrderIdOf<T> = <<T as Config>::Orderbook as LimitOrderbook>::OrderId;
+	pub type BuyOrderOf<T> = BuyOrder<OrderIdOf<T>, <T as DeFiComposableConfig>::AssetId, <T as DeFiComposableConfig>::Balance>;
+	pub type SellOrderOf<T> = SellOrder<OrderIdOf<T>, <T as DeFiComposableConfig>::AssetId, <T as DeFiComposableConfig>::Balance>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
@@ -93,61 +93,93 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {}
 
-	/// auction can span several dex orders within its lifetime
 	#[derive(Encode, Decode, Default, TypeInfo)]
-	pub struct Order<OrderId, AssetId> {
+	pub struct TakeBy<AccountId, Balance> {
+		pub from_to: AccountId,
+		pub take: Take<Balance>,
+	} 
+
+	#[derive(Encode, Decode, Default, TypeInfo)]
+	pub struct BuyOrder<OrderId, AssetId, Balance> {
 		pub id: OrderId,
-		pub asset_id: AssetId,
+		pub order: Buy<AssetId, Balance>,
+		pub takes: Vec<TakeBy>,
 	}
 
-	// /// All registered buys
-	// #[pallet::storage]
-	// #[pallet::getter(fn buys)]
-	// pub type Buys<T: Config> = StorageMap<_, Twox64Concat, T::OrderId, OrderOf<T>, ValueQuery>;
+	#[derive(Encode, Decode, Default, TypeInfo)]
+	pub struct SellOrder<OrderId, AssetId, Balance> {
+		pub id: OrderId,
+		pub order: Sell<AssetId, Balance>,
+		pub takes: Vec<TakeBy>,
+	}
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn orders_index)]
-	// pub type OrdersIndex<T: Config> = StorageValue<_, T::OrderId, ValueQuery>;
+	#[pallet::storage]
+	#[pallet::getter(fn buys)]
+	pub type BuyOrders<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		OrderIdOf<T>,
+		BuyOrderOf<T>,
+		OptionQuery,
+	>;
 
-	// impl<T: Config + DeFiComposableConfig> LimitOrderbook for Pallet<T> {
-	// 	type OrderId = T::OrderId;
+	#[pallet::storage]
+	#[pallet::getter(fn buys)]
+	pub type SellOrders<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		OrderIdOf<T>,
+		SellOrderOf<T>,
+		OptionQuery,
+	>;
 
-	// 	type AmmDex = ();
+	
+	#[pallet::storage]
+	#[pallet::getter(fn orders_index)]
+	pub type OrdersIndex<T: Config> = StorageValue<_, T::OrderId, ValueQuery>;
 
-	// 	type AmmConfiguration;
+	impl<T: Config + DeFiComposableConfig> LimitOrderbook for Pallet<T> {
+    type OrderId ;
 
-	// 	fn ask(
-	// 		from: &Self::AccountId,
-	// 		to: &Self::AccountId,
-	// 		order: composable_traits::dex::Sell<Self::AssetId, Self::Balance>,
-	// 		in_amount: Self::Balance,
-	// 		amm: Self::AmmConfiguration,
-	// 	) -> Result<Self::OrderId, DispatchError> {
-	// 		todo!()
-	// 	}
+    type AmmDex ;
 
-	// 	fn bid(
-	// 		account_from: &Self::AccountId,
-	// 		to: &Self::AccountId,
-	// 		order: composable_traits::dex::Buy<Self::AssetId, Self::Balance>,
-	// 		in_amount: Self::Balance,
-	// 		amm: Self::AmmConfiguration,
-	// 	) -> Result<Self::OrderId, DispatchError> {
-	// 		todo!()
-	// 	}
+    type AmmConfiguration ;
 
-	// 	fn patch(order_id: Self::OrderId, price: Self::Balance) -> Result<(), DispatchError> {
-	// 		todo!()
-	// 	}
+    fn ask(
+		from_to: &Self::AccountId,
+		order: Sell<Self::AssetId, Self::Balance>,		
+		base_amount: Self::Balance,
+		amm: Self::AmmConfiguration,
+	) -> Result<Self::OrderId, DispatchError> {
+        let order_id = OrdersIndex::<T>::try_mutate(|x| {
+			x.wrapping_add()
+		});
+		
+		Ok(())
+    }
 
-	// 	fn take(
-	// 		from: &Self::AccountId,
-	// 		to: &Self::AccountId,
-	// 		order: Self::OrderId,
-	// 		amount: Self::Balance,
-	// 		limit: Self::Balance,
-	// 	) -> Result<(), DispatchError> {
-	// 		todo!()
-	// 	}
-	//}
+    fn bid(
+		from_to: &Self::AccountId,		
+		order: Buy<Self::AssetId, Self::Balance>,		
+		base_amount: Self::Balance,
+		amm: Self::AmmConfiguration,
+	) -> Result<Self::OrderId, DispatchError> {
+        todo!()
+    }
+
+    fn patch(
+		order_id: Self::OrderId,
+		price: Self::Balance,
+	) -> Result<(), DispatchError> {
+        todo!()
+    }
+
+    fn take(
+		from_to: &Self::AccountId,
+		order: Self::OrderId,
+		take : Take<Self::Balance>,
+	) -> Result<(), DispatchError> {
+        todo!()
+    }
+}
 }
