@@ -1,6 +1,6 @@
 use sp_runtime::{DispatchError, Permill};
 
-use crate::dex::Orderbook;
+use crate::dex::LimitOrderbook;
 
 pub trait Liquidate {
 	type AssetId;
@@ -19,10 +19,10 @@ pub trait Liquidate {
 }
 
 impl<T: Orderbook> Liquidate for T {
-	type AssetId = <Self as Orderbook>::AssetId;
-	type Balance = <Self as Orderbook>::Balance;
-	type AccountId = <Self as Orderbook>::AccountId;
-	type LiquidationId = <Self as Orderbook>::OrderId;
+	type AssetId = <Self as LimitOrderbook>::AssetId;
+	type Balance = <Self as LimitOrderbook>::Balance;
+	type AccountId = <Self as LimitOrderbook>::AccountId;
+	type LiquidationId = <Self as LimitOrderbook>::OrderId;
 
 	fn initiate_liquidation(
 		source_account: &Self::AccountId,
@@ -32,7 +32,7 @@ impl<T: Orderbook> Liquidate for T {
 		_target_account: &Self::AccountId,
 		total_amount: Self::Balance,
 	) -> Result<Self::LiquidationId, DispatchError> {
-		<T as Orderbook>::market_sell(
+		<T as LimitOrderbook>::ask(
 			source_account,
 			source_asset_id,
 			target_asset_id,

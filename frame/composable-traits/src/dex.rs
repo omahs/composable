@@ -8,6 +8,8 @@ use scale_info::TypeInfo;
 use sp_runtime::{DispatchError, Permill};
 use sp_std::vec::Vec;
 
+use crate::currency::{BalanceLike, AssetIdLike};
+
 /// type parameters for traits in pure defi area
 pub trait DeFiTrait {
 	/// The asset ID type
@@ -61,17 +63,17 @@ pub struct CurrencyPair<AssetId> {
 }
 
 /// take `quote` currency and give `base` currency
-pub struct Sell<AssetId, Price> {
+pub struct Sell<AssetId, Balance> {
 	pub pair: CurrencyPair<AssetId>,
 	/// minimal amount of `quote` for given unit of `base` 
-	pub amount: Price,
+	pub amount: Balance,
 }
 
 /// take `base` currency and give `quote` currency back
 pub struct Buy<AssetId, Balance> {
 	pub pair: CurrencyPair<AssetId>,
 	/// maximal price of `base` in `quote` 
-	pub amount: Price,
+	pub amount: Balance,
 }
 
 /// This order book is not fully DEX as it has no matching engine.
@@ -83,16 +85,17 @@ pub struct Buy<AssetId, Balance> {
 pub trait LimitOrderbook : DeFiTrait {
 	type OrderId;
 	/// if there is AMM,  and [Self::AmmConfiguration] allows for that, than can use DEX to sell some amount if it is good enough
-	type AmmDex;
+	type AmmDex : MultiAssetAmm;
 	/// amm configuration parameter
 	type AmmConfiguration;
 	/// sell for price given or higher 
-	/// `account_from` - account requesting sell 
+	/// - `account_from` - account requesting sell 
 	fn ask(
-		account_from: &Self::AccountId,
+		from: &Self::AccountId,
 		order: Sell<Self::AssetId, Self::Balance>,		
 		in_amount: Self::Balance,
-		amm: AmmConfiguration,
+		amm: Self::AmmConfiguration,
+		to: &Self::AccountId,
 	) -> Result<Self::OrderId, DispatchError>;
 
 	///  buy for price given or lower
@@ -100,7 +103,8 @@ pub trait LimitOrderbook : DeFiTrait {
 		account_from: &Self::AccountId,
 		order: Buy<Self::AssetId, Self::Balance>,		
 		in_amount: Self::Balance,
-		amm: AmmConfiguration,
+		amm: Self::AmmConfiguration,
+		to: &Self::AccountId,
 	) -> Result<Self::OrderId, DispatchError>;
 
 	/// updates same existing order with new price
@@ -111,19 +115,51 @@ pub trait LimitOrderbook : DeFiTrait {
 	) -> Result<(), DispatchError>;
 	
 	/// take order. get not found error if order never existed or was removed.
-	/// `price` - for `sell` order it is maximal value are you to pay for `base`, for `buy` order it is minimal value you are eager to accept for `base`
+	/// `limit` - for `sell` order it is maximal value are you to pay for `base`, for `buy` order it is minimal value you are eager to accept for `base`
 	/// `amount` - amount of `base` you are ready to exchange for this order
 	fn take(
-		account: &Self::AccountId,
+		from: &Self::AccountId,
 		order: Self::OrderId,
 		amount : Self::Balance,
-		price: Self::Balance,
+		limit: Self::Balance,
+		to: &Self::AccountId,
 	) -> Result<(), DispatchError>;
+}
+
+pub trait MultiAssetAmm : DeFiTrait {
+	/// Perform an exchange between two coins.
+	/// `i` - index value of the coin to send,
+	/// `j` - index value of the coin to receive,
+	/// `dx` - amount of `i` being exchanged,
+	/// `min_dy` - minimum amount of `j` to receive.
+	fn exchange(
+		who: &Self::AccountId,
+		pool_id: PoolId,
+		i: PoolTokenIndex,
+		j: PoolTokenIndex,
+		dx: Self::Balance,
+		min_dy: Self::Balance,
+	) -> Result<(), DispatchError>;
+}
+
+
+/// AMM for pools with multiple assets (more than 2)
+impl MultiAssetAmm for () {
+    fn exchange(
+		who: &Self::AccountId,
+		pool_id: PoolId,
+		i: PoolTokenIndex,
+		j: PoolTokenIndex,
+		dx: Self::Balance,
+		min_dy: Self::Balance,
+	) -> Result<(), DispatchError> {
+        DispatchError::CannotLookup // not sure if can do better error
+    }
 }
 
 /// Implement AMM curve from [StableSwap - efficient mechanism for Stablecoin liquidity by Micheal Egorov](https://curve.fi/files/stableswap-paper.pdf) 
 /// Also blog at [Understanding stableswap curve](https://miguelmota.com/blog/understanding-stableswap-curve/) as explanation.
-pub trait CurveAmm : DeFiTrait {
+pub trait CurveAmm : MultiAssetAmm {
 	/// Current number of pools (also ID for the next created pool)
 	fn pool_count() -> PoolId;
 
@@ -158,21 +194,7 @@ pub trait CurveAmm : DeFiTrait {
 		pool_id: PoolId,
 		amount: Self::Balance,
 		min_amounts: Vec<Self::Balance>,
-	) -> Result<(), DispatchError>;
-
-	/// Perform an exchange between two coins.
-	/// `i` - index value of the coin to send,
-	/// `j` - index value of the coin to receive,
-	/// `dx` - amount of `i` being exchanged,
-	/// `min_dy` - minimum amount of `j` to receive.
-	fn exchange(
-		who: &Self::AccountId,
-		pool_id: PoolId,
-		i: PoolTokenIndex,
-		j: PoolTokenIndex,
-		dx: Self::Balance,
-		min_dy: Self::Balance,
-	) -> Result<(), DispatchError>;
+	) -> Result<(), DispatchError>;	
 
 	/// Withdraw admin fees
 	fn withdraw_admin_fees(
@@ -182,6 +204,7 @@ pub trait CurveAmm : DeFiTrait {
 	) -> Result<(), DispatchError>;
 }
 
+//issue: pool will never be as large as u32, event not u16, probably u8     
 /// Type that represents index type of token in the pool passed from the outside as an extrinsic
 /// argument.
 pub type PoolTokenIndex = u32;
