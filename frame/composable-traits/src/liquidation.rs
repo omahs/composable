@@ -1,13 +1,14 @@
 use sp_runtime::{DispatchError, Permill};
 
-use crate::dex::LimitOrderbook;
+use crate::dex::{LimitOrderbook, DeFiTrait, Sell};
 
 pub trait Liquidate {
 	type AssetId;
 	type Balance;
 	type AccountId;
 	type LiquidationId;
-
+	type AmmConfiguration;
+	
 	fn initiate_liquidation(
 		source_account: &Self::AccountId,
 		source_asset_id: Self::AssetId,
@@ -18,12 +19,12 @@ pub trait Liquidate {
 	) -> Result<Self::LiquidationId, DispatchError>;
 }
 
-impl<T: Orderbook> Liquidate for T {
-	type AssetId = <Self as LimitOrderbook>::AssetId;
-	type Balance = <Self as LimitOrderbook>::Balance;
-	type AccountId = <Self as LimitOrderbook>::AccountId;
+impl<T: LimitOrderbook> Liquidate for T {
+	type AssetId = <Self as DeFiTrait>::AssetId;
+	type Balance = <Self as DeFiTrait>::Balance;
+	type AccountId = <Self as DeFiTrait>::AccountId;
 	type LiquidationId = <Self as LimitOrderbook>::OrderId;
-
+	type AmmConfiguration = <Self as LimitOrderbook>::AmmConfiguration;
 	fn initiate_liquidation(
 		source_account: &Self::AccountId,
 		source_asset_id: Self::AssetId,
@@ -34,10 +35,10 @@ impl<T: Orderbook> Liquidate for T {
 	) -> Result<Self::LiquidationId, DispatchError> {
 		<T as LimitOrderbook>::ask(
 			source_account,
-			source_asset_id,
-			target_asset_id,
-			total_amount,
-			Permill::from_perthousand(0),
+			source_account,
+		Sell::new(source_asset_id, target_asset_id, _source_asset_price), 
+		total_amount,
+				<_>::default(),
 		)
 	}
 }

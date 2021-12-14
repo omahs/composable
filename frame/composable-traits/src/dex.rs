@@ -69,6 +69,15 @@ pub struct Sell<AssetId, Balance> {
 	pub amount: Balance,
 }
 
+impl<AssetId, Balance> Sell<AssetId, Balance> {
+	pub fn new(base: AssetId, quote: AssetId, quote_amount: Balance) -> Self {
+		Self {
+			amount : quote_amount,
+			pair : CurrencyPair { base, quote}
+		}
+	}
+}
+
 /// take `base` currency and give `quote` currency back
 pub struct Buy<AssetId, Balance> {
 	pub pair: CurrencyPair<AssetId>,
@@ -87,24 +96,24 @@ pub trait LimitOrderbook : DeFiTrait {
 	/// if there is AMM,  and [Self::AmmConfiguration] allows for that, than can use DEX to sell some amount if it is good enough
 	type AmmDex : MultiAssetAmm;
 	/// amm configuration parameter
-	type AmmConfiguration;
+	type AmmConfiguration : Default;
 	/// sell for price given or higher 
 	/// - `account_from` - account requesting sell 
 	fn ask(
 		from: &Self::AccountId,
+		to: &Self::AccountId,
 		order: Sell<Self::AssetId, Self::Balance>,		
 		in_amount: Self::Balance,
 		amm: Self::AmmConfiguration,
-		to: &Self::AccountId,
 	) -> Result<Self::OrderId, DispatchError>;
 
 	///  buy for price given or lower
 	fn bid(
 		account_from: &Self::AccountId,
+		to: &Self::AccountId,
 		order: Buy<Self::AssetId, Self::Balance>,		
 		in_amount: Self::Balance,
 		amm: Self::AmmConfiguration,
-		to: &Self::AccountId,
 	) -> Result<Self::OrderId, DispatchError>;
 
 	/// updates same existing order with new price
@@ -119,10 +128,10 @@ pub trait LimitOrderbook : DeFiTrait {
 	/// `amount` - amount of `base` you are ready to exchange for this order
 	fn take(
 		from: &Self::AccountId,
+		to: &Self::AccountId,
 		order: Self::OrderId,
 		amount : Self::Balance,
 		limit: Self::Balance,
-		to: &Self::AccountId,
 	) -> Result<(), DispatchError>;
 }
 
@@ -143,19 +152,20 @@ pub trait MultiAssetAmm : DeFiTrait {
 }
 
 
-/// AMM for pools with multiple assets (more than 2)
-impl MultiAssetAmm for () {
-    fn exchange(
-		who: &Self::AccountId,
-		pool_id: PoolId,
-		i: PoolTokenIndex,
-		j: PoolTokenIndex,
-		dx: Self::Balance,
-		min_dy: Self::Balance,
-	) -> Result<(), DispatchError> {
-        DispatchError::CannotLookup // not sure if can do better error
-    }
-}
+
+// /// AMM for pools with multiple assets (more than 2)
+// impl MultiAssetAmm for () {
+//     fn exchange(
+// 		who: &Self::AccountId,
+// 		pool_id: PoolId,
+// 		i: PoolTokenIndex,
+// 		j: PoolTokenIndex,
+// 		dx: Self::Balance,
+// 		min_dy: Self::Balance,
+// 	) -> Result<(), DispatchError> {
+//         DispatchError::CannotLookup // not sure if can do better error
+//     }
+// }
 
 /// Implement AMM curve from [StableSwap - efficient mechanism for Stablecoin liquidity by Micheal Egorov](https://curve.fi/files/stableswap-paper.pdf) 
 /// Also blog at [Understanding stableswap curve](https://miguelmota.com/blog/understanding-stableswap-curve/) as explanation.

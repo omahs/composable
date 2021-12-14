@@ -30,7 +30,7 @@ pub mod pallet {
 	use codec::{Codec, Decode, Encode, FullCodec};
 	use composable_traits::{
 		auction::{AuctionState, AuctionStepFunction, DutchAuction},
-		dex::{Orderbook, Price, AmmExchange},
+		dex::{Orderbook, Price, AmmExchange, LimitOrderbook},
 		loans::{DeFiComposableConfig, DurationSeconds, PriceStructure, Timestamp, ONE_HOUR},
 		math::{LiftedFixedBalance, SafeArithmetic, WrappingNext},
 		privilege::InspectPrivilegeGroup,
@@ -134,52 +134,45 @@ pub mod pallet {
 	#[pallet::getter(fn orders_index)]
 	pub type OrdersIndex<T: Config> = StorageValue<_, T::OrderId, ValueQuery>;
 
-	impl<T: Config + DeFiComposableConfig> Orderbook for Pallet<T> {
-		type AccountId = T::AccountId;
+	impl<T: Config + DeFiComposableConfig> LimitOrderbook for Pallet<T> {
+    type OrderId = T::OrderId;
 
-		type AssetId = T::AssetId;
+    type AmmDex = ();
 
-		type Balance = T::Balance;
+    type AmmConfiguration;
 
-		type OrderId = T::OrderId;
+    fn ask(
+		account_from: &Self::AccountId,
+		order: composable_traits::dex::Sell<Self::AssetId, Self::Balance>,		
+		in_amount: Self::Balance,
+		amm: AmmConfiguration,
+	) -> Result<Self::OrderId, DispatchError> {
+        todo!()
+    }
 
-		type GroupId = T::GroupId;
+    fn bid(
+		account_from: &Self::AccountId,
+		order: composable_traits::dex::Buy<Self::AssetId, Self::Balance>,		
+		in_amount: Self::Balance,
+		amm: AmmConfiguration,
+	) -> Result<Self::OrderId, DispatchError> {
+        todo!()
+    }
 
-		fn patch(
-			order_id: Self::OrderId,
-			price: Price<Self::GroupId, Self::Balance>,
-		) -> Result<(), DispatchError> {
-			todo!()
-		}
+    fn patch(
+		order_id: Self::OrderId,
+		price: Self::Balance,
+	) -> Result<(), DispatchError> {
+        todo!()
+    }
 
-		fn market_sell(
-			account: &Self::AccountId,
-			asset: Self::AssetId,
-			want: Self::AssetId,
-			amount: Self::Balance,
-			amm_slippage: Permill,
-		) -> Result<Self::OrderId, DispatchError> {
-			
-		}
-
-		fn ask(
-			account: &Self::AccountId,
-			orders: impl Iterator<Item = Self::OrderId>,
-			up_to: Self::Balance,
-		) -> Result<(), DispatchError> {
-			todo!()
-		}
-
-		fn post(
-			account_from: &Self::AccountId,
-			asset: Self::AssetId,
-			want: Self::AssetId,
-			source_amount: Self::Balance,
-			source_price: Price<Self::GroupId, Self::Balance>,
-			amm_slippage: Permill,
-		) -> Result<composable_traits::dex::SellOrder<Self::OrderId, Self::AccountId>, DispatchError>
-		{
-			todo!()
-		}
-	}
+    fn take(
+		account: &Self::AccountId,
+		order: Self::OrderId,
+		amount : Self::Balance,
+		price: Self::Balance,
+	) -> Result<(), DispatchError> {
+        todo!()
+    }
+}
 }

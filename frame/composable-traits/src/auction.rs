@@ -1,5 +1,5 @@
 use crate::{
-	dex::Orderbook,
+	dex::{LimitOrderbook},
 	loans::{DurationSeconds, Timestamp}, currency::{AssetIdLike, BalanceLike},
 };
 use frame_support::pallet_prelude::*;
@@ -69,7 +69,7 @@ pub struct StairstepExponentialDecrease {
 /// see example of it in clip.sol of makerdao
 pub trait DutchAuction {
 	type OrderId;
-	type Orderbook: Orderbook;
+	type Orderbook: LimitOrderbook;
 	type AccountId;
 	type AssetId;
 	type Balance;
