@@ -67,7 +67,7 @@ pub struct StairstepExponentialDecrease {
 }
 
 /// see example of it in clip.sol of makerdao
-pub trait DutchAuction {
+pub trait DutchAuction : DeFiTrait {
 	type OrderId;
 	type Orderbook: LimitOrderbook;
 	type AccountId;
@@ -94,11 +94,6 @@ pub trait DutchAuction {
 		initial_price: Self::Balance,
 		function: AuctionStepFunction,
 	) -> Result<Self::OrderId, DispatchError>;
-
-	/// run existing auctions
-	/// if some auctions completed, transfer amount to target account
-	/// `now` current time.
-	fn run_auctions(now: Timestamp) -> DispatchResult;
 
 	fn get_auction_state(order: &Self::OrderId) -> Option<Self::Order>;
 

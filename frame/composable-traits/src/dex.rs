@@ -11,16 +11,6 @@ use sp_std::vec::Vec;
 
 use crate::currency::{BalanceLike, AssetIdLike};
 
-/// type parameters for traits in pure defi area
-pub trait DeFiTrait {
-	/// The asset ID type
-	type AssetId: AssetIdLike;
-	/// The balance type of an account
-	type Balance : BalanceLike;
-	/// The user account identifier type for the runtime	
-	type AccountId;
-}
-
 /// Immediate AMM exchange. Either resolves trade immediately or returns error (mostly because of lack of liquidity).
 pub trait AmmExchange : DeFiTrait {	
 	type Error;
@@ -55,23 +45,6 @@ impl<GroupId, Balance> Price<GroupId, Balance> {
 }
 
 
-/// given `base`, how much `quote` needed for unit
-/// see [currency pair](https://www.investopedia.com/terms/c/currencypair.asp)
-#[derive(Encode, Decode, TypeInfo)]
-pub struct CurrencyPair<AssetId> {
-	/// See [Base Currency](https://www.investopedia.com/terms/b/basecurrency.asp)
-	pub base: AssetId,
-	/// counter currency
-	pub quote: AssetId,
-}
-
-/// take `quote` currency and give `base` currency
-#[derive(Encode, Decode, TypeInfo)]
-pub struct Sell<AssetId, Balance> {
-	pub pair: CurrencyPair<AssetId>,
-	/// minimal amount of `quote` for given unit of `base` 
-	pub limit: Balance,
-}
 
 impl<AssetId, Balance> Sell<AssetId, Balance> {
 	pub fn new(base: AssetId, quote: AssetId, quote_amount: Balance) -> Self {

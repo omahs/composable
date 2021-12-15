@@ -66,44 +66,43 @@ pub mod pallet {
 
 	use crate::price_function::AuctionTimeCurveModel;
 
-	pub trait DeFiComposableConfig: frame_system::Config {
-		// what.
-		type AssetId: FullCodec
-			+ Eq
-			+ PartialEq
-			+ Copy
-			+ MaybeSerializeDeserialize
-			+ From<u128>
-			+ Default
-			+ TypeInfo;
+	// pub trait DeFiComposableConfig: frame_system::Config {
+	// 	// what.
+	// 	type AssetId: FullCodec
+	// 		+ Eq
+	// 		+ PartialEq
+	// 		+ Copy
+	// 		+ MaybeSerializeDeserialize
+	// 		+ From<u128>
+	// 		+ Default
+	// 		+ TypeInfo;
 
-		type Balance: Default
-			+ Parameter
-			+ Codec
-			+ Copy
-			+ Ord
-			+ CheckedAdd
-			+ CheckedSub
-			+ CheckedMul
-			+ CheckedSub
-			+ AtLeast32BitUnsigned
-			+ From<u64> // at least 64 bit
-			+ Zero
-			+ FixedPointOperand
-			+ Into<LiftedFixedBalance> // integer part not more than bits in this
-			+ Into<u128>; // cannot do From<u128>, until LiftedFixedBalance integer part is larger than 128
-			  // bit
-
-		/// bank. vault owned - can transfer, cannot mint
-		type Currency: Transfer<Self::AccountId, Balance = Self::Balance, AssetId = Self::AssetId>
-			+ Mutate<Self::AccountId, Balance = Self::Balance, AssetId = Self::AssetId>
-			// used to check balances before any storage updates allowing acting without rollback
-			+ Inspect<Self::AccountId, Balance = Self::Balance, AssetId = Self::AssetId>;
-	}
+	// 	type Balance: Default
+	// 		+ Parameter
+	// 		+ Codec
+	// 		+ Copy
+	// 		+ Ord
+	// 		+ CheckedAdd
+	// 		+ CheckedSub
+	// 		+ CheckedMul
+	// 		+ CheckedSub
+	// 		+ AtLeast32BitUnsigned
+	// 		+ From<u64> // at least 64 bit
+	// 		+ Zero
+	// 		+ FixedPointOperand
+	// 		+ Into<LiftedFixedBalance> // integer part not more than bits in this
+	// 		+ Into<u128>; // cannot do From<u128>, until LiftedFixedBalance integer part is larger than 128
+	// 		  // bit
+	// }
 
 	#[pallet::config]
 	#[pallet::disable_frame_system_supertrait_check]
-	pub trait Config: DeFiComposableConfig {
+	pub trait Config: frame_system::Config {
+		/// bank. vault owned - can transfer, cannot mint
+		type Currency: Transfer<Self::AccountId, Balance = Self::Balance, AssetId = Self::AssetId>
+		+ Mutate<Self::AccountId, Balance = Self::Balance, AssetId = Self::AssetId>
+		// used to check balances before any storage updates allowing acting without rollback
+		+ Inspect<Self::AccountId, Balance = Self::Balance, AssetId = Self::AssetId>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type UnixTime: UnixTime;
 		type Orderbook: Orderbook<

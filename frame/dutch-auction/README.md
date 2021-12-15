@@ -1,4 +1,4 @@
-#Dutch auction
+# Dutch auction
 
 Run thorough all asks, and reduces these in price as time goes. Initial price can start from price above market.
 
@@ -15,4 +15,3 @@ Run thorough all asks, and reduces these in price as time goes. Initial price ca
 - auction time parameters depend on liquidity of collateral (these set by governance as collateral factor)
 
 - see `abaci.sol` for price function
-
