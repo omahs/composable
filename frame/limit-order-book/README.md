@@ -2,54 +2,17 @@
 
 The exchange allows placing buy and sell orders at specific price levels, or at market level. The market level price can be provided by a combination of `pallet-oracle` and the future AMM DEX
 
-Here is we design cross chain DEX. It will have interfaces like if it is on chain for pallets, but token swaps managed asynchronously by parachain (bridges). This pallet has only API to be called from bridge callbacks, not calling it.
 
-Our DEX represents SELL side of traditional OB.
+OrderBook DEX = AMM + Order Book + Matcher
 
-## Order book designs
+As we have no Matcher
 
-### HydraDX
+OrderBook = AMM + Order Book
 
-https://github.com/galacticcouncil/Basilisk-node/tree/master/pallets/exchange
-
-- Intention to sell (a,b) and buy (b,a) are added during block
-- Each block cleaned, so no data retained in block about intentions
-- If exact matches found, than sell via OB
-- If not exact found, sell remaining on AMM
-- Can be used without AMM if set AMM allowance to low percentage or disable on runtime
-
-### PolkaDex
-
-https://github.com/Polkadex-Substrate/Documentation/blob/master/polkadex-lightpaper.md
-https://docs.polkadex.trade/orderbookArchitecture
-
-- Allows to inject AMM bots
-- Any OB order is sold on AMM, if AMM provides better price
-- People pay fees only for ddosing attacks (like wrong assets, bad input)
-- Issues trade order into TEE or onto on chain. TEE devices find matches and issues swaps.
-- Closed source, so cannot research code. But docs are awesome.
-- It sorts all orders by size and fills in order until it full. It matches (Sell, Buy), (Buy, Sell), (Sell, Sell), (Buy, Buy).
-
-### Example in Solidity
-
-https://github.com/PacktPublishing/Blockchain-Development-for-Finance-Projects/blob/master/Chapter%208/contracts/orderbook.sol
-
-- There are 2 collections of Sells and Buys
-- There is transaction which targets specific Sell or Buy
-- So it assumes external seller or buyer observers Orderbook 
-- And issues transaction for equal or greater amount to swap
-- Owner can clean up all orders
-- Only direct swap by oder id
-
-### Serum DEX
-
-https://docs.projectserum.com/appendix/philosophy
-https://docs.projectserum.com/appendix/serum-core
-
-- based on cranker, so external off chain agent or on chain program matches orders
-- has queue inside
 
 ## What it is about?
+
+Here is we design cross chain DEX. It will have interfaces like if it is on chain for pallets, but token swaps managed asynchronously by parachain (bridges). This pallet has only API to be called from bridge callbacks, not calling it.
 
 First, what is exchanges of tokens across change?
 
@@ -75,9 +38,7 @@ Important - assuming our parachain to be anemic - so it set states and allows  o
 
 So that proffered account is of same level of trust as usual for now.
 
-### CEX
 
-https://github.com/connorwstein/exchange
 
 ### Links
 
@@ -90,7 +51,7 @@ https://github.com/connorwstein/exchange
 /// expected that failed exchanges are notified by events.
 
 
-// orderdboox dex = amm + order book + matcher
+// 
 // amm - to sell if price is better or to sell after failed ob sell with some slippages
 // orderbook - can be fully  off chain (i did not found at all in hydra storage in their dex pallet - so store order only for one block and delete on finalization),  or on chain
 // matchmaker  - can operate only if there is off chain component (so it matches only there orders which likely to success onto onchain)
@@ -140,7 +101,7 @@ permission based order book with order matcher:
 have white list of trusted sellers, like auction.
 where is hole? attack can be done via creating many loans on doge coin so that many of these liquaidated and making orderbook to stall block production for a while. solution could be collect liqudation amounts into batches.
 actually we prevent all external sellers. but was about buyers ? (buy for this price or less?) it should be some kind of permissionless and may be live one block. so that buyer can bid again.
-off chain designs seems assume they can hold whole OB in memory and fully permissioned.
+
 ----
 on chain order book without matching:
 order book can be very long

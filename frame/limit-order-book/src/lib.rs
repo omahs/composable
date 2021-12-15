@@ -153,8 +153,16 @@ pub mod pallet {
 	) -> Result<Self::OrderId, DispatchError> {
         let order_id = OrdersIndex::<T>::try_mutate(|x| {
 			x.wrapping_add()
-		});
-		
+		});		
+
+		let order = SellOrderOf {
+			id: order_id,
+			order: order,
+			takes: <_>::default(),
+		};
+
+		// we not actually care if there was order before under same index, because `take` accepts risk limiter parameter
+		SellOrder::<T>::insert(order_id, order);		
 		Ok(())
     }
 
@@ -179,7 +187,9 @@ pub mod pallet {
 		order: Self::OrderId,
 		take : Take<Self::Balance>,
 	) -> Result<(), DispatchError> {
-        todo!()
+		// here we add take on order, will live only one block, not stored on chain
+		// 
+        BlockOrders::<T>::upsert(order_id, take)
     }
 }
 }
