@@ -9,7 +9,7 @@ use scale_info::TypeInfo;
 use sp_runtime::{DispatchError, Permill};
 use sp_std::vec::Vec;
 
-use crate::currency::{BalanceLike, AssetIdLike};
+use crate::{currency::{BalanceLike, AssetIdLike}, defi::{Take, OrderIdLike, SellTrait, DeFiTrait, CurrencyPair}};
 
 /// Immediate AMM exchange. Either resolves trade immediately or returns error (mostly because of lack of liquidity).
 pub trait AmmExchange : DeFiTrait {	
@@ -46,14 +46,13 @@ impl<GroupId, Balance> Price<GroupId, Balance> {
 
 
 
-impl<AssetId, Balance> Sell<AssetId, Balance> {
-	pub fn new(base: AssetId, quote: AssetId, quote_amount: Balance) -> Self {
-		Self {
-			limit : quote_amount,
-			pair : CurrencyPair { base, quote}
-		}
-	}
+/// nothing bad in selling nothing
+impl<AssetId: Default, Balance : Default> Default for Buy<AssetId, Balance> {
+    fn default() -> Self {
+        Self { pair: Default::default(), limit: Default::default() }
+    }
 }
+
 
 /// take `base` currency and give `quote` currency back
 #[derive(Encode, Decode, TypeInfo)]
@@ -63,32 +62,7 @@ pub struct Buy<AssetId, Balance> {
 	pub limit: Balance,
 }
 
-#[derive(Encode, Decode, TypeInfo)]
-pub struct Take<Balance> {
-	pub amount : Self::Balance,
-	/// direction depends on referenced order type
-	pub limit: Self::Balance,
-}
 
-/// take nothing
-impl<Balance: Default> Default for Take<Balance> {
-    fn default() -> Self {
-        Self { amount: Default::default(), limit: Default::default() }
-    }
-}
-
-impl<AssetId : Default> Default for CurrencyPair<AssetId> {
-    fn default() -> Self {
-        Self { base: Default::default(), quote: Default::default() }
-    }
-}
-
-/// nothing bad in selling nothing
-impl<AssetId: Default, Balance : Default> Default for Buy<AssetId, Balance> {
-    fn default() -> Self {
-        Self { pair: Default::default(), limit: Default::default() }
-    }
-}
 
 /// This order book is not fully DEX as it has no matching engine.
 /// How to sell in market price using this orderbook? 
@@ -96,27 +70,15 @@ impl<AssetId: Default, Balance : Default> Default for Buy<AssetId, Balance> {
 /// Or create new trait which is market aware, market sell api.
 /// How to I see success for my operations?
 /// Observer events or on chain history or your account state for give currency.
-pub trait LimitOrderbook : DeFiTrait {
-	type OrderId : FullCodec + Copy + Eq + PartialEq + TypeInfo;
+pub trait LimitOrderbook<Configuration>: SellTrait<Configuration> {
 	/// if there is AMM,  and [Self::AmmConfiguration] allows for that, than can use DEX to sell some amount if it is good enough
 	type AmmDex : MultiAssetAmm;
-	/// amm configuration parameter
-	type AmmConfiguration : Default;
-	/// sell base asset for price given or higher 
-	/// - `from_to` - account requesting sell 
-	fn ask(
-		from_to: &Self::AccountId,
-		order: Sell<Self::AssetId, Self::Balance>,		
-		base_amount: Self::Balance,
-		amm: Self::AmmConfiguration,
-	) -> Result<Self::OrderId, DispatchError>;
-
 	///  buy base asset for price given or lower
 	fn bid(
 		from_to: &Self::AccountId,		
 		order: Buy<Self::AssetId, Self::Balance>,		
 		base_amount: Self::Balance,
-		amm: Self::AmmConfiguration,
+		amm: Configuration,
 	) -> Result<Self::OrderId, DispatchError>;
 
 	/// updates same existing order with new price
@@ -124,16 +86,7 @@ pub trait LimitOrderbook : DeFiTrait {
 	fn patch(
 		order_id: Self::OrderId,
 		price: Self::Balance,
-	) -> Result<(), DispatchError>;
-	
-	/// take order. get not found error if order never existed or was removed.
-	/// `limit` - for `sell` order it is maximal value are you to pay for `base`, for `buy` order it is minimal value you are eager to accept for `base`
-	/// `amount` - amount of `base` you are ready to exchange for this order
-	fn take(
-		from_to: &Self::AccountId,
-		order: Self::OrderId,
-		take : Take<Self::Balance>,
-	) -> Result<(), DispatchError>;
+	) -> Result<(), DispatchError>;	
 }
 
 pub trait MultiAssetAmm : DeFiTrait {
