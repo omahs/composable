@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 //! shared types across lending/liquidation/auctions pallets
 use codec::{Codec, Decode, Encode, FullCodec};
 use frame_support::{
@@ -68,3 +69,14 @@ pub trait DeFiComposableConfig: frame_system::Config {
 		// used to check balances before any storage updates allowing acting without rollback
 		+ Inspect<Self::AccountId, Balance = Self::Balance, AssetId = Self::AssetId>;
 }
+=======
+//! shared types across lending/liquidation/auctions pallets
+
+/// `std::time::Duration` is not used because it is to precise with 128 bits and microseconds.
+pub type DurationSeconds = u64;
+
+/// seconds
+pub type Timestamp = u64;
+
+pub const ONE_HOUR: DurationSeconds = 60 * 60;
+>>>>>>> dz/obdex

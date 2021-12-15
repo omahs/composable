@@ -6,7 +6,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use composable_traits::dex::SimpleExchange;
+use composable_traits::dex::AmmExchange;
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, InclusionFee, RuntimeDispatchInfo};
 use primitives::currency::CurrencyId;
 use scale_info::TypeInfo;
@@ -84,7 +84,7 @@ pub mod pallet {
 		type NativeCurrency: Currency<Self::AccountId>;
 
 		/// Dex interface for executing swaps
-		type Dex: SimpleExchange<
+		type Dex: AmmExchange<
 			AssetId = CurrencyId,
 			Balance = <Self::NativeCurrency as Currency<Self::AccountId>>::Balance,
 			AccountId = Self::AccountId,
