@@ -4,14 +4,15 @@ use scale_info::TypeInfo;
 use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_std::fmt::Debug;
 
-pub type Exponent = u32;
+pub type Exponent = u8;
 
 pub trait PriceableAsset
 where
 	Self: Copy,
 {
+	/// if currency has `smallest_unit_exponent` of 3, than it will return 
 	fn unit<T: From<u64>>(&self) -> T {
-		T::from(10u64.pow(self.smallest_unit_exponent()))
+		T::from(10u64.pow(self.smallest_unit_exponent() as u32))
 	}
 	fn smallest_unit_exponent(self) -> Exponent;
 }

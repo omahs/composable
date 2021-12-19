@@ -7,9 +7,29 @@
 //! Sell orders stored on chain.
 //! Takes live only one block.
 #![cfg_attr(not(feature = "std"), no_std)]
-
+#![warn(
+	bad_style,
+	bare_trait_objects,
+	const_err,
+	improper_ctypes,
+	non_shorthand_field_patterns,
+	no_mangle_generic_items,
+	overflowing_literals,
+	path_statements,
+	patterns_in_fns_without_body,
+	private_in_public,
+	unconditional_recursion,
+	unused_allocation,
+	unused_comparisons,
+	unused_parens,
+	while_true,
+	trivial_casts,
+	unused_extern_crates
+)]
 pub use pallet::*;
 pub mod math;
+#[cfg(test)]
+mod runtime;
 
 #[frame_support::pallet]
 pub mod pallet {
