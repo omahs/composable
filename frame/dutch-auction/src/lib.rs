@@ -10,6 +10,7 @@
 
 pub use pallet::*;
 pub mod math;
+pub mod weights;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -22,7 +23,8 @@ pub mod pallet {
 	};
 	use frame_support::{
 		pallet_prelude::*,
-		traits::{IsType, UnixTime},
+		traits::{tokens::fungible::Transfer as NativeTransfer, IsType, UnixTime},
+		PalletId,
 	};
 	use frame_system::{
 		ensure_signed,
@@ -31,9 +33,12 @@ pub mod pallet {
 	use num_traits::Zero;
 	use scale_info::TypeInfo;
 
-	use crate::math::*;
+	use crate::{math::*, weights::WeightInfo};
 	use orml_traits::{MultiCurrency, MultiReservableCurrency};
-	use sp_runtime::{traits::Saturating, DispatchError};
+	use sp_runtime::{
+		traits::{AccountIdConversion, Saturating},
+		DispatchError,
+	};
 	use sp_std::vec::Vec;
 
 	#[pallet::config]
@@ -51,9 +56,12 @@ pub mod pallet {
 				CurrencyId = Self::AssetId,
 				Balance = <Self as DeFiComposableConfig>::Balance,
 			>;
+		type WeightInfo: WeightInfo;
+		type PalletId: Get<PalletId>;
+		type NativeCurrency: NativeTransfer<Self::AccountId, Balance = Self::Balance>;
 	}
 
-	#[derive(Encode, Decode, Default, TypeInfo)]
+	#[derive(Encode, Decode, Default, TypeInfo, Clone, Debug, PartialEq)]
 	pub struct SellOrder<AssetId, Balance, AccountId, Moment> {
 		pub from_to: AccountId,
 		pub order: Sell<AssetId, Balance>,
@@ -82,7 +90,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		OrderAdded { order_id: OrderIdOf<T> },
+		OrderAdded { order_id: OrderIdOf<T>, order: SellOf<T> },
+		OrderRemoved { order_id: OrderIdOf<T> },
 	}
 
 	#[pallet::error]
@@ -127,20 +136,28 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(10_000)]
+		#[pallet::weight(T::WeightInfo::ask())]
 		pub fn ask(
 			origin: OriginFor<T>,
 			order: Sell<T::AssetId, T::Balance>,
 			configuration: AuctionStepFunction,
 		) -> DispatchResultWithPostInfo {
-			let who = ensure_signed(origin)?;
-			let _order_id =
-				<Self as SellEngine<AuctionStepFunction>>::ask(&who, order, configuration)?;
-			Self::deposit_event(Event::OrderAdded { order_id: <_>::default() });
+			let who = &(ensure_signed(origin)?);
+			let order_id =
+				<Self as SellEngine<AuctionStepFunction>>::ask(who, order, configuration)?;
+			let treasury = &T::PalletId::get().into_account();
+
+			// we cannot take weight as it will go to runtime, not to pallet, so cannot return it
+			// back we could have create vault, so not sure if needed
+			T::NativeCurrency::transfer(who, treasury, T::WeightInfo::liquidate().into(), true)?;
+			Self::deposit_event(Event::OrderAdded {
+				order_id,
+				order: SellOrders::<T>::get(order_id).expect("just added order exists"),
+			});
 			Ok(().into())
 		}
 
-		#[pallet::weight(10_000)]
+		#[pallet::weight(T::WeightInfo::take())]
 		pub fn take(
 			origin: OriginFor<T>,
 			order_id: T::OrderId,
@@ -148,6 +165,30 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 			<Self as SellEngine<AuctionStepFunction>>::take(&who, order_id, take)?;
+			Ok(().into())
+		}
+
+		#[pallet::weight(T::WeightInfo::liquidate())]
+		pub fn liquidate(origin: OriginFor<T>, order_id: T::OrderId) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			if let Some(order) = SellOrders::<T>::get(order_id) {
+				if order.from_to == who {
+					// weights fees are of platform spam protection, so we do not interfere with
+					// this function but on pallet level, we allow "fee less" liquidation by owner
+					// we can later allow liquidate old orders(or orders with some block liquidation
+					// timeout set) using kind of account per order is possible, but may risk to
+					// pollute account system
+					let treasury = &T::PalletId::get().into_account();
+					T::NativeCurrency::transfer(
+						&order.from_to,
+						treasury,
+						T::WeightInfo::liquidate().into(),
+						true,
+					)?;
+					<SellOrders<T>>::remove(order_id);
+					Self::deposit_event(Event::OrderRemoved { order_id });
+				}
+			}
 			Ok(().into())
 		}
 	}
@@ -241,12 +282,14 @@ pub mod pallet {
 
 				if order.take.amount == T::Balance::zero() {
 					<SellOrders<T>>::remove(order_id);
+					Self::deposit_event(Event::OrderRemoved { order_id });
 				}
 			}
 			<Takes<T>>::remove_all(None);
 		}
+
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
-			todo!("T::WeightInfo::known_overhead_for_on_finalize()");
+			T::WeightInfo::known_overhead_for_on_finalize()
 		}
 	}
 
