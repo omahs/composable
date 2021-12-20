@@ -304,11 +304,18 @@ impl DeFiComposableConfig for Test {
 	type Balance = Balance;
 }
 
+parameter_types! {
+	pub DutchAuctionPalletId: PalletId = PalletId(*b"dutchauc");
+}
+
 impl pallet_dutch_auctions::Config for Test {
 	type Event = Event;
 	type OrderId = u128;
 	type UnixTime = Timestamp;
 	type MultiCurrency = Assets;
+	type WeightInfo = ();
+	type NativeCurrency = Assets;
+	type PalletId = DutchAuctionPalletId;
 }
 
 impl pallet_liquidations::Config for Test {
