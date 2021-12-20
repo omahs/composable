@@ -130,13 +130,15 @@ frame_support::construct_runtime!(
 		LpTokenFactory: pallet_currency_factory::{Pallet, Storage, Event<T>},
 		Vault: pallet_vault::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Assets: assets::{Pallet, Call, Storage},
+		Assets: pallet_assets::{Pallet, Call, Storage},
 		Liquidations: pallet_liquidations::{Pallet, Call, Event<T>},
 		Lending: pallet_lending::{Pallet, Call, Config, Storage, Event<T>},
 		Oracle: pallet_lending::mocks::oracle::{Pallet},
 		DutchAuction: pallet_dutch_auctions::{Pallet, Event<T>},
 	}
 );
+
+
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -282,7 +284,7 @@ impl
 	}
 }
 
-impl assets::Config for Test {
+impl pallet_assets::Config for Test {
 	type NativeAssetId = NativeAssetId;
 	type GenerateCurrencyId = LpTokenFactory;
 	type AssetId = MockCurrencyId;
