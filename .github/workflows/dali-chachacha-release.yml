@@ -15,13 +15,11 @@ jobs:
         - linux
         - x64
         - sre
-        - ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with: 
         fetch-depth: 0
   
-
     - name: Set env
       run: |
         echo "RELEASE_VERSION=$(git tag --sort=committerdate | grep -E '^dali-[0-9]' | tail -1 )" >> $GITHUB_ENV
