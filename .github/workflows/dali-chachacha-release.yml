@@ -39,10 +39,10 @@ jobs:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}  
 
-    - name: Build Docker image
-      run: make containerize-release 
-    - name:  Docker push
-      run: make push-release
+    #- name: Build Docker image
+    #  run: make containerize-release 
+    #- name:  Docker push
+    #  run: make push-release
 
     - name: GenerateMD5
       run: |
