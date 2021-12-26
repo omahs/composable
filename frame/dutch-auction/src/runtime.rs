@@ -1,13 +1,22 @@
+use crate::{self as pallet_dutch_auction, *};
 use composable_tests_helpers::test::currency::{MockCurrencyId, NativeAssetId};
-use composable_traits::{governance::{GovernanceRegistry, SignedRawOrigin}, defi::DeFiComposableConfig};
-use frame_support::{traits::{Everything, }, parameter_types, ord_parameter_types, PalletId};
+use composable_traits::{
+	defi::DeFiComposableConfig,
+	governance::{GovernanceRegistry, SignedRawOrigin},
+};
+use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId};
 use frame_system::EnsureSignedBy;
 use hex_literal::hex;
 use num_traits::Zero;
 use orml_traits::{parameter_type_with_key, GetByKey};
-use sp_core::{H256, sr25519::{Public, Signature}};
-use sp_runtime::{traits::{IdentityLookup, BlakeTwo256, Verify, IdentifyAccount}, testing::Header};
-use crate::{self as pallet_dutch_auction, *};
+use sp_core::{
+	sr25519::{Public, Signature},
+	H256,
+};
+use sp_runtime::{
+	testing::Header,
+	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
 pub type Block = frame_system::mocking::MockBlock<Runtime>;
@@ -16,94 +25,92 @@ pub type Amount = i64;
 
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
-frame_support::construct_runtime!{
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic,
-    {
-        System : frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage},
-        Tokens: orml_tokens::{Pallet, Call, Storage, Config<T>, Event<T>},
-		
+frame_support::construct_runtime! {
+	pub enum Runtime where
+		Block = Block,
+		NodeBlock = Block,
+		UncheckedExtrinsic = UncheckedExtrinsic,
+	{
+		System : frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage},
+		Tokens: orml_tokens::{Pallet, Call, Storage, Config<T>, Event<T>},
+
 		LpTokenFactory: pallet_currency_factory::{Pallet, Storage, Event<T>},
-        Assets: pallet_assets::{Pallet, Call, Storage},
+		Assets: pallet_assets::{Pallet, Call, Storage},
 		DutchAuction: pallet_dutch_auction::{Pallet, Call, Storage, Event<T>},
-    }
+	}
 }
 
 parameter_types! {
-    pub const SS58Prefix: u8 = 42;
-    pub const BlockHashCount: u64 = 250;
+	pub const SS58Prefix: u8 = 42;
+	pub const BlockHashCount: u64 = 250;
 
 }
 
 impl frame_system::Config for Runtime {
-    type BaseCallFilter = Everything;
+	type BaseCallFilter = Everything;
 
-    type BlockWeights = ();
+	type BlockWeights = ();
 
-    type BlockLength = ();
+	type BlockLength = ();
 
-    type Origin = Origin;
+	type Origin = Origin;
 
-    type Call = Call;
+	type Call = Call;
 
-    type Index = u64;
+	type Index = u64;
 
-    type BlockNumber = u64;
+	type BlockNumber = u64;
 
-    type Hash = H256;
+	type Hash = H256;
 
-    type Hashing = BlakeTwo256;
+	type Hashing = BlakeTwo256;
 
-    type AccountId = AccountId;
+	type AccountId = AccountId;
 
-    type Lookup = IdentityLookup<Self::AccountId>;
+	type Lookup = IdentityLookup<Self::AccountId>;
 
-    type Header = Header;
+	type Header = Header;
 
-    type Event = Event;
+	type Event = Event;
 
-    type BlockHashCount = BlockHashCount;
+	type BlockHashCount = BlockHashCount;
 
-    type DbWeight = ();
+	type DbWeight = ();
 
-    type Version = ();
+	type Version = ();
 
-    type PalletInfo = PalletInfo;
+	type PalletInfo = PalletInfo;
 
-    type AccountData = pallet_balances::AccountData<Balance>;
+	type AccountData = pallet_balances::AccountData<Balance>;
 
-    type OnNewAccount = ();
+	type OnNewAccount = ();
 
-    type OnKilledAccount = ();
+	type OnKilledAccount = ();
 
-    type SystemWeightInfo = ();
+	type SystemWeightInfo = ();
 
-    type SS58Prefix = SS58Prefix;
+	type SS58Prefix = SS58Prefix;
 
-    type OnSetCode = ();
+	type OnSetCode = ();
 }
 
-
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1000;
+	pub const NativeExistentialDeposit: Balance = 0;
 }
 
 impl pallet_balances::Config for Runtime {
 	type Balance = Balance;
 	type Event = Event;
 	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
+	type ExistentialDeposit = NativeExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
 	type MaxLocks = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
 }
-
 
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
 
@@ -118,13 +125,11 @@ impl pallet_timestamp::Config for Runtime {
 	type WeightInfo = ();
 }
 
-
 parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: MockCurrencyId| -> Balance {
-		Zero::zero()
+	pub TokensExistentialDeposit: |_currency_id: MockCurrencyId| -> Balance {
+		0
 	};
 }
-
 
 impl orml_tokens::Config for Runtime {
 	type Event = Event;
@@ -132,12 +137,11 @@ impl orml_tokens::Config for Runtime {
 	type Amount = Amount;
 	type CurrencyId = MockCurrencyId;
 	type WeightInfo = ();
-	type ExistentialDeposits = ExistentialDeposits;
+	type ExistentialDeposits = TokensExistentialDeposit;
 	type OnDust = ();
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
 }
-
 
 pub struct MockGovernanceRegistry;
 impl GovernanceRegistry<MockCurrencyId, AccountId> for MockGovernanceRegistry {
@@ -157,8 +161,10 @@ impl
 	}
 }
 
-pub static ALICE: Public =  Public(hex!("0000000000000000000000000000000000000000000000000000000000000000"));
-pub static BOB: Public =  Public(hex!("0000000000000000000000000000000000000000000000000000000000000001"));
+pub static ALICE: Public =
+	Public(hex!("0000000000000000000000000000000000000000000000000000000000000000"));
+pub static BOB: Public =
+	Public(hex!("0000000000000000000000000000000000000000000000000000000000000001"));
 
 ord_parameter_types! {
 	pub const RootAccount: AccountId = ALICE;
@@ -192,22 +198,22 @@ parameter_types! {
 
 // these make some pallets tight coupled onto shared trait
 impl DeFiComposableConfig for Runtime {
-    type AssetId = MockCurrencyId;
-    type Balance = Balance;
+	type AssetId = MockCurrencyId;
+	type Balance = Balance;
 }
 
 impl pallet_dutch_auction::Config for Runtime {
-    type Event = Event;
-	
-    type UnixTime = Timestamp;
+	type Event = Event;
 
-    type OrderId = u8;
+	type UnixTime = Timestamp;
 
-    type MultiCurrency = Assets;
+	type OrderId = u8;
 
-    type WeightInfo = ();
+	type MultiCurrency = Assets;
 
-    type PalletId = DutchAuctionPalletId;
+	type WeightInfo = ();
 
-    type NativeCurrency = Balances;
+	type PalletId = DutchAuctionPalletId;
+
+	type NativeCurrency = Balances;
 }
