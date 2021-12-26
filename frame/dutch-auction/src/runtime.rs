@@ -1,15 +1,20 @@
-use composable_traits::governance::GovernanceRegistry;
-use frame_support::{traits::{Everything, }, parameter_types};
-use orml_traits::parameter_type_with_key;
-use sp_core::{H256, ed25519::Signature};
+use composable_tests_helpers::test::currency::{MockCurrencyId, NativeAssetId};
+use composable_traits::{governance::{GovernanceRegistry, SignedRawOrigin}, defi::DeFiComposableConfig};
+use frame_support::{traits::{Everything, }, parameter_types, ord_parameter_types, PalletId};
+use frame_system::EnsureSignedBy;
+use hex_literal::hex;
+use num_traits::Zero;
+use orml_traits::{parameter_type_with_key, GetByKey};
+use sp_core::{H256, sr25519::{Public, Signature}};
 use sp_runtime::{traits::{IdentityLookup, BlakeTwo256, Verify, IdentifyAccount}, testing::Header};
 use crate::{self as pallet_dutch_auction, *};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
-type Block = frame_system::mocking::MockBlock<Runtime>;
-type Balance = u64;
+pub type Block = frame_system::mocking::MockBlock<Runtime>;
+pub type Balance = u128;
+pub type Amount = i64;
 
-type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 frame_support::construct_runtime!{
     pub enum Runtime where
@@ -24,7 +29,7 @@ frame_support::construct_runtime!{
 		
 		LpTokenFactory: pallet_currency_factory::{Pallet, Storage, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage},
-
+		DutchAuction: pallet_dutch_auction::{Pallet, Call, Storage, Event<T>},
     }
 }
 
@@ -120,7 +125,8 @@ parameter_type_with_key! {
 	};
 }
 
-impl orml_tokens::Config for Test {
+
+impl orml_tokens::Config for Runtime {
 	type Event = Event;
 	type Balance = Balance;
 	type Amount = Amount;
@@ -132,7 +138,9 @@ impl orml_tokens::Config for Test {
 	type DustRemovalWhitelist = Everything;
 }
 
-impl GovernanceRegistry<MockCurrencyId, AccountId> for () {
+
+pub struct MockGovernanceRegistry;
+impl GovernanceRegistry<MockCurrencyId, AccountId> for MockGovernanceRegistry {
 	fn set(_k: MockCurrencyId, _value: composable_traits::governance::SignedRawOrigin<AccountId>) {}
 }
 
@@ -140,7 +148,7 @@ impl
 	GetByKey<
 		MockCurrencyId,
 		Result<SignedRawOrigin<sp_core::sr25519::Public>, sp_runtime::DispatchError>,
-	> for ()
+	> for MockGovernanceRegistry
 {
 	fn get(
 		_k: &MockCurrencyId,
@@ -149,15 +157,14 @@ impl
 	}
 }
 
+pub static ALICE: Public =  Public(hex!("0000000000000000000000000000000000000000000000000000000000000000"));
+pub static BOB: Public =  Public(hex!("0000000000000000000000000000000000000000000000000000000000000001"));
 
-// parameter_type_with_key! {
-// 	pub ExistentialDeposits: |_currency_id: MockCurrencyId| -> Balance {
-// 		Zero::zero()
-// 	};
-// }
+ord_parameter_types! {
+	pub const RootAccount: AccountId = ALICE;
+}
 
-
-impl pallet_assets::Config for Test {
+impl pallet_assets::Config for Runtime {
 	type NativeAssetId = NativeAssetId;
 	type GenerateCurrencyId = LpTokenFactory;
 	type AssetId = MockCurrencyId;
@@ -166,33 +173,41 @@ impl pallet_assets::Config for Test {
 	type MultiCurrency = Tokens;
 	type WeightInfo = ();
 	type AdminOrigin = EnsureSignedBy<RootAccount, AccountId>;
-	type GovernanceRegistry = ();
+	type GovernanceRegistry = MockGovernanceRegistry;
 }
-
 
 parameter_types! {
 	pub const DynamicCurrencyIdInitial: MockCurrencyId = MockCurrencyId::LpToken(0);
 }
 
-impl pallet_currency_factory::Config for Test {
+impl pallet_currency_factory::Config for Runtime {
 	type Event = Event;
 	type DynamicCurrencyId = MockCurrencyId;
 	type DynamicCurrencyIdInitial = DynamicCurrencyIdInitial;
 }
 
+parameter_types! {
+	pub const DutchAuctionPalletId : PalletId = PalletId(*b"dtch_ctn");
+}
 
-// impl pallet_dutch_auction::Config for Runtime {
-//     type Event = Event;
+// these make some pallets tight coupled onto shared trait
+impl DeFiComposableConfig for Runtime {
+    type AssetId = MockCurrencyId;
+    type Balance = Balance;
+}
 
-//     type UnixTime = ;
+impl pallet_dutch_auction::Config for Runtime {
+    type Event = Event;
+	
+    type UnixTime = Timestamp;
 
-//     type OrderId;
+    type OrderId = u8;
 
-//     type MultiCurrency;
+    type MultiCurrency = Assets;
 
-//     type WeightInfo;
+    type WeightInfo = ();
 
-//     type PalletId;
+    type PalletId = DutchAuctionPalletId;
 
-//     type NativeCurrency;
-// }
+    type NativeCurrency = Balances;
+}

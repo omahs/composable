@@ -1,9 +1,13 @@
+use codec::{Decode, Encode};
+use composable_traits::currency::{DynamicCurrencyId, PriceableAsset, AssetIdLike};
+use frame_support::{parameter_types, traits::Get};
+use scale_info::TypeInfo;
+use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
+
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+//#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[repr(transparent)]
 pub struct CurrencyId(u128);
-
-
 
 #[derive(
 	PartialOrd,
@@ -28,18 +32,22 @@ pub enum MockCurrencyId {
 	LpToken(u128),
 }
 
-impl From<u128> for MockCurrencyId {
-	fn from(id: u128) -> Self {
-		match id {
-			0 => MockCurrencyId::PICA,
-			1 => MockCurrencyId::BTC,
-			2 => MockCurrencyId::ETH,
-			3 => MockCurrencyId::LTC,
-			4 => MockCurrencyId::USDT,
-			5 => MockCurrencyId::LpToken(0),
-			_ => unreachable!(),
-		}
-	}
+pub trait ConstGet<T> {
+	const VALUE: T;
+}
+
+/// knows existing local assets and how to map them to simple numbers
+pub trait LocalAssetsRegistry {
+	type AssetId : AssetIdLike;
+	/// assets which we well know and embedded into enum. 
+	/// maximal of this is smaller than minimal `Assets`
+	type WellKnownAssets : ConstGet<u8> + Into<u128>; 	
+	/// Larger than maximal of `WellKnownAssets` but smaller than minimal `Derivatives`.
+	type Assets : ConstGet<u128>  + Into<u128>;
+	/// locally diluted derivative and liquidity assets.
+	/// larger than maximal `Assets`
+	type Derivatives: ConstGet<u128> + Into<u128>;
+	fn try_from<N:Into<u128>>(number : N) -> Result<Self::AssetId, DispatchError>;	
 }
 
 impl Default for MockCurrencyId {
@@ -49,7 +57,7 @@ impl Default for MockCurrencyId {
 }
 
 impl PriceableAsset for MockCurrencyId {
-	fn smallest_unit_exponent(self) -> composable_traits::currency::Exponent {
+	fn decimals(self) -> composable_traits::currency::Exponent {
 		match self {
 			MockCurrencyId::PICA => 0,
 			MockCurrencyId::BTC => 8,
@@ -73,8 +81,7 @@ impl DynamicCurrencyId for MockCurrencyId {
 }
 
 
-
-
-pub struct Pica {
-
+parameter_types! {
+	pub const MaxStrategies: usize = 255;
+	pub const NativeAssetId: MockCurrencyId = MockCurrencyId::PICA;
 }

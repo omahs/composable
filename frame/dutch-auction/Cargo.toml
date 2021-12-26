@@ -31,13 +31,14 @@ composable-traits = {  path = "../composable-traits", default-features = false }
 
 [dev-dependencies]
 proptest = "1.0"
-
+hex-literal = "0.3.3"
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 pallet-assets = { path = '../assets', default-features = false}
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "17a791edf431d7d7aee1ea3dfaeeb7bc21944301" }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "17a791edf431d7d7aee1ea3dfaeeb7bc21944301", default-features = false }
-pallet-currency-factory = { version = "0.0.1", path = "../currency-factory" }
+pallet-currency-factory = { path = "../currency-factory" }
+composable-tests-helpers = {  path = "../composable-tests-helpers" }
 
 [features]
 default = ["std"]

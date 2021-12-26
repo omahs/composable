@@ -94,7 +94,7 @@ impl Default for MockCurrencyId {
 }
 
 impl PriceableAsset for MockCurrencyId {
-	fn smallest_unit_exponent(self) -> composable_traits::currency::Exponent {
+	fn decimals(self) -> composable_traits::currency::Exponent {
 		match self {
 			MockCurrencyId::PICA => 0,
 			MockCurrencyId::BTC => 8,
@@ -134,7 +134,7 @@ frame_support::construct_runtime!(
 		Liquidations: pallet_liquidations::{Pallet, Call, Event<T>},
 		Lending: pallet_lending::{Pallet, Call, Config, Storage, Event<T>},
 		Oracle: pallet_lending::mocks::oracle::{Pallet},
-		DutchAuction: pallet_dutch_auctions::{Pallet, Event<T>},
+		DutchAuction: pallet_dutch_auctions::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

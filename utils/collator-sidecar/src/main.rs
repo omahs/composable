@@ -41,7 +41,7 @@ async fn log_handler(mut req: Request<State>) -> tide::Result {
 	};
 
 	if let Err(e) = result {
-		return Ok(format!("Error: {:?}", e).into())
+		return Ok(format!("Error: {:?}", e).into());
 	}
 
 	Ok("".into())

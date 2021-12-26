@@ -1,4 +1,5 @@
 //! Dutch Auction
+//! 
 //! Ask to sell on auction.
 //! Initial price can start from price above market.
 //! Diminishes with time.
@@ -6,6 +7,13 @@
 //! Higher takers take first.
 //! Sell orders stored on chain.
 //! Takes live only one block.
+//! 
+//! Allows for best price to win during auction take. as takes are not executed immediately.
+//! When auction steps onto new value, several people will decide it worth it.
+//! They will know that highest price wins, so will try to overbid other, hopefully driving price to more optimal.
+//! So takers appropriate tip to auction, not via transaction tip(not proportional to price) to parachain.
+//! Allows to win bids not by closes to parachain host machine. 
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(
 	bad_style,
@@ -30,6 +38,8 @@ pub use pallet::*;
 pub mod math;
 #[cfg(test)]
 mod runtime;
+#[cfg(test)]
+mod tests;
 pub mod weights;
 
 #[frame_support::pallet]
@@ -50,7 +60,7 @@ pub mod pallet {
 		ensure_signed,
 		pallet_prelude::{BlockNumberFor, OriginFor},
 	};
-	use num_traits::Zero;
+	use num_traits::{Zero, CheckedMul};
 	use scale_info::TypeInfo;
 
 	use crate::{math::*, weights::WeightInfo};
@@ -77,6 +87,7 @@ pub mod pallet {
 				Balance = <Self as DeFiComposableConfig>::Balance,
 			>;
 		type WeightInfo: WeightInfo;
+		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 		type NativeCurrency: NativeTransfer<Self::AccountId, Balance = Self::Balance>;
 	}
@@ -119,6 +130,7 @@ pub mod pallet {
 		RequestedOrderDoesNotExists,
 		TakeParametersIsInvalid,
 		TakeLimitDoesNotSatisfiesOrder,
+		OrderNotFound,
 	}
 
 	#[pallet::pallet]
@@ -156,6 +168,8 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+
+		/// sell `order` in auction with `configuration`
 		#[pallet::weight(T::WeightInfo::ask())]
 		pub fn ask(
 			origin: OriginFor<T>,
@@ -177,6 +191,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// adds take to list, does not execute take immediately
 		#[pallet::weight(T::WeightInfo::take())]
 		pub fn take(
 			origin: OriginFor<T>,
@@ -188,27 +203,31 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// allows to remove `order_id` from storage
 		#[pallet::weight(T::WeightInfo::liquidate())]
 		pub fn liquidate(origin: OriginFor<T>, order_id: T::OrderId) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
-			if let Some(order) = SellOrders::<T>::get(order_id) {
-				if order.from_to == who {
-					// weights fees are of platform spam protection, so we do not interfere with
-					// this function but on pallet level, we allow "fee less" liquidation by owner
-					// we can later allow liquidate old orders(or orders with some block liquidation
-					// timeout set) using kind of account per order is possible, but may risk to
-					// pollute account system
-					let treasury = &T::PalletId::get().into_account();
-					T::NativeCurrency::transfer(
-						&order.from_to,
-						treasury,
-						T::WeightInfo::liquidate().into(),
-						true,
-					)?;
-					<SellOrders<T>>::remove(order_id);
-					Self::deposit_event(Event::OrderRemoved { order_id });
-				}
-			}
+			let order = SellOrders::<T>::get(order_id).ok_or(Error::<T>::OrderNotFound)?;
+			ensure!(
+				order.from_to == who,
+				DispatchError::BadOrigin,
+			);
+			// weights fees are of platform spam protection, so we do not interfere with
+			// this function but on pallet level, we allow "fee less" liquidation by owner
+			// we can later allow liquidate old orders(or orders with some block liquidation
+			// timeout set) using kind of account per order is possible, but may risk to
+			// pollute account system
+			let treasury = &T::PalletId::get().into_account();
+			T::MultiCurrency::unreserve(order.order.pair.base, &who, order.order.take.amount);			
+			T::NativeCurrency::transfer(
+				treasury,
+				&order.from_to,				
+				T::WeightInfo::liquidate().into(),
+				true,
+			)?;
+			<SellOrders<T>>::remove(order_id);
+			Self::deposit_event(Event::OrderRemoved { order_id });
+			
 			Ok(().into())
 		}
 	}
@@ -255,9 +274,9 @@ pub mod pallet {
 			// not recalculates
 			let passed = T::UnixTime::now().as_secs() - order.added_at;
 			let _limit = order.configuration.price(limit, passed)?;
-			let quote = take.amount.safe_mul(&take.limit)?;
+			let quote_amount = take.quote_amount()?;
 
-			T::MultiCurrency::reserve(order.order.pair.quote, from_to, quote)?;
+			T::MultiCurrency::reserve(order.order.pair.quote, from_to, quote_amount)?;
 			<Takes<T>>::append(order_id, TakeOf::<T> { from_to: from_to.clone(), take });
 
 			Ok(())
@@ -279,25 +298,30 @@ pub mod pallet {
 
 				// calculate real price
 				for take in takes {
-					let take_amount = take.take.amount.min(order.take.amount);
-					order.take.amount -= take_amount;
-					let quote_amount = take_amount.saturating_mul(take.take.limit);
-
-					exchange_reserved::<T>(
-						order.pair.base,
-						seller,
-						take_amount,
-						order.pair.quote,
-						&take.from_to,
-						quote_amount,
-					)
-					.expect("we forced locks beforehand");
-
-					// what to do with orders which nobody ever takes? some kind of dust orders with
-					// 1 token
+					let quote_amount = take.take.amount.saturating_mul(take.take.limit);
+					// what to do with orders which nobody ever takes? some kind of dust orders with					
 					if order.take.amount == T::Balance::zero() {
-						break
+						T::MultiCurrency::unreserve(order.pair.quote, &take.from_to, quote_amount);
 					}
+					else {
+						let take_amount = take.take.amount.min(order.take.amount);
+						order.take.amount -= take_amount;
+						let real_quote_amount =  take_amount.safe_mul(&take.take.limit).expect("was checked in take call");
+						
+						exchange_reserved::<T>(
+							order.pair.base,
+							seller,
+							take_amount,
+							order.pair.quote,
+							&take.from_to,
+							real_quote_amount,
+						)
+						.expect("we forced locks beforehand");
+
+						if real_quote_amount < quote_amount {
+							T::MultiCurrency::unreserve(order.pair.quote, &take.from_to, quote_amount - real_quote_amount);
+						}
+					}					
 				}
 
 				if order.take.amount == T::Balance::zero() {
