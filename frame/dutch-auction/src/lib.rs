@@ -35,15 +35,14 @@
 	unused_extern_crates
 )]
 pub use pallet::*;
+#[cfg(test)]
+mod currency;
 pub mod math;
 #[cfg(test)]
 mod runtime;
 #[cfg(test)]
 mod tests;
 pub mod weights;
-#[cfg(test)]
-mod currency;
-
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -63,7 +62,7 @@ pub mod pallet {
 		ensure_signed,
 		pallet_prelude::{BlockNumberFor, OriginFor},
 	};
-	use num_traits::{Zero};
+	use num_traits::Zero;
 	use scale_info::TypeInfo;
 
 	use crate::{math::*, weights::WeightInfo};

@@ -97,7 +97,7 @@ pub fn new_chain_ops(
 				components.import_queue,
 				components.task_manager,
 			)
-		}
+		},
 		_ => {
 			let components = new_partial::<picasso_runtime::RuntimeApi, PicassoExecutor>(config)?;
 			(
@@ -106,7 +106,7 @@ pub fn new_chain_ops(
 				components.import_queue,
 				components.task_manager,
 			)
-		}
+		},
 	};
 
 	Ok(components)
@@ -245,7 +245,7 @@ where
 	Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
 	if matches!(parachain_config.role, Role::Light) {
-		return Err("Light client not supported!".into());
+		return Err("Light client not supported!".into())
 	}
 
 	let parachain_config = prepare_node_config(parachain_config);

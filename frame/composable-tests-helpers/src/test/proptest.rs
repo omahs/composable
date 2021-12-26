@@ -22,10 +22,10 @@ macro_rules! prop_assert_acceptable_computation_error {
 		match composable_tests_helpers::test::helper::acceptable_computation_error(
 			$x, $y, $precision,
 		) {
-			Ok(()) => {}
+			Ok(()) => {},
 			Err(q) => {
 				prop_assert!(false, "{} * {} / {} = {} != {}", $x, $precision, $y, q, $precision);
-			}
+			},
 		}
 	}};
 	($x:expr, $y:expr) => {{

@@ -1,4 +1,7 @@
-use crate::{self as pallet_dutch_auction, currency::{MockCurrencyId, NativeAssetId}};
+use crate::{
+	self as pallet_dutch_auction,
+	currency::{MockCurrencyId, NativeAssetId},
+};
 
 use composable_traits::{
 	defi::DeFiComposableConfig,

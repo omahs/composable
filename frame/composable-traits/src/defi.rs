@@ -5,7 +5,7 @@ use frame_support::{pallet_prelude::MaybeSerializeDeserialize, Parameter};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{CheckedAdd, CheckedMul, CheckedSub, Zero},
-	DispatchError, FixedPointOperand, ArithmeticError,
+	ArithmeticError, DispatchError, FixedPointOperand,
 };
 
 use crate::{
@@ -46,7 +46,12 @@ impl<AssetId: PartialEq, Balance: PartialOrd + Zero + SafeArithmetic> Sell<Asset
 	pub fn is_valid(&self) -> bool {
 		self.take.is_valid() && self.pair.is_valid()
 	}
-	pub fn new(base: AssetId, quote: AssetId, base_amount: Balance, minimal_base_unit_price_in_quote: Balance) -> Self {
+	pub fn new(
+		base: AssetId,
+		quote: AssetId,
+		base_amount: Balance,
+		minimal_base_unit_price_in_quote: Balance,
+	) -> Self {
 		Self {
 			take: Take { amount: base_amount, limit: minimal_base_unit_price_in_quote },
 			pair: CurrencyPair { base, quote },

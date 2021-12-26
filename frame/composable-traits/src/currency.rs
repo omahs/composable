@@ -11,7 +11,6 @@ where
 	Self: Copy,
 {
 	/// if currency has `smallest_unit_exponent` of 3, than it will return
-	/// 
 	fn unit<T: From<u64>>(&self) -> T {
 		T::from(10u64.pow(self.decimals() as u32))
 	}

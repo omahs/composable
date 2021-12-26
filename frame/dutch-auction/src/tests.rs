@@ -1,4 +1,4 @@
-use crate::{runtime::*, currency::MockCurrencyId};
+use crate::{currency::MockCurrencyId, runtime::*};
 use composable_traits::{
 	auction::{AuctionStepFunction, LinearDecrease},
 	defi::{Sell, Take},
@@ -7,7 +7,7 @@ use orml_traits::MultiReservableCurrency;
 use pallet_balances;
 
 use frame_support::{
-	 assert_ok,
+	assert_ok,
 	traits::{
 		fungible::{self, Mutate as NativeMutate},
 		fungibles::{Inspect, Mutate},
@@ -25,16 +25,6 @@ pub fn new_test_externalities() -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Runtime> { balances: balances.clone() }
 		.assimilate_storage(&mut storage)
 		.unwrap();
-
-	// use crate::runtime::sp_api_hidden_includes_construct_runtime::hidden_include::traits::
-	// GenesisBuild; orml_tokens::GenesisConfig::<Runtime> { balances:
-	//     vec![
-	//         (AccountId::from(ALICE), MockCurrencyId::PICA,  1_000_000_000_000_000_000_000_000),
-	//         (AccountId::from(BOB),  MockCurrencyId::PICA, 1_000_000_000_000_000_000_000_000),
-	//      ]
-	//      }
-	// .assimilate_storage(&mut storage)
-	// .unwrap();
 
 	let mut externatlities = sp_io::TestExternalities::new(storage);
 	externatlities.execute_with(|| {
@@ -85,11 +75,12 @@ fn with_immediate_exact_buy() {
 		let order_id = crate::OrdersIndex::<Runtime>::get();
 		let result = DutchAuction::take(Origin::signed(buyer), order_id, Take::new(1, 999));
 		assert!(!result.is_ok());
-		let not_reserved = <Assets as MultiReservableCurrency<_>>::reserved_balance(MockCurrencyId::USDT, &BOB);
+		let not_reserved =
+			<Assets as MultiReservableCurrency<_>>::reserved_balance(MockCurrencyId::USDT, &BOB);
 		let result = DutchAuction::take(Origin::signed(buyer), order_id, Take::new(1, 1000));
+		assert_ok!(result);
 		let reserved = Assets::reserved_balance(MockCurrencyId::USDT, &BOB);
 		assert!(not_reserved < reserved && reserved == take_amount);
-		assert_ok!(result);
 		DutchAuction::on_finalize(42);
 		let not_found = crate::SellOrders::<Runtime>::get(order_id);
 		assert!(not_found.is_none());
@@ -108,7 +99,7 @@ fn with_two_takes_higher_than_limit_and_not_enough_for_all() {
 		let seller = AccountId::from_raw(ALICE.0);
 		let buyer = AccountId::from_raw(BOB.0);
 		let sell_amount = 3;
-		let take_amount = 3000;
+		let take_amount = 1000;
 		let configuration = AuctionStepFunction::LinearDecrease(LinearDecrease { total: 42 });
 
 		let sell = Sell::new(MockCurrencyId::BTC, MockCurrencyId::USDT, sell_amount, take_amount);
@@ -142,7 +133,8 @@ fn liquidation() {
 		);
 		let not_found = crate::SellOrders::<Runtime>::get(order_id);
 		assert!(not_found.is_none());
-		let reserved = <Assets as MultiReservableCurrency<_>>::reserved_balance(MockCurrencyId::BTC, &ALICE);
+		let reserved =
+			<Assets as MultiReservableCurrency<_>>::reserved_balance(MockCurrencyId::BTC, &ALICE);
 		assert_eq!(reserved, 0);
 	});
 }
