@@ -4,7 +4,7 @@ use scale_info::TypeInfo;
 use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_std::fmt::Debug;
 
-pub type Exponent = u8;
+pub type Exponent = u32;
 
 pub trait PriceableAsset
 where

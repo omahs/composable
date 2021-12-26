@@ -1,5 +1,5 @@
-use crate::{self as pallet_dutch_auction, *};
-use composable_tests_helpers::test::currency::{MockCurrencyId, NativeAssetId};
+use crate::{self as pallet_dutch_auction, currency::{MockCurrencyId, NativeAssetId}};
+
 use composable_traits::{
 	defi::DeFiComposableConfig,
 	governance::{GovernanceRegistry, SignedRawOrigin},
@@ -7,7 +7,6 @@ use composable_traits::{
 use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId};
 use frame_system::EnsureSignedBy;
 use hex_literal::hex;
-use num_traits::Zero;
 use orml_traits::{parameter_type_with_key, GetByKey};
 use sp_core::{
 	sr25519::{Public, Signature},

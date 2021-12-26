@@ -1,16 +1,13 @@
-use crate::runtime::*;
-use composable_tests_helpers::test::currency::MockCurrencyId;
+use crate::{runtime::*, currency::MockCurrencyId};
 use composable_traits::{
 	auction::{AuctionStepFunction, LinearDecrease},
-	defi::{CurrencyPair, Sell, Take},
+	defi::{Sell, Take},
 };
-use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiReservableCurrency;
 use pallet_balances;
 
 use frame_support::{
-	assert_err, assert_noop, assert_ok,
-	dispatch::DispatchErrorWithPostInfo,
+	 assert_ok,
 	traits::{
 		fungible::{self, Mutate as NativeMutate},
 		fungibles::{Inspect, Mutate},
@@ -88,12 +85,11 @@ fn with_immediate_exact_buy() {
 		let order_id = crate::OrdersIndex::<Runtime>::get();
 		let result = DutchAuction::take(Origin::signed(buyer), order_id, Take::new(1, 999));
 		assert!(!result.is_ok());
-		let not_reserved = Assets::reserved_balance(MockCurrencyId::USDT, &BOB);
+		let not_reserved = <Assets as MultiReservableCurrency<_>>::reserved_balance(MockCurrencyId::USDT, &BOB);
 		let result = DutchAuction::take(Origin::signed(buyer), order_id, Take::new(1, 1000));
 		let reserved = Assets::reserved_balance(MockCurrencyId::USDT, &BOB);
 		assert!(not_reserved < reserved && reserved == take_amount);
 		assert_ok!(result);
-		let order = crate::SellOrders::<Runtime>::get(order_id).unwrap();
 		DutchAuction::on_finalize(42);
 		let not_found = crate::SellOrders::<Runtime>::get(order_id);
 		assert!(not_found.is_none());
@@ -118,8 +114,8 @@ fn with_two_takes_higher_than_limit_and_not_enough_for_all() {
 		let sell = Sell::new(MockCurrencyId::BTC, MockCurrencyId::USDT, sell_amount, take_amount);
 		DutchAuction::ask(Origin::signed(seller), sell, configuration).unwrap();
 		let order_id = crate::OrdersIndex::<Runtime>::get();
-		DutchAuction::take(Origin::signed(buyer), order_id, Take::new(1, 1001));
-		DutchAuction::take(Origin::signed(buyer), order_id, Take::new(1, 1002));
+		assert_ok!(DutchAuction::take(Origin::signed(buyer), order_id, Take::new(1, 1001)));
+		assert_ok!(DutchAuction::take(Origin::signed(buyer), order_id, Take::new(1, 1002)));
 
 		DutchAuction::on_finalize(42);
 
@@ -134,7 +130,6 @@ fn liquidation() {
 		Tokens::mint_into(MockCurrencyId::BTC, &ALICE, 10).unwrap();
 		let seller = AccountId::from_raw(ALICE.0);
 		let sell = Sell::new(MockCurrencyId::BTC, MockCurrencyId::USDT, 1, 1000);
-		let invalid = crate::OrdersIndex::<Runtime>::get();
 		let configuration = AuctionStepFunction::LinearDecrease(LinearDecrease { total: 42 });
 		DutchAuction::ask(Origin::signed(seller), sell, configuration).unwrap();
 		let order_id = crate::OrdersIndex::<Runtime>::get();
@@ -147,7 +142,7 @@ fn liquidation() {
 		);
 		let not_found = crate::SellOrders::<Runtime>::get(order_id);
 		assert!(not_found.is_none());
-		let reserved = Assets::reserved_balance(MockCurrencyId::BTC, &ALICE);
+		let reserved = <Assets as MultiReservableCurrency<_>>::reserved_balance(MockCurrencyId::BTC, &ALICE);
 		assert_eq!(reserved, 0);
 	});
 }

@@ -30,6 +30,7 @@ frame-support = { default-features = false, git = "https://github.com/paritytech
 composable-traits = {  path = "../composable-traits", default-features = false }
 
 [dev-dependencies]
+serde = "1.0.119"
 proptest = "1.0"
 hex-literal = "0.3.3"
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
@@ -54,6 +55,7 @@ std = [
 	"composable-traits/std",
     "scale-info/std",
     "orml-traits/std",
+    "serde/std",
 ]
 
 runtime-benchmarks = [

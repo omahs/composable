@@ -1,13 +1,7 @@
-use codec::{Decode, Encode};
-use composable_traits::currency::{DynamicCurrencyId, PriceableAsset, AssetIdLike};
-use frame_support::{parameter_types, traits::Get};
+use composable_traits::currency::{DynamicCurrencyId, PriceableAsset,};
+use frame_support::{parameter_types};
 use scale_info::TypeInfo;
-use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
-
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TypeInfo)]
-//#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[repr(transparent)]
-pub struct CurrencyId(u128);
+use sp_runtime::{ArithmeticError, DispatchError,};
 
 #[derive(
 	PartialOrd,
@@ -32,11 +26,11 @@ pub enum MockCurrencyId {
 	LpToken(u128),
 }
 
+/// seems need unifying type which stores and checks asset id boundaries, so not sure about design yet
 // pub trait ConstGet<T> {
 // 	const VALUE: T;
 // }
 
-/// seems need unifying type which stores and checks asset id boundaries, so not sure about design yet
 // /// knows existing local assets and how to map them to simple numbers
 // pub trait LocalAssetsRegistry {
 // 	type AssetId : AssetIdLike;

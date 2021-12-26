@@ -78,7 +78,6 @@ pub struct StableSwapPoolInfo<AccountId> {
 	pub admin_fee: Permill,
 }
 
-<<<<<<< HEAD
 /// Describes a simple exchanges which does not allow advanced configurations such as slippage.
 pub trait SimpleExchange {
 	type AssetId;
@@ -99,12 +98,12 @@ pub trait SimpleExchange {
 		to_amount: Self::Balance,
 		slippage: sp_runtime::Perbill,
 	) -> Result<Self::Balance, DispatchError>;
-=======
+}
+
 #[derive(Encode, Decode, TypeInfo, Clone, Default, PartialEq, Eq, Debug)]
 pub struct ConstantProductPoolInfo<AccountId> {
 	/// Owner of pool
 	pub owner: AccountId,
 	/// Amount of the fee pool charges for the exchange
 	pub fee: Permill,
->>>>>>> origin/main
 }
