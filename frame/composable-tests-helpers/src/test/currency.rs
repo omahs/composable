@@ -41,13 +41,14 @@ pub trait LocalAssetsRegistry {
 	type AssetId : AssetIdLike;
 	/// assets which we well know and embedded into enum. 
 	/// maximal of this is smaller than minimal `Assets`
-	type WellKnownAssets : ConstGet<u8> + Into<u128>; 	
-	/// Larger than maximal of `WellKnownAssets` but smaller than minimal `Derivatives`.
-	type Assets : ConstGet<u128>  + Into<u128>;
+	type WellKnownAssetId : ConstGet<u8> + Into<Self::AssetId>; 	
+	/// Larger than maximal of `WellKnownAssetId` but smaller than minimal `DerivativeAssetId`.
+	type OtherAssetId : ConstGet<u128>  + Into<Self::AssetId>;
 	/// locally diluted derivative and liquidity assets.
-	/// larger than maximal `Assets`
-	type Derivatives: ConstGet<u128> + Into<u128>;
+	/// larger than maximal `OtherAssetId`
+	type DerivativeAssetId: ConstGet<u128> + Into<Self::AssetId>;
 	fn try_from<N:Into<u128>>(number : N) -> Result<Self::AssetId, DispatchError>;	
+	fn native() -> Self::WellKnownAssetId;	
 }
 
 impl Default for MockCurrencyId {

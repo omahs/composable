@@ -9,18 +9,18 @@ pub trait WeightInfo {
 
 impl WeightInfo for () {
 	fn ask() -> Weight {
-		0
+		1
 	}
 
 	fn take() -> Weight {
-		0
+		2
 	}
 
 	fn liquidate() -> Weight {
-		0
+		2
 	}
 
 	fn known_overhead_for_on_finalize() -> Weight {
-		0
+		1
 	}
 }
