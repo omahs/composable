@@ -45,7 +45,8 @@ pub mod math;
 #[cfg(test)]
 mod tests;
 
-#[cfg(test)]
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 mod mock;
 
 pub mod weights;

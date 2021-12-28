@@ -1,4 +1,4 @@
-use composable_traits::currency::{DynamicCurrencyId, PriceableAsset};
+use composable_traits::{currency::{DynamicCurrencyId, PriceableAsset}, defi::Sell};
 use frame_support::parameter_types;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError};
@@ -80,4 +80,9 @@ impl DynamicCurrencyId for CurrencyId {
 parameter_types! {
 	pub const MaxStrategies: usize = 255;
 	pub const NativeAssetId: CurrencyId = CurrencyId::PICA;
+}
+
+// meaningless sell of 1 to 1
+pub fn sell_identity() -> Sell<CurrencyId,u128> {
+    Sell::new(CurrencyId::PICA, CurrencyId::PICA, 1, 1)
 }

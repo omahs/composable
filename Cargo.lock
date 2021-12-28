@@ -6733,6 +6733,7 @@ version = "0.0.1"
 dependencies = [
  "composable-tests-helpers",
  "composable-traits",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex-literal",
