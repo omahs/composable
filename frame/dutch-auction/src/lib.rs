@@ -5,14 +5,20 @@
 //! Diminishes with time.
 //! Takers can take for price same or higher.
 //! Higher takers take first.
-//! Sell orders stored on chain.
+//! Sell(ask) orders stored on chain. Sell takes rent from seller, returned during take or liquidation.
 //! Takes live only one block.
 //!
+//! # Takes
 //! Allows for best price to win during auction take. as takes are not executed immediately.
 //! When auction steps onto new value, several people will decide it worth it.
 //! They will know that highest price wins, so will try to overbid other, hopefully driving price to
 //! more optimal. So takers appropriate tip to auction, not via transaction tip(not proportional to
 //! price) to parachain. Allows to win bids not by closes to parachain host machine.
+//! 
+//! # Sell Order Rent
+//! Sell takes rent (as for accounts), to store sells for some time.
+//! We have to store lock rent value with ask as it can change within time.
+//! Later rent is used by pallet as initiative to liquidate garbage.			
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(
@@ -56,7 +62,7 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{tokens::fungible::Transfer as NativeTransfer, IsType, UnixTime},
-		PalletId,
+		PalletId, weights::WeightToFeePolynomial,
 	};
 	use frame_system::{
 		ensure_signed,
@@ -92,14 +98,23 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 		type NativeCurrency: NativeTransfer<Self::AccountId, Balance = Self::Balance>;
+		/// Convert a weight value into a deductible fee based on the currency type.
+		type WeightToFee: WeightToFeePolynomial<Balance = Self::Balance>;
 	}
 
 	#[derive(Encode, Decode, Default, TypeInfo, Clone, Debug, PartialEq)]
-	pub struct SellOrder<AssetId, Balance, AccountId, Moment> {
+	pub struct SellOrder<AssetId, Balance, AccountId, Context> {
 		pub from_to: AccountId,
 		pub order: Sell<AssetId, Balance>,
 		pub configuration: AuctionStepFunction,
-		pub added_at: Moment,
+		/// context captured when sell started
+		pub context: Context,
+	}
+
+	#[derive(Encode, Decode, Default, TypeInfo, Clone, Debug, PartialEq)]
+	pub struct Context<Balance> {
+		pub created_at: DurationSeconds,
+		pub rent: Balance,
 	}
 
 	#[derive(Encode, Decode, Default, TypeInfo)]
@@ -171,6 +186,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// sell `order` in auction with `configuration`
+		/// some rent is taken for storing sell order
 		#[pallet::weight(T::WeightInfo::ask())]
 		pub fn ask(
 			origin: OriginFor<T>,
@@ -180,11 +196,9 @@ pub mod pallet {
 			let who = &(ensure_signed(origin)?);
 			let order_id =
 				<Self as SellEngine<AuctionStepFunction>>::ask(who, order, configuration)?;
-			let treasury = &T::PalletId::get().into_account();
-
-			// we cannot take weight as it will go to runtime, not to pallet, so cannot return it
-			// back we could have create vault, so not sure if needed
-			T::NativeCurrency::transfer(who, treasury, T::WeightInfo::liquidate().into(), true)?;
+			let treasury = &T::PalletId::get().into_account();		
+			let rent = T::WeightToFee::calc(&T::WeightInfo::liquidate().into());
+			T::NativeCurrency::transfer(who, treasury, rent, true)?;
 			Self::deposit_event(Event::OrderAdded {
 				order_id,
 				order: SellOrders::<T>::get(order_id).expect("just added order exists"),
