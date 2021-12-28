@@ -5,7 +5,7 @@
 //! Diminishes with time.
 //! Takers can take for price same or higher.
 //! Higher takers take first.
-//! Sell(ask) orders stored on chain. Sell takes rent from seller, returned during take or liquidation.
+//! Sell(ask) orders stored on chain. Sell takes deposit from seller, returned during take or liquidation.
 //! Takes live only one block.
 //!
 //! # Takes
@@ -15,10 +15,10 @@
 //! more optimal. So takers appropriate tip to auction, not via transaction tip(not proportional to
 //! price) to parachain. Allows to win bids not by closes to parachain host machine.
 //! 
-//! # Sell Order Rent
-//! Sell takes rent (as for accounts), to store sells for some time.
-//! We have to store lock rent value with ask as it can change within time.
-//! Later rent is used by pallet as initiative to liquidate garbage.			
+//! # Sell Order deposit
+//! Sell takes deposit (as for accounts), to store sells for some time.
+//! We have to store lock deposit value with ask as it can change within time.
+//! Later deposit is used by pallet as initiative to liquidate garbage.			
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(
@@ -114,7 +114,7 @@ pub mod pallet {
 	#[derive(Encode, Decode, Default, TypeInfo, Clone, Debug, PartialEq)]
 	pub struct Context<Balance> {
 		pub added_at: DurationSeconds,
-		pub rent: Balance,
+		pub deposit: Balance,
 	}
 
 	#[derive(Encode, Decode, Default, TypeInfo)]
@@ -186,7 +186,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// sell `order` in auction with `configuration`
-		/// some rent is taken for storing sell order
+		/// some deposit is taken for storing sell order
 		#[pallet::weight(T::WeightInfo::ask())]
 		pub fn ask(
 			origin: OriginFor<T>,
@@ -232,7 +232,7 @@ pub mod pallet {
 			T::NativeCurrency::transfer(
 				treasury,
 				&order.from_to,
-				order.context.rent,
+				order.context.deposit,
 				true,
 			)?;
 
@@ -257,14 +257,14 @@ pub mod pallet {
 				*x
 			});
 			let treasury = &T::PalletId::get().into_account();		
-			let rent = T::WeightToFee::calc(&T::WeightInfo::liquidate().into());
-			T::NativeCurrency::transfer(from_to, treasury, rent, true)?;
+			let deposit = T::WeightToFee::calc(&T::WeightInfo::liquidate().into());
+			T::NativeCurrency::transfer(from_to, treasury, deposit, true)?;
 			let now = T::UnixTime::now().as_secs();
 			let order = SellOf::<T> {
 				from_to: from_to.clone(),
 				configuration,
 				order,
-				context: Context::<Self::Balance> { added_at :  now, rent : rent} ,
+				context: Context::<Self::Balance> { added_at :  now, deposit : deposit} ,
 			};
 			T::MultiCurrency::reserve(order.order.pair.base, from_to, order.order.take.amount)?;
 			SellOrders::<T>::insert(order_id, order);

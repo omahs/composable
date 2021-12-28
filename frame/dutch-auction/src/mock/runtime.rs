@@ -4,7 +4,13 @@ use crate::{
 };
 
 use composable_traits::defi::DeFiComposableConfig;
-use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId};
+use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId,
+	weights::{
+		DispatchClass, DispatchInfo, PostDispatchInfo, Weight, WeightToFeeCoefficient,
+		WeightToFeeCoefficients, WeightToFeePolynomial,
+	},
+};
+use smallvec::smallvec;
 use frame_system::EnsureSignedBy;
 use hex_literal::hex;
 use orml_traits::parameter_type_with_key;
@@ -14,7 +20,7 @@ use sp_core::{
 };
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify}, Perbill,
 };
 
 use super::governance_registry::GovernanceRegistry;
@@ -185,6 +191,24 @@ impl DeFiComposableConfig for Runtime {
 	type Balance = Balance;
 }
 
+parameter_types! {
+	pub static WeightToFee: u128 = 1;
+}
+
+impl WeightToFeePolynomial for WeightToFee {
+	type Balance = u128;
+
+	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+		let one = WeightToFeeCoefficient {
+			degree: 1,
+			coeff_frac: Perbill::zero(),
+			coeff_integer: WEIGHT_TO_FEE.with(|v| *v.borrow()),
+			negative: false,
+		};
+		smallvec![one]
+	}
+}
+
 impl pallet_dutch_auction::Config for Runtime {
 	type Event = Event;
 
@@ -195,6 +219,8 @@ impl pallet_dutch_auction::Config for Runtime {
 	type MultiCurrency = Assets;
 
 	type WeightInfo = ();
+
+	type WeightToFee = WeightToFee;
 
 	type PalletId = DutchAuctionPalletId;
 
