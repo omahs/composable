@@ -1,9 +1,8 @@
 #[cfg(any(feature = "runtime-benchmarks", test))]
 
 pub mod currency;
-#[cfg(test)]
+#[cfg(any(feature = "runtime-benchmarks", test))]
 
 pub mod governance_registry;
-#[cfg(test)]
-
+#[cfg(any(feature = "runtime-benchmarks", test))]
 pub mod runtime;

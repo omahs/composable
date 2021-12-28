@@ -1,7 +1,9 @@
-use composable_traits::{currency::{DynamicCurrencyId, PriceableAsset}, defi::Sell};
-use frame_support::parameter_types;
+use composable_traits::{currency::{DynamicCurrencyId, PriceableAsset, CurrencyFactory}, defi::{Sell, DeFiComposableConfig}};
+use frame_support::{parameter_types, traits::Get};
 use scale_info::TypeInfo;
-use sp_runtime::{ArithmeticError, DispatchError};
+use sp_runtime::{ArithmeticError, DispatchError, };
+
+use crate::Config;
 
 #[derive(
 	PartialOrd,
@@ -80,9 +82,4 @@ impl DynamicCurrencyId for CurrencyId {
 parameter_types! {
 	pub const MaxStrategies: usize = 255;
 	pub const NativeAssetId: CurrencyId = CurrencyId::PICA;
-}
-
-// meaningless sell of 1 to 1
-pub fn sell_identity() -> Sell<CurrencyId,u128> {
-    Sell::new(CurrencyId::PICA, CurrencyId::PICA, 1, 1)
 }
