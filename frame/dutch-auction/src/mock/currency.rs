@@ -1,7 +1,5 @@
-use composable_traits::{
-	currency::{DynamicCurrencyId, PriceableAsset},
-};
-use frame_support::{parameter_types,};
+use composable_traits::currency::{DynamicCurrencyId, PriceableAsset};
+use frame_support::parameter_types;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError};
 

@@ -61,7 +61,8 @@ impl<AssetId: PartialEq, Balance: PartialOrd + Zero + SafeArithmetic> Sell<Asset
 
 /// given `base`, how much `quote` needed for unit
 /// see [currency pair](https://www.investopedia.com/terms/c/currencypair.asp)
-/// Pair with base and quote considered valid as it allows to have mixer(money laundering) like behavior.
+/// Pair with base and quote considered valid as it allows to have mixer(money laundering) like
+/// behavior.
 #[repr(C)]
 #[derive(Encode, Decode, TypeInfo, Debug, Clone, PartialEq)]
 pub struct CurrencyPair<AssetId> {
@@ -71,16 +72,13 @@ pub struct CurrencyPair<AssetId> {
 	pub quote: AssetId,
 }
 
-
 impl<AssetId: PartialEq> CurrencyPair<AssetId> {
 	pub fn new(base: AssetId, quote: AssetId) -> Self {
-		Self { base , quote}
+		Self { base, quote }
 	}
 
-	pub fn as_array<'a>(&'a self) -> &'a[AssetId; 2] {
-		unsafe {
-			std::mem::transmute(self)
-		}
+	pub fn as_array<'a>(&'a self) -> &'a [AssetId; 2] {
+		unsafe { std::mem::transmute(self) }
 	}
 }
 
