@@ -16,25 +16,7 @@ use frame_support::{
 
 use crate::mock::{currency::CurrencyId, runtime::*};
 
-pub fn new_test_externalities() -> sp_io::TestExternalities {
-	let mut storage = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
-	let balances = vec![
-		(AccountId::from(ALICE), 1_000_000_000_000_000_000_000_000),
-		(AccountId::from(BOB), 1_000_000_000_000_000_000_000_000),
-	];
-
-	pallet_balances::GenesisConfig::<Runtime> { balances: balances.clone() }
-		.assimilate_storage(&mut storage)
-		.unwrap();
-
-	let mut externatlities = sp_io::TestExternalities::new(storage);
-	externatlities.execute_with(|| {
-		System::set_block_number(42);
-		Timestamp::set_timestamp(System::block_number() * MILLISECS_PER_BLOCK);
-	});
-	externatlities
-}
-
+/// checks that can setup valid sale with proper amount locks 
 #[test]
 fn setup_sell() {
 	new_test_externalities().execute_with(|| {
@@ -59,6 +41,8 @@ fn setup_sell() {
 	});
 }
 
+/// checks that can sell and take whole with on transaction only of take limit is right 
+/// and that fully taken sell is deleted
 #[test]
 fn with_immediate_exact_buy() {
 	new_test_externalities().execute_with(|| {
@@ -90,6 +74,7 @@ fn with_immediate_exact_buy() {
 	});
 }
 
+/// checks that can take parts of sell, and if not whole sell take, it is not deleted
 #[test]
 fn with_two_takes_higher_than_limit_and_not_enough_for_all() {
 	new_test_externalities().execute_with(|| {
@@ -116,6 +101,7 @@ fn with_two_takes_higher_than_limit_and_not_enough_for_all() {
 	});
 }
 
+/// tests that allows owner of sell to remove sell and take back rent
 #[test]
 fn liquidation() {
 	new_test_externalities().execute_with(|| {
