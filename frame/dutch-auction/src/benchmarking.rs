@@ -3,8 +3,8 @@ use composable_traits::defi::{DeFiComposableConfig, Sell, CurrencyPair, Take};
 use frame_benchmarking::{
     benchmarks, impl_benchmark_test_suite, whitelisted_caller,
 };
-use frame_support::{ensure, traits::fungibles::Mutate};
-use frame_system::RawOrigin;
+use frame_support::{ensure, traits::{fungibles::Mutate, Hooks}};
+use frame_system::{RawOrigin, pallet_prelude::BlockNumberFor};
 use sp_std::prelude::*;
 use crate::Pallet as DutchAuction;
 use codec::{Decode, Encode};
@@ -55,7 +55,7 @@ benchmarks! {
             <_>::default()
         )
     take {
-        let x in 1..30000;
+        let x in 1..2^16;
         let sell = sell_identity::<T>();
         let account_id : T::AccountId = whitelisted_caller();
         let caller = RawOrigin::Signed(account_id.clone());
@@ -84,7 +84,22 @@ benchmarks! {
         }: _(
             caller,
             order_id
-        )          
+        )
+    known_overhead_for_on_finalize {        
+        let sell = sell_identity::<T>();
+        let account_id : T::AccountId = whitelisted_caller();
+        let caller = RawOrigin::Signed(account_id.clone());
+        let amount: T::Balance = 1_000_000u64.into();
+        let order_id = OrdersIndex::<T>::get();
+        <T as pallet::Config>::MultiCurrency::mint_into(sell.pair.base, &account_id, amount).unwrap();
+        <T as pallet::Config>::MultiCurrency::mint_into(sell.pair.quote, &account_id, amount).unwrap();
+        DutchAuction::<T>::ask(caller.clone().into(), sell, <_>::default()).unwrap();
+        let take_order = take_identity::<T>();
+        DutchAuction::<T>::take(caller.clone().into(), order_id, take_order.clone()).unwrap();        
+    } : {
+        <DutchAuction::<T> as Hooks<BlockNumberFor<T>>>::on_finalize(T::BlockNumber::default())
+    }    
+
 }
 
 impl_benchmark_test_suite!(DutchAuction, crate::mock::runtime::new_test_externalities(), crate::mock::runtime::Runtime,);

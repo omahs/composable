@@ -6,7 +6,7 @@ use crate::{
 use composable_traits::defi::DeFiComposableConfig;
 use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId,
 	weights::{
-		DispatchClass, DispatchInfo, PostDispatchInfo, Weight, WeightToFeeCoefficient,
+		WeightToFeeCoefficient,
 		WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };

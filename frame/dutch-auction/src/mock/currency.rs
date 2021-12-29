@@ -3,8 +3,6 @@ use frame_support::{parameter_types, traits::Get};
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, };
 
-use crate::Config;
-
 #[derive(
 	PartialOrd,
 	Ord,
