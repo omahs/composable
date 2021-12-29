@@ -1,9 +1,9 @@
 use super::*;
-use composable_traits::defi::{DeFiComposableConfig, Sell};
+use composable_traits::defi::{DeFiComposableConfig, Sell, CurrencyPair};
 use frame_benchmarking::{
     benchmarks, impl_benchmark_test_suite, whitelisted_caller,
 };
-use frame_support::ensure;
+use frame_support::{ensure, traits::fungibles::Mutate};
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
 use crate::Pallet as DutchAuction;
@@ -12,37 +12,42 @@ use composable_traits::{currency::{CurrencyFactory}};
 
 // meaningless sell of 1 to 1
 pub fn sell_identity<T:Config>() -> Sell<<T as DeFiComposableConfig>::AssetId,<T as DeFiComposableConfig>::Balance> {
-	todo!()
-    // let one: <T as DeFiComposableConfig>::Balance = 1u64.into();
-	// let asset_id = <pallet_currency_factory::Pallet::<T> as  CurrencyFactory<<T as pallet_currency_factory::Config>::DynamicCurrencyId>> ::create().unwrap();
-    // Sell::new(asset_id, asset_id, one, one)
+    let one: <T as DeFiComposableConfig>::Balance = 1u64.into();
+	let pair = assets::<T>();
+    Sell::new(pair.base, pair.quote, one, one)
 }
 
 
 pub type AssetIdOf<T> =
 <T as DeFiComposableConfig>::AssetId;
 
-fn assets<T>() -> [AssetIdOf<T>; 2]
+fn assets<T>() -> CurrencyPair<AssetIdOf<T>>
 where
 	T: Config,
 {
 	let a = 0u128.to_be_bytes();
 	let b = 1u128.to_be_bytes();
-	[AssetIdOf::<T>::decode(&mut &a[..]).unwrap(), AssetIdOf::<T>::decode(&mut &b[..]).unwrap()]
+	CurrencyPair::new(AssetIdOf::<T>::decode(&mut &a[..]).unwrap(), AssetIdOf::<T>::decode(&mut &b[..]).unwrap())
 }
 
 
 benchmarks! {
- ask {
-    let sell = sell_identity::<T>();
-    let caller = RawOrigin::Signed(whitelisted_caller());
- }: _(
-    caller,
-    sell,
-    <_>::default()
-  )
-   verify {
- 	ensure!(0 == 0, "You forgot to sort!")
- }
- impl_benchmark_test_suite!(DutchAuction, crate::mock::runtime::new_test_externalities(), crate::mock::runtime::Runtime,);
+    where_clause {
+        where 
+        <T as Config>::MultiCurrency: 
+    			Mutate<T::AccountId, Balance = T::Balance, AssetId = T::AssetId>, 
+    }
+    ask {
+        let sell = sell_identity::<T>();
+        let account_id : T::AccountId = whitelisted_caller();
+        let caller = RawOrigin::Signed(account_id.clone());
+        let amount: T::Balance = 1_000_000u64.into();
+        <T as pallet::Config>::MultiCurrency::mint_into(sell.pair.base, &account_id, amount).unwrap();
+        }: _(
+            caller,
+            sell,
+            <_>::default()
+        )
 }
+
+impl_benchmark_test_suite!(DutchAuction, crate::mock::runtime::new_test_externalities(), crate::mock::runtime::Runtime,);
