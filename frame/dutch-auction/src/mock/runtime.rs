@@ -4,23 +4,24 @@ use crate::{
 };
 
 use composable_traits::defi::DeFiComposableConfig;
-use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId,
-	weights::{
-		WeightToFeeCoefficient,
-		WeightToFeeCoefficients, WeightToFeePolynomial,
-	},
+use frame_support::{
+	ord_parameter_types, parameter_types,
+	traits::Everything,
+	weights::{WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial},
+	PalletId,
 };
-use smallvec::smallvec;
 use frame_system::EnsureSignedBy;
 use hex_literal::hex;
 use orml_traits::parameter_type_with_key;
+use smallvec::smallvec;
 use sp_core::{
 	sr25519::{Public, Signature},
 	H256,
 };
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify}, Perbill,
+	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+	Perbill,
 };
 
 use super::governance_registry::GovernanceRegistry;

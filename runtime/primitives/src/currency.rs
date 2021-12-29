@@ -74,6 +74,7 @@ impl From<CurrencyId> for u128 {
 	}
 }
 
+// really returns may be currency, depends on external input to be correct
 impl From<u128> for CurrencyId {
 	#[inline]
 	fn from(raw: u128) -> Self {

@@ -5,21 +5,7 @@ repeat=20
 picassoOutput=./runtime/picasso/src/weights
 picassoChain=picasso-dev
 pallets=(
-	oracle
-	frame_system
-	timestamp
-	session
-	balances
-	indices
-	membership
-	treasury
-	scheduler
-	collective
-	democracy
-	collator_selection
-	crowdloan_bonus
-	utility
-	lending
+	dutch_auction
 )
 
 for p in ${pallets[@]}

@@ -5,20 +5,20 @@
 //! Diminishes with time.
 //! Takers can take for price same or higher.
 //! Higher takers take first.
-//! Sell(ask) orders stored on chain. Sell takes deposit from seller, returned during take or liquidation.
-//! Takes live only one block.
+//! Sell(ask) orders stored on chain. Sell takes deposit from seller, returned during take or
+//! liquidation. Takes live only one block.
 //!
-//! # Takes
+//! # Take Sell Order
 //! Allows for best price to win during auction take. as takes are not executed immediately.
 //! When auction steps onto new value, several people will decide it worth it.
 //! They will know that highest price wins, so will try to overbid other, hopefully driving price to
 //! more optimal. So takers appropriate tip to auction, not via transaction tip(not proportional to
 //! price) to parachain. Allows to win bids not by closes to parachain host machine.
-//! 
+//!
 //! # Sell Order deposit
 //! Sell takes deposit (as for accounts), to store sells for some time.
 //! We have to store lock deposit value with ask as it can change within time.
-//! Later deposit is used by pallet as initiative to liquidate garbage.			
+//! Later deposit is used by pallet as initiative to liquidate garbage.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(
@@ -63,7 +63,8 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{tokens::fungible::Transfer as NativeTransfer, IsType, UnixTime},
-		PalletId, weights::WeightToFeePolynomial,
+		weights::WeightToFeePolynomial,
+		PalletId,
 	};
 	use frame_system::{
 		ensure_signed,
@@ -146,6 +147,7 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		RequestedOrderDoesNotExists,
+		OrderParametersIsInvalid,
 		TakeParametersIsInvalid,
 		TakeLimitDoesNotSatisfiesOrder,
 		OrderNotFound,
@@ -230,12 +232,7 @@ pub mod pallet {
 			// pollute account system
 			let treasury = &T::PalletId::get().into_account();
 			T::MultiCurrency::unreserve(order.order.pair.base, &who, order.order.take.amount);
-			T::NativeCurrency::transfer(
-				treasury,
-				&order.from_to,
-				order.context.deposit,
-				true,
-			)?;
+			T::NativeCurrency::transfer(treasury, &order.from_to, order.context.deposit, true)?;
 
 			<SellOrders<T>>::remove(order_id);
 			Self::deposit_event(Event::OrderRemoved { order_id });
@@ -251,13 +248,13 @@ pub mod pallet {
 			order: Sell<Self::AssetId, Self::Balance>,
 			configuration: AuctionStepFunction,
 		) -> Result<Self::OrderId, DispatchError> {
-			ensure!(order.is_valid(), Error::<T>::TakeParametersIsInvalid,);
+			ensure!(order.is_valid(), Error::<T>::OrderParametersIsInvalid,);
 			let order_id = <OrdersIndex<T>>::mutate(|x| {
 				*x = x.next();
 				// in case of wrapping, will need to check existence of order/takes
 				*x
 			});
-			let treasury = &T::PalletId::get().into_account();		
+			let treasury = &T::PalletId::get().into_account();
 			let deposit = T::WeightToFee::calc(&T::WeightInfo::liquidate().into());
 			T::NativeCurrency::transfer(from_to, treasury, deposit, true)?;
 			let now = T::UnixTime::now().as_secs();
@@ -265,7 +262,7 @@ pub mod pallet {
 				from_to: from_to.clone(),
 				configuration,
 				order,
-				context: Context::<Self::Balance> { added_at :  now, deposit : deposit} ,
+				context: Context::<Self::Balance> { added_at: now, deposit },
 			};
 			T::MultiCurrency::reserve(order.order.pair.base, from_to, order.order.take.amount)?;
 			SellOrders::<T>::insert(order_id, order);

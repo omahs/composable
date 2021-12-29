@@ -98,6 +98,7 @@ pub mod pallet {
 			+ PartialEq
 			+ Copy
 			+ MaybeSerializeDeserialize
+			// TODO: remove From<u128> as it not always gives valid currency
 			+ From<u128>
 			+ Into<u128>
 			+ Debug

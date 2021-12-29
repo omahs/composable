@@ -3,7 +3,6 @@ use composable_traits::{
 	defi::{Sell, Take},
 };
 use orml_traits::MultiReservableCurrency;
-use pallet_balances;
 
 use frame_support::{
 	assert_ok,
@@ -16,7 +15,7 @@ use frame_support::{
 
 use crate::mock::{currency::CurrencyId, runtime::*};
 
-/// checks that can setup valid sale with proper amount locks 
+/// checks that can setup valid sale with proper amount locks
 #[test]
 fn setup_sell() {
 	new_test_externalities().execute_with(|| {
@@ -41,7 +40,7 @@ fn setup_sell() {
 	});
 }
 
-/// checks that can sell and take whole with on transaction only of take limit is right 
+/// checks that can sell and take whole with on transaction only of take limit is right
 /// and that fully taken sell is deleted
 #[test]
 fn with_immediate_exact_buy() {
