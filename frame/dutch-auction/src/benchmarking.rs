@@ -55,6 +55,7 @@ benchmarks! {
             <_>::default()
         )
     take {
+        let x in 1..30000;
         let sell = sell_identity::<T>();
         let account_id : T::AccountId = whitelisted_caller();
         let caller = RawOrigin::Signed(account_id.clone());
@@ -64,21 +65,25 @@ benchmarks! {
         <T as pallet::Config>::MultiCurrency::mint_into(sell.pair.quote, &account_id, amount).unwrap();
         DutchAuction::<T>::ask(caller.clone().into(), sell, <_>::default()).unwrap();
         let take_order = take_identity::<T>();
+        for i in 0..x {
+            DutchAuction::<T>::take(caller.clone().into(), order_id, take_order.clone()).unwrap();
+        }
         }: _(
             caller,
             order_id,
             take_order
         )      
-    liqudate {
+    liquidate {
         let sell = sell_identity::<T>();
         let account_id : T::AccountId = whitelisted_caller();
         let caller = RawOrigin::Signed(account_id.clone());
         let amount: T::Balance = 1_000_000u64.into();
         <T as pallet::Config>::MultiCurrency::mint_into(sell.pair.base, &account_id, amount).unwrap();
+        DutchAuction::<T>::ask(caller.clone().into(), sell, <_>::default()).unwrap();
+        let order_id = OrdersIndex::<T>::get();
         }: _(
             caller,
-            sell,
-            <_>::default()
+            order_id
         )          
 }
 
