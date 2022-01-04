@@ -96,13 +96,15 @@ impl InterestRateModel {
 		proportional_parameter: FixedI128,
 		integral_parameter: FixedI128,
 		derivative_parameter: FixedI128,
+		initial_interest_rate: FixedU128,
 		target_utilization: FixedU128,
 	) -> Option<Self> {
 		DynamicPIDControllerModel::new(
 			proportional_parameter,
 			integral_parameter,
 			derivative_parameter,
-			target_utilization,			
+			initial_interest_rate,
+			target_utilization,
 		)
 		.map(Self::DynamicPIDController)
 	}
@@ -285,11 +287,16 @@ impl DynamicPIDControllerModel {
 		//compute integral term `it = it_1 + ki * et`
 		let it = self
 			.previous_integral_term
-			.checked_add(&self.integral_parameter.checked_mul(&et).ok_or(ArithmeticError::Overflow)?)
+			.checked_add(
+				&self.integral_parameter.checked_mul(&et).ok_or(ArithmeticError::Overflow)?,
+			)
 			.ok_or(ArithmeticError::Overflow)?;
 		self.previous_integral_term = it;
 		// compute derivative term `dt = kd * (et - et_1)`
-		let dt = self.derivative_parameter.checked_mul(&(et - self.previous_error_value)).ok_or(ArithmeticError::Overflow)?;
+		let dt = self
+			.derivative_parameter
+			.checked_mul(&(et - self.previous_error_value))
+			.ok_or(ArithmeticError::Overflow)?;
 		self.previous_error_value = et;
 
 		// compute u(t), control value `ut = pt + it + dt`
@@ -313,15 +320,16 @@ impl DynamicPIDControllerModel {
 		proportional_parameter: FixedI128,
 		integral_parameter: FixedI128,
 		derivative_parameter: FixedI128,
+		initial_interest_rate: FixedU128,
 		target_utilization: FixedU128,
 	) -> Option<DynamicPIDControllerModel> {
 		Some(DynamicPIDControllerModel {
 			proportional_parameter,
 			integral_parameter,
 			derivative_parameter,
-			previous_error_value : <_>::zero(),
-			previous_integral_term : <_>::zero(),
-			previous_interest_rate : <_>::zero(),
+			previous_error_value: <_>::zero(),
+			previous_integral_term: <_>::zero(),
+			previous_interest_rate: initial_interest_rate,
 			target_utilization,
 		})
 	}
@@ -364,12 +372,12 @@ impl DoubleExponentModel {
 
 impl InterestRate for DoubleExponentModel {
 	fn get_borrow_rate(&mut self, utilization: Percent) -> Option<Rate> {
-		// as per model 
+		// as per model
 		let mut polynomial: FixedU128 = utilization.into();
-		let mut result = FixedU128::saturating_from_integer(self.coefficients[0]);	
+		let mut result = FixedU128::saturating_from_integer(self.coefficients[0]);
 		for i in 1..self.coefficients.len() {
 			result = result + FixedU128::saturating_from_integer(self.coefficients[i]) * polynomial;
-			polynomial = polynomial* polynomial;
+			polynomial = polynomial * polynomial;
 		}
 		let maximal = FixedU128::saturating_from_integer(EXPECTED_COEFFICIENTS_SUM);
 		Some(result / maximal)
