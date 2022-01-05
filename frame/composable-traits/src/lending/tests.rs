@@ -276,6 +276,7 @@ fn curve_model_plotter() {
 #[test]
 fn dynamic_pid_model_plotter() {
 	use plotters::prelude::*;
+	use sp_runtime::FixedI128;
 	let proportional_parameter = FixedI128::saturating_from_rational(40, 100);
 	let integral_parameter = FixedI128::saturating_from_rational(50, 100);
 	let derivative_parameter = FixedI128::saturating_from_rational(30, 100);
