@@ -13,8 +13,10 @@ proof = sign (concat prefix (hex reward_account))
 ```
 
 Reference for proof mechanism: https://github.com/paritytech/polkadot/blob/master/runtime/common/src/claims.rs
-*/
+ */
 
+#![cfg_attr(not(test), warn(clippy::disallowed_method, clippy::indexing_slicing))] // allow in tests
+#![warn(clippy::unseparated_literal_suffix, clippy::disallowed_type)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(
 	bad_style,
@@ -57,6 +59,10 @@ mod mocks;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+pub mod weights;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use codec::{Codec, Decode};
@@ -67,10 +73,11 @@ pub mod pallet {
 			Pays, StorageMap, StorageValue, ValueQuery,
 		},
 		traits::fungible::Mutate,
+		transactional,
 	};
 	use frame_system::pallet_prelude::{ensure_signed, OriginFor};
 	use scale_info::TypeInfo;
-	use sp_core::keccak_256;
+	use sp_io::hashing::keccak_256;
 	use sp_runtime::{
 		traits::{
 			AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, Convert, Saturating, Verify,
@@ -78,6 +85,9 @@ pub mod pallet {
 		},
 		AccountId32, MultiSignature, Perbill,
 	};
+	use sp_std::vec::Vec;
+
+	use crate::weights::WeightInfo;
 
 	use super::models::{EcdsaSignature, EthereumAddress, Proof, RemoteAccount};
 
@@ -162,6 +172,9 @@ pub mod pallet {
 		/// The arbitrary prefix used for the proof
 		#[pallet::constant]
 		type Prefix: Get<&'static [u8]>;
+
+		// Extrinsic weights
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::storage]
@@ -171,22 +184,28 @@ pub mod pallet {
 	/// The total amount of rewards to be claimed.
 	#[pallet::storage]
 	#[pallet::getter(fn total_rewards)]
+	// Absence of total rewards is equivalent to 0, so ValueQuery is allowed.
+	#[allow(clippy::disallowed_type)]
 	pub type TotalRewards<T: Config> = StorageValue<_, T::Balance, ValueQuery>;
 
 	/// The rewards claimed so far.
 	#[pallet::storage]
 	#[pallet::getter(fn claimed_rewards)]
+	// Absence of claimed rewards is equivalent to 0, so ValueQuery is allowed.
+	#[allow(clippy::disallowed_type)]
 	pub type ClaimedRewards<T: Config> = StorageValue<_, T::Balance, ValueQuery>;
 
 	/// The total number of contributors.
 	#[pallet::storage]
 	#[pallet::getter(fn total_contributors)]
+	// Absence of total contributors is equivalent to 0, so ValueQuery is allowed.
+	#[allow(clippy::disallowed_type)]
 	pub type TotalContributors<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	/// The block at which the users are able to claim their rewards.
 	#[pallet::storage]
 	#[pallet::getter(fn vesting_block_start)]
-	pub type VestingBlockStart<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
+	pub type VestingBlockStart<T: Config> = StorageValue<_, T::BlockNumber, OptionQuery>;
 
 	/// Associate a local account with a remote one.
 	#[pallet::storage]
@@ -201,27 +220,90 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Initialize the pallet at the current transaction block.
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::initialize(TotalContributors::<T>::get()))]
+		#[transactional]
 		pub fn initialize(origin: OriginFor<T>) -> DispatchResult {
 			T::AdminOrigin::ensure_origin(origin)?;
 			ensure!(!VestingBlockStart::<T>::exists(), Error::<T>::AlreadyInitialized);
-			let current_block = frame_system::Pallet::<T>::block_number();
-			VestingBlockStart::<T>::set(current_block);
-			Ok(())
+			Self::do_initialize()
 		}
 
 		/// Populate pallet by adding more rewards.
 		/// Can be called multiple times. Idempotent.
 		/// Can only be called before `initialize`.
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::populate(rewards.len() as u32))]
+		#[transactional]
 		pub fn populate(
 			origin: OriginFor<T>,
 			rewards: Vec<(RemoteAccountOf<T>, RewardAmountOf<T>, VestingPeriodOf<T>)>,
 		) -> DispatchResult {
 			T::AdminOrigin::ensure_origin(origin)?;
-			// Make sure we can't populate after any user has claim anything otherwise we are
-			// screwed.
+			Self::do_populate(rewards)
+		}
+
+		/// Associate a reward account. A valid proof has to be provided.
+		/// This call also claim the first reward (a.k.a. the first payment, which is a % of the
+		/// vested reward).
+		/// If logic gate pass, no fees are applied.
+		///
+		/// The proof should be:
+		/// ```haskell
+		/// proof = sign (concat prefix (hex reward_account))
+		/// ```
+		#[pallet::weight((<T as Config>::WeightInfo::associate(TotalContributors::<T>::get()), Pays::No))]
+		#[transactional]
+		pub fn associate(
+			origin: OriginFor<T>,
+			reward_account: T::AccountId,
+			proof: ProofOf<T>,
+		) -> DispatchResultWithPostInfo {
+			T::AssociationOrigin::ensure_origin(origin)?;
+			Self::do_associate(reward_account, proof)
+		}
+
+		/// Claim a reward from the associated reward account.
+		/// A previous call to `associate` should have been made.
+		/// If logic gate pass, no fees are applied.
+		#[pallet::weight(<T as Config>::WeightInfo::claim(TotalContributors::<T>::get()))]
+		#[transactional]
+		pub fn claim(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+			let reward_account = ensure_signed(origin)?;
+			let remote_account = Associations::<T>::try_get(&reward_account)
+				.map_err(|_| Error::<T>::NotAssociated)?;
+			let claimed = Self::do_claim(remote_account.clone(), &reward_account)?;
+			Self::deposit_event(Event::Claimed { remote_account, reward_account, amount: claimed });
+			Ok(Pays::No.into())
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		pub fn do_initialize() -> DispatchResult {
+			let current_block = frame_system::Pallet::<T>::block_number();
+			VestingBlockStart::<T>::set(Some(current_block));
+			Ok(())
+		}
+
+		pub fn do_associate(
+			reward_account: T::AccountId,
+			proof: ProofOf<T>,
+		) -> DispatchResultWithPostInfo {
+			let remote_account =
+				Self::get_remote_account(proof, &reward_account, T::Prefix::get())?;
+			let claimed = Self::do_claim(remote_account.clone(), &reward_account)?;
+			Associations::<T>::insert(reward_account.clone(), remote_account.clone());
+			Self::deposit_event(Event::Associated {
+				remote_account: remote_account.clone(),
+				reward_account: reward_account.clone(),
+			});
+			Self::deposit_event(Event::Claimed { remote_account, reward_account, amount: claimed });
+			Ok(Pays::No.into())
+		}
+
+		pub fn do_populate(
+			rewards: Vec<(RemoteAccountOf<T>, RewardAmountOf<T>, VestingPeriodOf<T>)>,
+		) -> DispatchResult {
 			ensure!(!VestingBlockStart::<T>::exists(), Error::<T>::AlreadyInitialized);
+			let _ = Rewards::<T>::remove_all(None);
 			rewards
 				.into_iter()
 				.for_each(|(remote_account, account_reward, vesting_period)| {
@@ -247,89 +329,14 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Associate a reward account. A valid proof has to be provided.
-		/// This call also claim the first reward (a.k.a. the first payment, which is a % of the
-		/// vested reward).
-		/// If logic gate pass, no fees are applied.
-		///
-		/// The proof should be:
-		/// ```haskell
-		/// proof = sign (concat prefix (hex reward_account))
-		/// ```
-		#[pallet::weight((10_000, Pays::No))]
-		pub fn associate(
-			origin: OriginFor<T>,
-			reward_account: T::AccountId,
-			proof: ProofOf<T>,
-		) -> DispatchResultWithPostInfo {
-			T::AssociationOrigin::ensure_origin(origin)?;
-			let remote_account = get_remote_account::<T>(proof, &reward_account, T::Prefix::get())?;
-			let claimed = Self::do_claim(remote_account.clone(), &reward_account)?;
-			Associations::<T>::insert(reward_account.clone(), remote_account.clone());
-			Self::deposit_event(Event::Associated {
-				remote_account: remote_account.clone(),
-				reward_account: reward_account.clone(),
-			});
-			Self::deposit_event(Event::Claimed { remote_account, reward_account, amount: claimed });
-			Ok(Pays::No.into())
-		}
-
-		/// Claim a reward from the associated reward account.
-		/// A previous call to `associate` should have been made.
-		/// If logic gate pass, no fees are applied.
-		#[pallet::weight(10_000)]
-		pub fn claim(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-			let reward_account = ensure_signed(origin)?;
-			let remote_account = Associations::<T>::try_get(&reward_account)
-				.map_err(|_| Error::<T>::NotAssociated)?;
-			let claimed = Self::do_claim(remote_account.clone(), &reward_account)?;
-			Self::deposit_event(Event::Claimed { remote_account, reward_account, amount: claimed });
-			Ok(Pays::No.into())
-		}
-	}
-
-	pub fn get_remote_account<T: Config>(
-		proof: Proof<<T as Config>::RelayChainAccountId>,
-		reward_account: &<T as frame_system::Config>::AccountId,
-		prefix: &[u8],
-	) -> Result<
-		RemoteAccount<<T as Config>::RelayChainAccountId>,
-		sp_runtime::DispatchErrorWithPostInfo<frame_support::dispatch::PostDispatchInfo>,
-	> {
-		let remote_account = match proof {
-			Proof::Ethereum(eth_proof) => {
-				let reward_account_encoded =
-					reward_account.using_encoded(|x| hex::encode(x).as_bytes().to_vec());
-				let ethereum_address =
-					ethereum_recover(prefix, &reward_account_encoded, &eth_proof)
-						.ok_or(Error::<T>::InvalidProof)?;
-				Result::<_, DispatchError>::Ok(RemoteAccount::Ethereum(ethereum_address))
-			},
-			Proof::RelayChain(relay_account, relay_proof) => {
-				ensure!(
-					verify_relay(
-						prefix,
-						reward_account.clone(),
-						relay_account.clone(),
-						&relay_proof
-					),
-					Error::<T>::InvalidProof
-				);
-				Ok(RemoteAccount::RelayChain(relay_account))
-			},
-		}?;
-		Ok(remote_account)
-	}
-
-	impl<T: Config> Pallet<T> {
 		/// Do claim the reward for a given remote account, rewarding the `reward_account`.
 		/// Returns `InvalidProof` if the user is not a contributor or `NothingToClaim` if not
 		/// reward can be claimed yet.
-		fn do_claim(
+		pub fn do_claim(
 			remote_account: RemoteAccountOf<T>,
 			reward_account: &T::AccountId,
 		) -> Result<T::Balance, DispatchError> {
-			ensure!(VestingBlockStart::<T>::exists(), Error::<T>::NotInitialized);
+			let start = VestingBlockStart::<T>::get().ok_or(Error::<T>::NotInitialized)?;
 			Rewards::<T>::try_mutate(remote_account, |reward| {
 				reward
 					.as_mut()
@@ -338,8 +345,7 @@ pub mod pallet {
 						let should_have_claimed = {
 							let current_block = frame_system::Pallet::<T>::block_number();
 							// Current point in time
-							let vesting_point =
-								current_block.saturating_sub(VestingBlockStart::<T>::get());
+							let vesting_point = current_block.saturating_sub(start);
 							if vesting_point >= reward.vesting_period {
 								// If the user is claiming when the period is over, he should
 								// probably have already claimed everything.
@@ -369,6 +375,39 @@ pub mod pallet {
 					})
 					.unwrap_or_else(|| Err(Error::<T>::InvalidProof.into()))
 			})
+		}
+
+		pub fn get_remote_account(
+			proof: Proof<<T as Config>::RelayChainAccountId>,
+			reward_account: &<T as frame_system::Config>::AccountId,
+			prefix: &[u8],
+		) -> Result<
+			RemoteAccount<<T as Config>::RelayChainAccountId>,
+			sp_runtime::DispatchErrorWithPostInfo<frame_support::dispatch::PostDispatchInfo>,
+		> {
+			let remote_account = match proof {
+				Proof::Ethereum(eth_proof) => {
+					let reward_account_encoded =
+						reward_account.using_encoded(|x| hex::encode(x).as_bytes().to_vec());
+					let ethereum_address =
+						ethereum_recover(prefix, &reward_account_encoded, &eth_proof)
+							.ok_or(Error::<T>::InvalidProof)?;
+					Result::<_, DispatchError>::Ok(RemoteAccount::Ethereum(ethereum_address))
+				},
+				Proof::RelayChain(relay_account, relay_proof) => {
+					ensure!(
+						verify_relay(
+							prefix,
+							reward_account.clone(),
+							relay_account.clone(),
+							&relay_proof
+						),
+						Error::<T>::InvalidProof
+					);
+					Ok(RemoteAccount::RelayChain(relay_account))
+				},
+			}?;
+			Ok(remote_account)
 		}
 	}
 
