@@ -9,7 +9,7 @@ jobs:
       - name: Enforce Labels
         uses: jesusvasquez333/verify-pr-label-action@v1.4.0
         with:
-          github-token: '${{ secrets.COMPOSABLE_GITHUB_TOKEN }}'
-          valid-labels: 'major', 'minor', 'patch', 'hotfix'
-          invalid-labels: 'help wanted, invalid'
+          github-token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
+          valid-labels: major, minor, patch, hotfix
+          invalid-labels: help wanted, invalid
 
