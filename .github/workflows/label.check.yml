@@ -6,6 +6,7 @@ jobs:
   label-check:
     runs-on: ubuntu
     steps:
+      - uses: actions/checkout@v2
       - uses: jesusvasquez333/verify-pr-label-action@v1.4.0
         with:
           github-token: '${{ secrets.COMPOSABLE_GITHUB_TOKEN }}'
