@@ -1,4 +1,4 @@
-name: Check Runtime
+name: Picashot
 on:
   schedule:
     - cron:  '0 0 * * *'

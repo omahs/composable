@@ -4,6 +4,8 @@ on:
   push: 
     tags: 
       - '*'
+    braches:
+      - feature/workflow-test
       
 env:
   DOCKER_USER_OPTION: '$UID:$GID'
