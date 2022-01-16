@@ -5,7 +5,8 @@ name: CI Check
 on:
   push:
     branches:
-      - test-release-note    
+      - main    
+  workflow_dispatch:
 
 env:
   DOCKER_USER_OPTION: '$UID:$GID'

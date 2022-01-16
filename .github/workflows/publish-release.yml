@@ -47,7 +47,7 @@ jobs:
       id: srtool_build
       uses: chevdor/srtool-actions@v0.3.0
       with:
-        chain: ${{ github.event.inputs.chain }}
+        chain: picasso
 
     - name: Build Summary
       run: |
