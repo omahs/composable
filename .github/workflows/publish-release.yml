@@ -54,21 +54,20 @@ jobs:
 
     - name: Install subwasm ${{ env.SUBWASM_VERSION }}
       run: |
-        wget https://github.com/chevdor/subwasm/releases/download/v${{ env.SUBWASM_VERSION }}/subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
-        sudo dpkg -i subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
-        subwasm --version
+        /home/runner/.cargo/bin/cargo install --locked --git https://github.com/chevdor/subwasm --tag v0.16.1
+  
 
     - name: Extract metadata
       run: |
-        subwasm  --json info ${{ steps.srtool_build.outputs.wasm }} > ${{ github.event.inputs.chain }}-info.json
-        subwasm info ${{ steps.srtool_build.outputs.wasm }} > ${{ github.event.inputs.chain }}-info.txt
-        cat ${{ github.event.inputs.chain }}-info.txt
-        subwasm  --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ github.event.inputs.chain }}-subwam-info.json
-        subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ github.event.inputs.chain }}-subwam-info.txt
+        /home/runner/.cargo/bin/subwasm  --json info ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.chain }}-info.json
+        /home/runner/.cargo/bin/subwasm info ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.chain }}-info.txt
+        cat ${{ matrix.chain }}-info.txt
+        /home/runner/.cargo/bin/subwasm  --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ matrix.chain }}-subwasm-info.json
+        /home/runner/.cargo/bin/subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ matrix.chain }}-subwasm-info.txt
         cat ${{ github.event.inputs.chain }}-subwam-info.txt
 
     - name: Check the metadata diff
       run: |
-        subwasm diff ${{ steps.srtool_build.outputs.wasm }} --chain-b ${{ github.event.inputs.chain }} | tee ${{ github.event.inputs.chain }}-diff.txt
+        /home/runner/.cargo/bin/subwasm diff ${{ steps.srtool_build.outputs.wasm }} --chain-b ${{ matrix.chain }} | tee ${{ matrix.chain }}}-diff.txt
     
     
