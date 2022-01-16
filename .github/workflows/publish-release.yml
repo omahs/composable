@@ -32,7 +32,6 @@ jobs:
       - x64
       - sre
     strategy:
-      fail-fast: true
       matrix:
         chain: ["picasso", "dali"]
     steps:
