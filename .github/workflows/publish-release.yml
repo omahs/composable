@@ -46,11 +46,10 @@ jobs:
         /home/runner/.cargo/bin/cargo install --git https://github.com/chevdor/srtool-cli
         /home/runner/.cargo/bin/srtool build --package ${{ matrix.chain }}-runtime --profile release --runtime-dir ./runtime/${{ matrix.chain }}
 
-
     - name: Build Summary
       run: |
-        echo '${{ steps.srtool_build.outputs.json }}' | jq . > ${{ github.event.inputs.chain }}-srtool-digest.json
-        cat ${{ github.event.inputs.chain }}-srtool-digest.json
+        echo '${{ steps.srtool_build.outputs.json }}' | jq . > ${{ matrix.chain }}-srtool-digest.json
+        cat ${{ matrix.chain }}-srtool-digest.json
         echo "Runtime location: ${{ steps.srtool_build.outputs.wasm }}"
 
     - name: Install subwasm ${{ env.SUBWASM_VERSION }}
