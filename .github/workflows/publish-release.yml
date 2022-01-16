@@ -14,7 +14,7 @@ on:
             - composable
   push: 
     branches:
-      - benchmark-test
+      - test-release-note
     tags: 
       - '*'
 

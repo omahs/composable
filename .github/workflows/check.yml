@@ -3,15 +3,9 @@ name: CI Check
 # please update docker, toolchain toml and github action with toolchain at same time
 
 on:
-  pull_request:
-    branches:
-      - main
-      - develop
-      - release/*
   push:
     branches:
-      - main    
-  workflow_dispatch:
+      - test-release-note    
 
 env:
   DOCKER_USER_OPTION: '$UID:$GID'
