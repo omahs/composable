@@ -32,7 +32,7 @@ then
     /home/runner/.cargo/bin/cargo build --release -p simnode
     YDATE=$(date -d yesterday +'%m-%d-%Y')
     FILENAME=cl-1-$YDATE.zip
-    GS_BUCKET="picasso-data-store"
+    GS_BUCKET="$CHAIN-data-store"
     sudo gsutil cp gs://$GS_BUCKET/"$FILENAME" .
     sudo unzip -o "$FILENAME" -d  /tmp/db
     ./target/release/simnode --chain="$CHAIN" --base-path=/tmp/db/ --pruning=archive --execution=wasm
