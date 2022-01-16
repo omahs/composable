@@ -51,6 +51,7 @@ jobs:
       with:
         chain: ${{ matrix.chain }}
         runtime_dir: ./runtime//${{ matrix.chain }}
+        args: --offline
 
     - name: Build Summary
       run: |
