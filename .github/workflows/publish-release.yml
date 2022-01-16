@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       chain:
-        description: Chain Runtime (default = karura)    
+        description: Chain Runtime     
         required: true
         default: picasso
         type: choice
         options:
             - picasso
-            - dali-chachacha
+            - dali
             - composable
   push: 
     branches:
@@ -42,10 +42,10 @@ jobs:
 
     - name: Srtool build
       id: srtool_build
-      uses: chevdor/srtool-actions@v0.3.0
-      with:
-        chain: ${{ matrix.chain }}
-        runtime_dir: runtime/${{ matrix.chain }}
+      run: |
+        /home/runner/.cargo/bin/cargo install --git https://github.com/chevdor/srtool-cli
+        /home/runner/.cargo/bin/srtool build --package ${{ matrix.chain }}-runtime --profile release --runtime-dir ./runtime/${{ matrix.chain }}
+
 
     - name: Build Summary
       run: |
