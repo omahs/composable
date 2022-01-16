@@ -33,9 +33,8 @@ jobs:
       - sre
     strategy:
       fail-fast: true
-      strategy:
-        matrix:
-          chain: ["picasso", "dali"]
+      matrix:
+        chain: ["picasso", "dali"]
     steps:
     - uses: actions/checkout@v2
       with: 
