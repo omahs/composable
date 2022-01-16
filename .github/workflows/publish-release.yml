@@ -48,7 +48,7 @@ jobs:
 
 
     - name: Echo output
-      run: echo '${{ steps.srtool_build.outputs.runtimes }}'
+      run: echo '${{ steps.srtool_build.outputs.output }}'
 
     # - name: Build Summary
     #   run: |
