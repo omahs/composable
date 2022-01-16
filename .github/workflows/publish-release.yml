@@ -40,17 +40,12 @@ jobs:
       with: 
         fetch-depth: 0
 
-    - name: Set env
-      run: |
-        echo "RELEASE_VERSION=$(git tag --sort=committerdate | grep -E '^v[0-9]' | tail -1 )" >> $GITHUB_ENV
-        make version
-
     - name: Srtool build
       id: srtool_build
       uses: chevdor/srtool-actions@v0.3.0
       with:
         chain: ${{ matrix.chain }}
-        runtime_dir: runtime//${{ matrix.chain }}
+        runtime_dir: runtime/${{ matrix.chain }}
 
     - name: Build Summary
       run: |
