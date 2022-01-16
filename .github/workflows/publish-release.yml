@@ -32,6 +32,7 @@ jobs:
       - x64
       - sre
     strategy:
+      fail-fast: true
       matrix:
         chain: ["picasso", "dali"]
     steps:
@@ -41,13 +42,13 @@ jobs:
 
     - name: Srtool build
       id: srtool_build
-      uses: chevdor/srtool-actions@v0.3.0
-      with:
-        chain: ${{ matrix.chain }}
-        tag: 1.53.0
+      run: |
+        /home/runner/.cargo/bin/cargo install --git https://github.com/chevdor/srtool-cli
+        /home/runner/.cargo/bin/srtool build --package ${{ matrix.chain }}-runtime --profile release --runtime-dir ./runtime/${{ matrix.chain }}
+
 
     - name: Echo output
-      run: echo ${{ steps.srtool_build.outputs.json }}
+      run: echo '${{ steps.srtool_build.outputs.json }}'
 
     # - name: Build Summary
     #   run: |
