@@ -46,28 +46,32 @@ jobs:
         /home/runner/.cargo/bin/cargo install --git https://github.com/chevdor/srtool-cli
         /home/runner/.cargo/bin/srtool build --package ${{ matrix.chain }}-runtime --profile release --runtime-dir ./runtime/${{ matrix.chain }}
 
-    - name: Build Summary
-      run: |
-        echo '${{ steps.srtool_build.outputs.json }}' | jq . > ${{ matrix.chain }}-srtool-digest.json
-        cat ${{ matrix.chain }}-srtool-digest.json
-        echo "Runtime location: ${{ steps.srtool_build.outputs.wasm }}"
 
-    - name: Install subwasm ${{ env.SUBWASM_VERSION }}
-      run: |
-        /home/runner/.cargo/bin/cargo install --locked --git https://github.com/chevdor/subwasm --tag v0.16.1
+    - name: Echo output
+      run: echo ${{ steps.srtool_build.outputs.json }}
+
+    # - name: Build Summary
+    #   run: |
+    #     echo '${{ steps.srtool_build.outputs.json }}' | jq . > ${{ matrix.chain }}-srtool-digest.json
+    #     cat ${{ matrix.chain }}-srtool-digest.json
+    #     echo "Runtime location: ${{ steps.srtool_build.outputs.wasm }}"
+
+    # - name: Install subwasm ${{ env.SUBWASM_VERSION }}
+    #   run: |
+    #     /home/runner/.cargo/bin/cargo install --locked --git https://github.com/chevdor/subwasm --tag v0.16.1
   
 
-    - name: Extract metadata
-      run: |
-        /home/runner/.cargo/bin/subwasm  --json info ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.chain }}-info.json
-        /home/runner/.cargo/bin/subwasm info ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.chain }}-info.txt
-        cat ${{ matrix.chain }}-info.txt
-        /home/runner/.cargo/bin/subwasm  --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ matrix.chain }}-subwasm-info.json
-        /home/runner/.cargo/bin/subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ matrix.chain }}-subwasm-info.txt
-        cat ${{ github.event.inputs.chain }}-subwam-info.txt
+    # - name: Extract metadata
+    #   run: |
+    #     /home/runner/.cargo/bin/subwasm  --json info ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.chain }}-info.json
+    #     /home/runner/.cargo/bin/subwasm info ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.chain }}-info.txt
+    #     cat ${{ matrix.chain }}-info.txt
+    #     /home/runner/.cargo/bin/subwasm  --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ matrix.chain }}-subwasm-info.json
+    #     /home/runner/.cargo/bin/subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ matrix.chain }}-subwasm-info.txt
+    #     cat ${{ github.event.inputs.chain }}-subwam-info.txt
 
-    - name: Check the metadata diff
-      run: |
-        /home/runner/.cargo/bin/subwasm diff ${{ steps.srtool_build.outputs.wasm }} --chain-b ${{ matrix.chain }} | tee ${{ matrix.chain }}}-diff.txt
+    # - name: Check the metadata diff
+    #   run: |
+    #     /home/runner/.cargo/bin/subwasm diff ${{ steps.srtool_build.outputs.wasm }} --chain-b ${{ matrix.chain }} | tee ${{ matrix.chain }}}-diff.txt
     
     

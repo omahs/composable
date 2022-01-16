@@ -25,7 +25,7 @@ jobs:
       - name: Echo output
         run: echo ${{ env.RUNTIME_CHECK }}
 
-      - name: Run Simnode
+      - name: Run Simnode./
         if: "$${{ env.RUNTIME_CHECK }} == 1"
         working-directory: "./.maintain/"
         id: run_simnode
