@@ -12,8 +12,8 @@ GITHUB_REF_NAME=$(git rev-parse --abbrev-ref HEAD)
 
 VERSIONS_FILES=(
   "runtime/picasso/src/weights,picasso-dev,picasso"
-  # "runtime/dali/src/weights,dali-chachacha,dali"
-  # "runtime/composable/src/weights,composable,composable"
+  "runtime/dali/src/weights,dali-chachacha,dali"
+  "runtime/composable/src/weights,composable,composable"
 )
 
 steps=50
@@ -44,9 +44,9 @@ pallets=(
  git log -n1 "${LATEST_TAG_NAME}"
 
 
-# /home/runner/.cargo/bin/rustup install nightly
-# /home/runner/.cargo/bin/rustup target add wasm32-unknown-unknown --toolchain nightly
-# /home/runner/.cargo/bin/cargo build --release -p composable --features=runtime-benchmarks
+/home/runner/.cargo/bin/rustup install nightly
+/home/runner/.cargo/bin/rustup target add wasm32-unknown-unknown --toolchain nightly
+/home/runner/.cargo/bin/cargo build --release -p composable --features=runtime-benchmarks
 
 run_benchmarks() {
   OUTPUT=$1
@@ -55,18 +55,18 @@ run_benchmarks() {
   # shellcheck disable=SC2068
   boldprint "Running benchmarks for $CHAIN"
   # shellcheck disable=SC2068
-  # for p in ${pallets[@]}; do
-  #   ./target/release/composable benchmark \
-  #     --chain="$CHAIN" \
-  #     --execution=wasm \
-  #     --wasm-execution=compiled \
-  #     --pallet="$p" \
-  #     --extrinsic='*' \
-  #     --steps=$steps \
-  #     --repeat=$repeat \
-  #     --raw \
-  #     --output="$OUTPUT"
-  # done
+  for p in ${pallets[@]}; do
+    ./target/release/composable benchmark \
+      --chain="$CHAIN" \
+      --execution=wasm \
+      --wasm-execution=compiled \
+      --pallet="$p" \
+      --extrinsic='*' \
+      --steps=$steps \
+      --repeat=$repeat \
+      --raw \
+      --output="$OUTPUT"
+  done
   git config --global user.email "haroldsphinx@gmail.com"
   git config --global user.name "haroldsphinx"
   USERNAME=$(gcloud secrets versions access latest --secret=github-api-username)
