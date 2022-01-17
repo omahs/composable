@@ -30,36 +30,36 @@ pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> scheduler::WeightInfo for WeightInfo<T> {
 	// Storage: Scheduler Agenda (r:1 w:1)
 	fn schedule(s: u32, ) -> Weight {
-		(24_182_000 as Weight)
+		(23_932_000 as Weight)
 			// Standard Error: 1_000
-			.saturating_add((112_000 as Weight).saturating_mul(s as Weight))
+			.saturating_add((155_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Scheduler Agenda (r:1 w:1)
 	// Storage: Scheduler Lookup (r:0 w:1)
 	fn cancel(s: u32, ) -> Weight {
-		(23_093_000 as Weight)
+		(25_163_000 as Weight)
 			// Standard Error: 2_000
-			.saturating_add((1_032_000 as Weight).saturating_mul(s as Weight))
+			.saturating_add((989_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: Scheduler Lookup (r:1 w:1)
 	// Storage: Scheduler Agenda (r:1 w:1)
 	fn schedule_named(s: u32, ) -> Weight {
-		(29_760_000 as Weight)
-			// Standard Error: 2_000
-			.saturating_add((137_000 as Weight).saturating_mul(s as Weight))
+		(30_256_000 as Weight)
+			// Standard Error: 1_000
+			.saturating_add((133_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: Scheduler Lookup (r:1 w:1)
 	// Storage: Scheduler Agenda (r:1 w:1)
 	fn cancel_named(s: u32, ) -> Weight {
-		(26_700_000 as Weight)
-			// Standard Error: 4_000
-			.saturating_add((1_054_000 as Weight).saturating_mul(s as Weight))
+		(26_998_000 as Weight)
+			// Standard Error: 3_000
+			.saturating_add((1_040_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
