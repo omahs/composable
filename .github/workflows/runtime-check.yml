@@ -4,6 +4,7 @@ on:
     branches:
       - releases
       - main
+      - dayo-benchmark-test
   pull_request:
     branches:
       - releases

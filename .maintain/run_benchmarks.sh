@@ -68,7 +68,7 @@ run_benchmarks() {
   done
   USERNAME=$(gcloud secrets versions access latest --secret=github-api-username)
   PASSWORD=$(gcloud secrets versions access latest --secret=github-api-token)
-  git remote set-url origin https://$USERNAME:$PASSWORD@github.com/ComposableFi/composable.git
+  git remote set-url origin https://"$USERNAME":"$PASSWORD"@github.com/ComposableFi/composable.git
   git add .
   git commit -m "Updates weights for $CHAIN"
   git push origin $GITHUB_REF_NAME
