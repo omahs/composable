@@ -13,7 +13,7 @@ GITHUB_REF_NAME=$(git rev-parse --abbrev-ref HEAD)
 VERSIONS_FILES=(
   "runtime/picasso/src/weights,picasso,picasso"
   "runtime/dali/src/weights,dali-chachacha,dali"
-  "runtime/composable/src/weights,composable,composable"
+  # "runtime/composable/src/weights,composable,composable"
 )
 
 steps=50
