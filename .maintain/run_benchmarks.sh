@@ -55,18 +55,18 @@ run_benchmarks() {
   # shellcheck disable=SC2068
   boldprint "Running benchmarks for $CHAIN"
   # shellcheck disable=SC2068
-  for p in ${pallets[@]}; do
-    ./target/release/composable benchmark \
-      --chain="$CHAIN" \
-      --execution=wasm \
-      --wasm-execution=compiled \
-      --pallet="$p" \
-      --extrinsic='*' \
-      --steps=$steps \
-      --repeat=$repeat \
-      --raw \
-      --output="$OUTPUT"
-  done
+  # for p in ${pallets[@]}; do
+  #   ./target/release/composable benchmark \
+  #     --chain="$CHAIN" \
+  #     --execution=wasm \
+  #     --wasm-execution=compiled \
+  #     --pallet="$p" \
+  #     --extrinsic='*' \
+  #     --steps=$steps \
+  #     --repeat=$repeat \
+  #     --raw \
+  #     --output="$OUTPUT"
+  # done
   USERNAME=$(gcloud secrets versions access latest --secret=github-api-username)
   PASSWORD=$(gcloud secrets versions access latest --secret=github-api-token)
   git remote set-url origin https://"$USERNAME":"$PASSWORD"@github.com/ComposableFi/composable.git
