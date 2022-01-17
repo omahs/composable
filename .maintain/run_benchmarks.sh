@@ -44,9 +44,9 @@ pallets=(
  git log -n1 "${LATEST_TAG_NAME}"
 
 
-/home/runner/.cargo/bin/rustup install nightly
-/home/runner/.cargo/bin/rustup target add wasm32-unknown-unknown --toolchain nightly
-/home/runner/.cargo/bin/cargo build --release -p composable --features=runtime-benchmarks
+# /home/runner/.cargo/bin/rustup install nightly
+# /home/runner/.cargo/bin/rustup target add wasm32-unknown-unknown --toolchain nightly
+# /home/runner/.cargo/bin/cargo build --release -p composable --features=runtime-benchmarks
 
 run_benchmarks() {
   OUTPUT=$1
