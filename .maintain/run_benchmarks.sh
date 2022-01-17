@@ -11,8 +11,8 @@ LATEST_TAG_NAME=$(get_latest_release ComposableFi/composable)
 GITHUB_REF_NAME=$(git rev-parse --abbrev-ref HEAD)
 
 VERSIONS_FILES=(
-  "runtime/picasso/src/weights,picasso,picasso"
-  "runtime/dali/src/weights,dali-chachacha,dali"
+  "runtime/picasso/src/weights,picasso-dev,picasso"
+  # "runtime/dali/src/weights,dali-chachacha,dali"
   # "runtime/composable/src/weights,composable,composable"
 )
 
