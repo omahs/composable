@@ -51,6 +51,7 @@ pallets=(
 run_benchmarks() {
   OUTPUT=$1
   CHAIN=$2
+  FOLDER=$3
   # shellcheck disable=SC2068
   boldprint "Running benchmarks for $CHAIN"
   # shellcheck disable=SC2068
@@ -69,15 +70,16 @@ run_benchmarks() {
   USERNAME=$(gcloud secrets versions access latest --secret=github-api-username)
   PASSWORD=$(gcloud secrets versions access latest --secret=github-api-token)
   git remote set-url origin https://"$USERNAME":"$PASSWORD"@github.com/ComposableFi/composable.git
-  git add .
+  git add runtime/$FOLDER
   git commit -m "Updates weights for $CHAIN"
   git push origin $GITHUB_REF_NAME
+  # ToDO: Setup gpg signing and create a bot account for pushing
 }
 
 for i in "${VERSIONS_FILES[@]}"; do
   while IFS=',' read -r output chain folder; do
     if has_runtime_changes "${LATEST_TAG_NAME}" "${GITHUB_REF_NAME}" "$folder"; then
-      run_benchmarks $output $chain
+      run_benchmarks $output $chain $folder
     fi
   done <<<"$i"
 done
