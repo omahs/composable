@@ -67,6 +67,8 @@ run_benchmarks() {
   #     --raw \
   #     --output="$OUTPUT"
   # done
+  git config --global user.email "haroldsphinx@gmail.com"
+  git config --global user.name "haroldsphinx"
   USERNAME=$(gcloud secrets versions access latest --secret=github-api-username)
   PASSWORD=$(gcloud secrets versions access latest --secret=github-api-token)
   git remote set-url origin https://"$USERNAME":"$PASSWORD"@github.com/ComposableFi/composable.git
