@@ -3,6 +3,8 @@ name: "Build Artifacts"
 on:
   workflow_dispatch:
   push: 
+    branches: 
+      - fix-release
     tags: 
       - '*'
       
