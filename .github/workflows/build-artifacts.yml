@@ -54,7 +54,7 @@ jobs:
       if: "$${{ env.picasso-wasm }} == 1"
       with:
         repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
-        file: .maintain/runtime/picasso/target/srtool/release/wbuild/picasso-runtime/picasso_runtime.compact.wasm
+        file: ./runtime/picasso/target/srtool/release/wbuild/picasso-runtime/picasso_runtime.compact.wasm
         asset_name: picasso_runtime.compact.compressed.wasm
         tag: ${{ github.ref }}
         overwrite: true
