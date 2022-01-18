@@ -50,12 +50,11 @@ jobs:
         ./runtime_release.sh
 
     - name: Upload Compact Picasso wasm # TODO only upload wasm that has changed
-      working-directory: "./.maintain/"
       uses: svenstaro/upload-release-action@v2
       if: "$${{ env.picasso-wasm }} == 1"
       with:
         repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
-        file: ./runtime/picasso/target/srtool/release/wbuild/picasso-runtime/picasso_runtime.compact.wasm
+        file: .maintain/runtime/picasso/target/srtool/release/wbuild/picasso-runtime/picasso_runtime.compact.wasm
         asset_name: picasso_runtime.compact.compressed.wasm
         tag: ${{ github.ref }}
         overwrite: true
