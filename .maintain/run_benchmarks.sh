@@ -8,9 +8,9 @@
 . "$(dirname "${0}")/./common/lib.sh"
 
 VERSIONS_FILES=(
-  "runtime/picasso/src/weights,picasso,picasso"
-  "runtime/dali/src/weights,dali-chachacha,dali"
-  "runtime/composable/src/weights,composable,composable"
+  "runtime/picasso/src/weights,picasso-dev,picasso"
+  "runtime/dali/src/weights,dali-dev,dali"
+  "runtime/composable/src/weights,composable-dev,composable"
 )
 
 steps=50
@@ -34,7 +34,7 @@ pallets=(
 	dutch_auction
 )
 
- boldprint "make sure the main branch and release tag are available in shallow clones"
+ echo "make sure the main branch and release tag are available in shallow clones"
  git fetch --depth="${GIT_DEPTH:-100}" origin main
  git fetch --depth="${GIT_DEPTH:-100}" origin "${LATEST_TAG_NAME}"
  git tag -f "${LATEST_TAG_NAME}" FETCH_HEAD
@@ -42,14 +42,15 @@ pallets=(
 
 
 /home/runner/.cargo/bin/rustup install nightly
-/home/runner/.cargo/bin/rustup target add wasm32-unknown-unknown --toolchain nightly
-/home/runner/.cargo/bin/cargo build --release -p composable --features=runtime-benchmarks
+/home/runner/.cargo/bin/rustup  target add wasm32-unknown-unknown --toolchain nightly
+/home/runner/.cargo/bin/cargo  build --release -p composable --features=runtime-benchmarks
 
 run_benchmarks() {
   OUTPUT=$1
   CHAIN=$2
+  FOLDER=$3
   # shellcheck disable=SC2068
-  boldprint "Running benchmarks for $CHAIN"
+  echo "Running benchmarks for $CHAIN"
   # shellcheck disable=SC2068
   for p in ${pallets[@]}; do
     ./target/release/composable benchmark \
@@ -63,18 +64,22 @@ run_benchmarks() {
       --raw \
       --output="$OUTPUT"
   done
+  git config --global user.email "haroldsphinx@gmail.com"
+  git config --global user.name "haroldsphinx"
   USERNAME=$(gcloud secrets versions access latest --secret=github-api-username)
   PASSWORD=$(gcloud secrets versions access latest --secret=github-api-token)
-  git remote set-url origin https://$USERNAME:$PASSWORD@github.com/ComposableFi/composable.git
-  git add .
+  git remote set-url origin https://"$USERNAME":"$PASSWORD"@github.com/ComposableFi/composable.git
+  git pull origin $GITHUB_REF_NAME
+  git add runtime/$FOLDER
   git commit -m "Updates weights for $CHAIN"
   git push origin $GITHUB_REF_NAME
+  # ToDO: Setup gpg signing and create a bot account for pushing
 }
 
 for i in "${VERSIONS_FILES[@]}"; do
   while IFS=',' read -r output chain folder; do
     if has_runtime_changes "${LATEST_TAG_NAME}" "${GITHUB_REF_NAME}" "$folder"; then
-      run_benchmarks $output $chain
+      run_benchmarks $output $chain $folder
     fi
   done <<<"$i"
 done
