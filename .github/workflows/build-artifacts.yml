@@ -45,7 +45,7 @@ jobs:
     - name: Build wasm with srtool
       id: runtime_release
       run: |
-        ./maintain/runtime_release.sh
+        .maintain/runtime_release.sh
 
     - name: Upload Compact Picasso wasm # TODO only upload wasm that has changed
       uses: svenstaro/upload-release-action@v2
