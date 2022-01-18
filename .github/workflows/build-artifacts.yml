@@ -48,6 +48,7 @@ jobs:
         ./runtime_release.sh
 
     - name: Upload Compact Picasso wasm # TODO only upload wasm that has changed
+      working-directory: "./.maintain/"
       uses: svenstaro/upload-release-action@v2
       if: "$${{ env.picasso-wasm }} == 1"
       with:
@@ -57,65 +58,69 @@ jobs:
         tag: ${{ github.ref }}
         overwrite: true
     
-    - name: Upload Compact Dali wasm # TODO only upload wasm that has changed
-      uses: svenstaro/upload-release-action@v2
-      if: "$${{ env.dali-wasm }} == 1"
-      with:
-        repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
-        file: ./runtime/dali/target/srtool/release/wbuild/dali-runtime/dali_runtime.compact.wasm
-        asset_name: dali_runtime.compact.compressed.wasm
-        tag: ${{ github.ref }}
-        overwrite: true
+  #   - name: Upload Compact Dali wasm # TODO only upload wasm that has changed
+  #     working-directory: "./.maintain/"
+  #     uses: svenstaro/upload-release-action@v2
+  #     if: "$${{ env.dali-wasm }} == 1"
+  #     with:
+  #       repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
+  #       file: ./runtime/dali/target/srtool/release/wbuild/dali-runtime/dali_runtime.compact.wasm
+  #       asset_name: dali_runtime.compact.compressed.wasm
+  #       tag: ${{ github.ref }}
+  #       overwrite: true
     
-    - name: Upload Compact Composable wasm # TODO only upload wasm that has changed
-      uses: svenstaro/upload-release-action@v2
-      if: "$${{ env.composable-wasm }} == 1"
-      with:
-        repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
-        file: ./runtime/picasso/target/srtool/release/wbuild/composable-runtime/composable_runtime.compact.wasm
-        asset_name: composable_runtime.compact.compressed.wasm
-        tag: ${{ github.ref }}
-        overwrite: true
+  #   - name: Upload Compact Composable wasm # TODO only upload wasm that has changed
+  #     working-directory: "./.maintain/"
+  #     uses: svenstaro/upload-release-action@v2
+  #     if: "$${{ env.composable-wasm }} == 1"
+  #     with:
+  #       repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
+  #       file: ./runtime/picasso/target/srtool/release/wbuild/composable-runtime/composable_runtime.compact.wasm
+  #       asset_name: composable_runtime.compact.compressed.wasm
+  #       tag: ${{ github.ref }}
+  #       overwrite: true
 
-    - name: Upload Binary on Release # TODO Only upload binary if client files have changed
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
-        file: target/release/composable
-        asset_name: composable
-        tag: ${{ github.ref }}
-        overwrite: true
+  #   - name: Upload Binary on Release # TODO Only upload binary if client files have changed
+  #     working-directory: "./.maintain/"
+  #     uses: svenstaro/upload-release-action@v2
+  #     with:
+  #       repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
+  #       file: target/release/composable
+  #       asset_name: composable
+  #       tag: ${{ github.ref }}
+  #       overwrite: true
     
-    - name: Update Release Note
-      run: |
-        sed -i '1i # Code ' release.md
+  #   - name: Update Release Note
+  #     working-directory: "./.maintain/"
+  #     run: |
+  #       sed -i '1i # Code ' release.md
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        body_path: release.md
-        token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
+  #   - name: Release
+  #     uses: softprops/action-gh-release@v1
+  #     if: startsWith(github.ref, 'refs/tags/')
+  #     with:
+  #       body_path: release.md
+  #       token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
 
 
-  dali-chacha-client-release:
-    needs: [build-and-publish]
-    runs-on: 
-      - self-hosted
-      - linux
-      - X64
-      - ansible-runner
+  # dali-chacha-client-release:
+  #   needs: [build-and-publish]
+  #   runs-on: 
+  #     - self-hosted
+  #     - linux
+  #     - X64
+  #     - ansible-runner
 
-    steps:
-    - uses: actions/checkout@v2
-      with: 
-        fetch-depth: 0
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #     with: 
+  #       fetch-depth: 0
 
-    - name: Set env
-      run: |
-        echo "RELEASE_VERSION=$(git tag --sort=committerdate | grep -E '^v[0-9]' | tail -1 )" >> $GITHUB_ENV
+  #   - name: Set env
+  #     run: |
+  #       echo "RELEASE_VERSION=$(git tag --sort=committerdate | grep -E '^v[0-9]' | tail -1 )" >> $GITHUB_ENV
 
-    - name: Run ansible playbook
-      working-directory: "./.maintain/playbooks"
-      run: |
-        ansible-playbook -l _environment_testnet client-upgrade.yml -i gcp.yaml  --user runner -e 'ansible_python_interpreter=/usr/bin/python3'
+  #   - name: Run ansible playbook
+  #     working-directory: "./.maintain/playbooks"
+  #     run: |
+  #       ansible-playbook -l _environment_testnet client-upgrade.yml -i gcp.yaml  --user runner -e 'ansible_python_interpreter=/usr/bin/python3'
