@@ -13,6 +13,7 @@ env:
   SCCACHE_GCS_BUCKET: 'composable-build-artefacts'
   RUSTC_WRAPPER: "/home/runner/.cargo/bin/sccache"
   SCCACHE_GCS_RW_MODE: "READ_WRITE"
+  BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
 
 jobs:
   build-and-publish:
@@ -42,8 +43,10 @@ jobs:
       run: |
         .maintain/client_release.sh
 
-    - name: Echo Output
-      run: echo ${{ env.picasso-wasm }}
+    - name: Echo output
+      run: |
+        echo ${{ env.BASE_BRANCH }}
+        echo ${{ env.RUNTIME_CHECK }}
 
     - name: Build wasm with srtool
       id: runtime_release
