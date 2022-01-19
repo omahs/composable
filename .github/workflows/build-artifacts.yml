@@ -21,13 +21,12 @@ jobs:
         - sre
     strategy: 
       fail-fast: true
-    
+
     steps:
     - name: cleanup 
       run: |
         sudo chown -R $USER:$USER $GITHUB_WORKSPACE
 
-    steps:
     - uses: actions/checkout@v2
       with: 
         fetch-depth: 0
