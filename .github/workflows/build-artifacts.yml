@@ -52,8 +52,7 @@ jobs:
       run: |
         pwd
         ls
-        ls -larth /home/runner/_work/composable/composable/runtime/picasso/target/srtool/release/wbuild/picasso-runtime/picasso_runtime.compact.wasm
-        ls -larth ./runtime/picasso/target/srtool/release/wbuild/picasso-runtime/picasso_runtime.compact.wasm
+        ls -larth runtime/picasso/target/srtool/release/wbuild/picasso-runtime/picasso_runtime.compact.wasm
 
     - name: Upload Compact Picasso wasm # TODO only upload wasm that has changed
       uses: svenstaro/upload-release-action@v2
