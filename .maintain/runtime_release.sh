@@ -35,16 +35,31 @@ build_runtime () {
 for i in "${VERSIONS_FILES[@]}"; do
   while IFS=',' read -r output chain folder; do
     boldprint "check if the wasm sources changed for $chain"
-    echo "checking chain $chain"
-    echo ${LATEST_TAG_NAME}
-    echo ${GITHUB_REF_NAME}
-    echo $folder
     if has_runtime_changes "${LATEST_TAG_NAME}" "${GITHUB_REF_NAME}" "$folder"
     then
-      build_runtime $output $chain $folder
-      echo "$chain changed"
-      CHAINNAME=$chain
+      echo "Yes there are changes in $chain"
+      if $chain == "picasso"
+      then
+        PICASSO_CHAIN=1
+      fi
+      if $chain == "dali"
+      then
+        DALI_CHAIN=1
+      fi
+      if $chain == "composable"
+      then
+        COMPOSABLE_CHAIN=1
+      fi
+    else
+      echo "No, there are no changes in $chain"
     fi
+
+    #if has_runtime_changes "${LATEST_TAG_NAME}" "${GITHUB_REF_NAME}" "$folder"
+    #then
+    #  build_runtime $output $chain $folder
+    #  echo "$chain changed"
+    #  CHAINNAME=$chain
+    #fi
   done <<< "$i"
 done
 

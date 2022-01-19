@@ -54,6 +54,10 @@ jobs:
     
     - name: ListBuildOuput
       run: |
+        echo $PICASSO_CHAIN
+        echo $DALI_CHAIN
+        echo $COMPOSABLE_CHAIN
         ls
+
     
     
