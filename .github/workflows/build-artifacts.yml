@@ -52,4 +52,8 @@ jobs:
       run: |
         .maintain/runtime_release.sh
     
+    - name: ListBuildOuput
+      run: |
+        ls
+    
     
