@@ -46,6 +46,10 @@ jobs:
       id: runtime_release
       run: |
         .maintain/runtime_release.sh
+    
+    - name: ShowDirectory
+      run: |
+        ls
 
     - name: Upload Compact Picasso wasm # TODO only upload wasm that has changed
       uses: svenstaro/upload-release-action@v2
