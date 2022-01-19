@@ -38,15 +38,16 @@ for i in "${VERSIONS_FILES[@]}"; do
     if has_runtime_changes "${LATEST_TAG_NAME}" "${GITHUB_REF_NAME}" "$folder"
     then
       echo "Yes there are changes in $chain"
-      if $chain == "picasso"
+      build_runtime $output $chain $folder
+      if $chain = "picasso"
       then
         PICASSO_CHAIN=1
       fi
-      if $chain == "dali"
+      if $chain = "dali"
       then
         DALI_CHAIN=1
       fi
-      if $chain == "composable"
+      if $chain = "composable"
       then
         COMPOSABLE_CHAIN=1
       fi
@@ -57,9 +58,8 @@ for i in "${VERSIONS_FILES[@]}"; do
     #if has_runtime_changes "${LATEST_TAG_NAME}" "${GITHUB_REF_NAME}" "$folder"
     #then
     #  build_runtime $output $chain $folder
-    #  echo "$chain changed"
-    #  CHAINNAME=$chain
     #fi
+
   done <<< "$i"
 done
 
