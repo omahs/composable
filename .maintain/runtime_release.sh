@@ -28,9 +28,10 @@ build_runtime () {
   srtool build --package "$chain"-runtime --profile release --runtime-dir ./runtime/"$chain"
   # subwasm for runtime metadata
   echo "# $chain Runtime" >> release.md
-  wasmout=subwasm info ./runtime/"$chain"/target/srtool/release/wbuild/"$chain"-runtime/"$chain"_runtime.compact.wasm #>> release.md
-  finalwasmout="<code>${wasmout}</code>"
-  echo $finalwasmout >> release.md
+  wasmout=subwasm info ./runtime/"$chain"/target/srtool/release/wbuild/"$chain"-runtime/"$chain"_runtime.compact.wasm # >> release.md
+  echo "<code>$wasmout</code>" >> release.md
+  #finalwasmout="<code>${wasmout}</code>"
+  #echo $finalwasmout >> release.md
 }
 
 # Check which runtimes have changed and build them

@@ -72,6 +72,15 @@ jobs:
         tag: ${{ github.ref }}
         overwrite: true
     
+    - name: Upload Binary on Release # TODO Only upload binary if client files have changed
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
+        file: target/release/composable
+        asset_name: composable
+        tag: ${{ github.ref }}
+        overwrite: true
+    
     #- name: Upload Compact Composable wasm # TODO only upload wasm that has changed
     #  uses: svenstaro/upload-release-action@v2
     #  if: "${{ env.CHAINNAME }} == 'composable'"
