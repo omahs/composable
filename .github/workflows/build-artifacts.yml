@@ -58,6 +58,13 @@ jobs:
         echo $DALI_CHAIN
         echo $COMPOSABLE_CHAIN
         ls
+    
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        body_path: release.md
+        token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
 
     
     
