@@ -28,8 +28,8 @@ build_runtime () {
   srtool build --package "$chain"-runtime --profile release --runtime-dir ./runtime/"$chain"
   # subwasm for runtime metadata
   echo "# $chain Runtime" >> release.md
-  wasmout=subwasm info ./runtime/"$chain"/target/srtool/release/wbuild/"$chain"-runtime/"$chain"_runtime.compact.wasm >> release.md
-  finalwasmout = "<code>${wasmout}</code>"
+  wasmout=subwasm info ./runtime/"$chain"/target/srtool/release/wbuild/"$chain"-runtime/"$chain"_runtime.compact.wasm #>> release.md
+  finalwasmout="<code>${wasmout}</code>"
   echo $finalwasmout >> release.md
 }
 
@@ -41,15 +41,15 @@ for i in "${VERSIONS_FILES[@]}"; do
     then
       echo "Yes there are changes in $chain"
       build_runtime $output $chain $folder
-      if $chain = "picasso"
+      if [$chain = "picasso"] ;
       then
         PICASSO_CHAIN=1
       fi
-      if $chain = "dali"
+      if [$chain = "dali"] ;
       then
         DALI_CHAIN=1
       fi
-      if $chain = "composable"
+      if [$chain = "composable"] ;
       then
         COMPOSABLE_CHAIN=1
       fi
@@ -61,7 +61,6 @@ for i in "${VERSIONS_FILES[@]}"; do
     #then
     #  build_runtime $output $chain $folder
     #fi
-
   done <<< "$i"
 done
 

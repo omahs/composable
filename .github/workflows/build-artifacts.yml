@@ -72,15 +72,15 @@ jobs:
         tag: ${{ github.ref }}
         overwrite: true
     
-    - name: Upload Compact Composable wasm # TODO only upload wasm that has changed
-      uses: svenstaro/upload-release-action@v2
-      if: "${{ env.CHAINNAME }} == 'composable'"
-      with:
-        repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
-        file: ./runtime/picasso/target/srtool/release/wbuild/composable-runtime/composable_runtime.compact.wasm
-        asset_name: composable_runtime.compact.wasm
-        tag: ${{ github.ref }}
-        overwrite: true
+    #- name: Upload Compact Composable wasm # TODO only upload wasm that has changed
+    #  uses: svenstaro/upload-release-action@v2
+    #  if: "${{ env.CHAINNAME }} == 'composable'"
+    #  with:
+    #    repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
+    #    file: ./runtime/picasso/target/srtool/release/wbuild/composable-runtime/composable_runtime.compact.wasm
+    #    asset_name: composable_runtime.compact.wasm
+    #    tag: ${{ github.ref }}
+    #    overwrite: true
     
     - name: ListBuildOuput
       run: |
