@@ -13,8 +13,8 @@
 # shellcheck disable=SC2039
 VERSIONS_FILES=(
   "runtime/picasso/src/lib.rs,picasso,picasso"
-  # "runtime/dali/src/lib.rs,dali-chachacha,dali"
-  #  "runtime/composable/src/lib.rs,composable,composable"
+  "runtime/dali/src/lib.rs,dali-chachacha,dali"
+   "runtime/composable/src/lib.rs,composable,composable"
 )
 
 # Install the neccessary tools needed for building
@@ -38,7 +38,7 @@ for i in "${VERSIONS_FILES[@]}"; do
     if has_runtime_changes "${BASE_BRANCH}" "${GITHUB_REF_NAME}" "$folder"
     then
       build_runtime $output $chain $folder
-      
+
       echo "$chain-wasm=1" >> "$GITHUB_ENV"
     fi
   done <<< "$i"
