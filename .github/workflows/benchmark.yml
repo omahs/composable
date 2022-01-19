@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+  BASE_BRANCH: ${{ github.base_ref }}
 
 jobs:
   benchmark: 
