@@ -50,6 +50,9 @@ jobs:
       run: |
         .maintain/runtime_release.sh
     
+    - name: Show Variables
+      run: echo $RUNTIMECHANGES
+    
     - name: Release
       uses: softprops/action-gh-release@v1
       if: | 
