@@ -43,14 +43,20 @@ for i in "${VERSIONS_FILES[@]}"; do
       if [$chain = "picasso"] ;
       then
         PICASSO_CHAIN=1
+      else
+        PICASSO_CHAIN=0
       fi
       if [$chain = "dali"] ;
       then
         DALI_CHAIN=1
+      else
+        DALI_CHAIN=0
       fi
       if [$chain = "composable"] ;
       then
         COMPOSABLE_CHAIN=1
+      else
+        COMPOSABLE_CHAIN=0
       fi
     else
       echo "No, there are no changes in $chain"
