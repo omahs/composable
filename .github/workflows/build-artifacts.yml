@@ -60,7 +60,7 @@ jobs:
     - name: Update Release Note
       if: "${{ env.PICASSO_CHAIN }} = 1"
       run: |
-        mv /github/workspace/CHANGELOG.md >> release.md
+        mv /github/workspace/CHANGELOG.md release.md
     
     - name: Release
       uses: softprops/action-gh-release@v1
