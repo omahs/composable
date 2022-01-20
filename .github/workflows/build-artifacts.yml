@@ -54,7 +54,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       if: | 
         startsWith(github.ref, 'refs/tags/')
-       "${{ env.RUNTIMECHANGES }} = 1"
+        ${{ env.RUNTIMECHANGES }} = 1
       with:
         body_path: release.md
         token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
