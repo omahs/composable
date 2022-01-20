@@ -52,13 +52,15 @@ jobs:
     
     - name: "✏️ Generate release changelog"
       id: changeloggen
+      if: "${{ env.PICASSO_CHAIN }} = 1"
       uses: heinrichreimer/github-changelog-generator-action@v2.3
       with:
         token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }} 
     
     - name: Update Release Note
+      if: "${{ env.PICASSO_CHAIN }} = 1"
       run: |
-        sed -i '1i ${{ steps.changeloggen.changelog }} ' release.md
+        mv /github/workspace/CHANGELOG.md >> release.md
     
     - name: Release
       uses: softprops/action-gh-release@v1
