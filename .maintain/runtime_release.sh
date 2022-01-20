@@ -61,8 +61,7 @@ for i in "${VERSIONS_FILES[@]}"; do
       fi
     else
       echo "No, there are no changes in $chain"
-      RUNTIMECHANGES=0
-      export $RUNTIMECHANGES
+      export RUNTIMECHANGES=0
     fi
   done <<< "$i"
 done
