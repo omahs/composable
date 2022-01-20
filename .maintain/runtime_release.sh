@@ -39,6 +39,7 @@ for i in "${VERSIONS_FILES[@]}"; do
     if has_runtime_changes "${LATEST_TAG_NAME}" "${GITHUB_REF_NAME}" "$folder"
     then
       echo "Yes there are changes in $chain"
+      RUNTIMECHANGES=1
       build_runtime $output $chain $folder
       if [$chain = "picasso"] ;
       then
@@ -60,6 +61,7 @@ for i in "${VERSIONS_FILES[@]}"; do
       fi
     else
       echo "No, there are no changes in $chain"
+      RUNTIMECHANGES=0
     fi
   done <<< "$i"
 done
