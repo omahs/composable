@@ -41,16 +41,24 @@ jobs:
         toolchain: stable
 
     - name: 🔨 Build and Upload Composable Binary
-      #working-directory: "./.maintain/"
       id: client_release
       run: |
         .maintain/client_release.sh
 
     - name: Build wasm with srtool
-      #working-directory: "./.maintain/"
       id: runtime_release
       run: |
         .maintain/runtime_release.sh
+    
+    - name: "✏️ Generate release changelog"
+      id: changeloggen
+      uses: heinrichreimer/github-changelog-generator-action@v2.3
+      with:
+        token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }} 
+    
+    - name: Update Release Note
+      run: |
+        sed -i '1i ${{ steps.changeloggen.changelog }} ' release.md
     
     - name: Release
       uses: softprops/action-gh-release@v1
@@ -61,7 +69,7 @@ jobs:
     
     - name: Upload Compact Picasso wasm # TODO only upload wasm that has changed
       uses: svenstaro/upload-release-action@v2
-      if: "${{ env.CHAINNAME }} == 'picasso'"
+      if: "${{ env.PICASSO_CHAIN }} = 1"
       with:
         repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
         file: ./runtime/picasso/target/srtool/release/wbuild/picasso-runtime/picasso_runtime.compact.wasm
@@ -71,7 +79,7 @@ jobs:
     
     - name: Upload Compact Dali wasm # TODO only upload wasm that has changed
       uses: svenstaro/upload-release-action@v2
-      if: "${{ env.CHAINNAME }} == 'dali'"
+      if: "${{ env.DALI_CHAIN }} = 1"
       with:
         repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
         file: ./runtime/dali/target/srtool/release/wbuild/dali-runtime/dali_runtime.compact.wasm
@@ -87,23 +95,7 @@ jobs:
         asset_name: composable
         tag: ${{ github.ref }}
         overwrite: true
-    
-    #- name: Upload Compact Composable wasm # TODO only upload wasm that has changed
-    #  uses: svenstaro/upload-release-action@v2
-    #  if: "${{ env.CHAINNAME }} == 'composable'"
-    #  with:
-    #    repo_token: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
-    #    file: ./runtime/picasso/target/srtool/release/wbuild/composable-runtime/composable_runtime.compact.wasm
-    #    asset_name: composable_runtime.compact.wasm
-    #    tag: ${{ github.ref }}
-    #    overwrite: true
-    
-    - name: ListBuildOuput
-      run: |
-        echo $PICASSO_CHAIN
-        echo $DALI_CHAIN
-        echo $COMPOSABLE_CHAIN
-        ls
+
 
     
     
