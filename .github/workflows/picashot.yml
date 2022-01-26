@@ -29,7 +29,7 @@ jobs:
       working-directory: "./.maintain/playbooks"
       run: |
         echo $PICASSO_GOOGLE_CREDENTIALS >> picasso-service-account.json
-        ansible-playbook -l _mainnet_collator_yes picashot.yml -i picasso-gcp.yaml  --user root -e 'ansible_python_interpreter=/usr/bin/python3' -v
+        ansible-playbook -l _mainnet_collator_yes picashot.yml -i picasso-gcp.yml  --user root -e 'ansible_python_interpreter=/usr/bin/python3' -v
 
   dalishot:
     runs-on: 
@@ -50,5 +50,5 @@ jobs:
       working-directory: "./.maintain/playbooks"
       run: |
         echo $DALI_GOOGLE_CREDENTIALS >> dali-service-account.json
-        ansible-playbook -l _collator_node_yes picashot.yml -i gcp.yaml  --user runner -e 'ansible_python_interpreter=/usr/bin/python3' -v 
+        ansible-playbook -l _collator_node_yes picashot.yml -i gcp.yml  --user runner -e 'ansible_python_interpreter=/usr/bin/python3' -v 
 
