@@ -29,7 +29,6 @@ jobs:
       working-directory: "./.maintain/playbooks"
       run: |
         echo $PICASSO_GOOGLE_CREDENTIALS > picasso-service-account.json
-        cat picasso-service-account.json
         ansible-playbook -l _mainnet_collator_yes picashot.yml -i picashot-inventory.yml  --user root -e 'ansible_python_interpreter=/usr/bin/python3'
 
   dalishot:
