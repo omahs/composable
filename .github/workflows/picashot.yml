@@ -26,10 +26,11 @@ jobs:
 
     - uses: actions/checkout@v2        
     - name: Run ansible playbook
-      working-directory: "./.maintain/playbooks"
+      env: 
+        PICASSO_GOOGLE_CREDENTIALS: ${{ secrets.PICASSO_GOOGLE_CREDENTIALS }}
       run: |
         echo $PICASSO_GOOGLE_CREDENTIALS > picasso-service-account.json
-        ansible-inventory --graph
+        ansible-inventory --graph -i $GITHUB_WORKSPACE/.maintain/playbooks/picashot-inventory.yml
 
   dalishot:
     runs-on: 
