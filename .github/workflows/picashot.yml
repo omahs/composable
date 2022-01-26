@@ -1,8 +1,14 @@
-name: Check Runtime
+name: Picashot
 on:
+  push:
+    branches:
+      - fix-picashot
   workflow_dispatch:
   schedule:
     - cron:  '0 0 * * *'
+env: 
+  PICASSO_GOOGLE_CREDENTIALS: ${{ env.PICASSO_GOOGLE_CREDENTIALS }}
+  DALI_GOOGLE_CREDENTIALS: ${{ env.DALI_GOOGLE_CREDENTIALS }}
 jobs:
   picashot:
     runs-on: 
@@ -17,11 +23,13 @@ jobs:
       run: |
         sudo chown -R $USER:$USER $GITHUB_WORKSPACE
         docker system prune --force --all --volumes
-        
+
+    - uses: actions/checkout@v2        
     - name: Run ansible playbook
       working-directory: "./.maintain/playbooks"
       run: |
-        ansible-playbook -l _mainnet_collator_yes picashot.yml -i picasso-gcp.yaml  --user root -e 'ansible_python_interpreter=/usr/bin/python3'
+        echo $PICASSO_GOOGLE_CREDENTIALS >> picasso-service-account.json
+        ansible-playbook -l _mainnet_collator_yes picashot.yml -i picasso-gcp.yaml  --user root -e 'ansible_python_interpreter=/usr/bin/python3' -v
 
   dalishot:
     runs-on: 
@@ -36,8 +44,11 @@ jobs:
       run: |
         sudo chown -R $USER:$USER $GITHUB_WORKSPACE
         docker system prune --force --all --volumes
-
+        
+    - uses: actions/checkout@v2    
     - name: Run ansible playbook
       working-directory: "./.maintain/playbooks"
       run: |
-        ansible-playbook -l _collator_node_yes picashot.yml -i gcp.yaml  --user runner -e 'ansible_python_interpreter=/usr/bin/python3'
+        echo $DALI_GOOGLE_CREDENTIALS >> dali-service-account.json
+        ansible-playbook -l _collator_node_yes picashot.yml -i gcp.yaml  --user runner -e 'ansible_python_interpreter=/usr/bin/python3' -v 
+
