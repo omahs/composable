@@ -7,8 +7,8 @@ on:
   schedule:
     - cron:  '0 0 * * *'
 env: 
-  PICASSO_GOOGLE_CREDENTIALS: ${{ env.PICASSO_GOOGLE_CREDENTIALS }}
-  DALI_GOOGLE_CREDENTIALS: ${{ env.DALI_GOOGLE_CREDENTIALS }}
+  PICASSO_GOOGLE_CREDENTIALS: ${{ secrets.PICASSO_GOOGLE_CREDENTIALS }}
+  DALI_GOOGLE_CREDENTIALS: ${{ secrets.DALI_GOOGLE_CREDENTIALS }}
 jobs:
   picashot:
     runs-on: 
