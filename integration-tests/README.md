@@ -1,3 +1,11 @@
+# TODO
+
+1. fix build 
+2. use dali and picasso runtimes
+3. fix acala tests
+4. make it run as part of ci
+5. make deps specific run as part of ci
+6. look at moonriver tests (o other most likely to itegrate pallet)?
 # Overview
 
 Runs transfers from some Composable based parachain to Composable parachain. And other parachains integrations.
@@ -107,4 +115,3 @@ RUST_LOG=trace,parity-db=error,trie=error,runtime=trace,substrate-relay=trace,br
 ### Issues
 
 We use ORML + Cumulus, which does not support out of box access to all instruction.
-
