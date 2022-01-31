@@ -11,7 +11,7 @@ use common::AccountId;
 use composable_traits::assets::{RemoteAssetRegistry, XcmAssetLocation};
 use cumulus_primitives_core::ParaId;
 use kusama_runtime::*;
-use picasso_runtime as dali_runtime;
+use dali_runtime as picasso_runtime;
 use primitives::currency::CurrencyId;
 use sp_runtime::traits::AccountIdConversion;
 use support::assert_ok;

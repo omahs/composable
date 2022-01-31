@@ -7,6 +7,7 @@ use primitives::currency::CurrencyId;
 use sp_runtime::traits::AccountIdConversion;
 use support::traits::GenesisBuild;
 use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
+use dali_runtime as picasso_runtime;
 
 type Balances = u128;
 pub const ALICE: [u8; 32] = [4_u8; 32];
@@ -25,8 +26,8 @@ decl_test_parachain! {
 // and then decide how to imitate hydra
 decl_test_parachain! {
 	pub struct Dali {
-		Runtime = picasso_runtime::Runtime,
-		Origin = picasso_runtime::Origin,
+		Runtime = dali_runtime::Runtime,
+		Origin = dali_runtime::Origin,
 		new_ext = picasso_ext(DALI_PARA_ID),
 	}
 }
@@ -127,7 +128,7 @@ pub const ALICE_PARACHAIN_KSM: u128 = 13 * 1_000_000_000_000;
 
 pub fn picasso_ext(parachain_id: u32) -> sp_io::TestExternalities {
 	let parachain_id = parachain_id.into();
-	use picasso_runtime::{Runtime, System};
+	use dali_runtime::{Runtime, System};
 	let mut storage = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
 	balances::GenesisConfig::<Runtime> {
 		balances: vec![(AccountId::from(ALICE), ALICE_PARACHAIN_BALANCE)],

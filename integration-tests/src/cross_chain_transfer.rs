@@ -4,7 +4,7 @@ use common::AccountId;
 use composable_traits::assets::{RemoteAssetRegistry, XcmAssetLocation};
 use cumulus_primitives_core::ParaId;
 use orml_traits::currency::MultiCurrency;
-use picasso_runtime as dali_runtime;
+use dali_runtime as picasso_runtime;
 use primitives::currency::*;
 use sp_runtime::traits::AccountIdConversion;
 use support::assert_ok;
@@ -225,7 +225,6 @@ fn transfer_insufficient_amount_should_fail() {
 
 /// Acala's tests
 #[test]
-#[ignore]
 fn transfer_from_relay_chain_deposit_to_treasury_if_below_ed() {
 	KusamaRelay::execute_with(|| {
 		assert_ok!(kusama_runtime::XcmPallet::reserve_transfer_assets(
@@ -347,8 +346,8 @@ fn xcm_transfer_execution_barrier_trader_works() {
 	});
 }
 
+
 #[test]
-#[ignore]
 fn subscribe_version_notify_works() {
 	// relay chain subscribe version notify of para chain
 	KusamaRelay::execute_with(|| {
@@ -388,7 +387,7 @@ fn subscribe_version_notify_works() {
 	Picasso::execute_with(|| {
 		let r = pallet_xcm::Pallet::<picasso_runtime::Runtime>::force_subscribe_version_notify(
 			picasso_runtime::Origin::root(),
-			Box::new((Parent, Parachain(2001)).into()),
+			Box::new((Parent, Parachain(PICASSO_PARA_ID)).into()),
 		);
 		assert_ok!(r);
 	});
