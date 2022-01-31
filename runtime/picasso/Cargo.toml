@@ -112,6 +112,9 @@ orml-xtokens = { git = "https://github.com/open-web3-stack/open-runtime-module-l
 orml-xcm-support = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "17a791edf431d7d7aee1ea3dfaeeb7bc21944301", default-features = false }
 orml-unknown-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "17a791edf431d7d7aee1ea3dfaeeb7bc21944301", default-features = false }
 
+[dev-dependencies]
+hex = "0.4.3"
+
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 

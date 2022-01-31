@@ -350,3 +350,57 @@ impl cumulus_pallet_dmp_queue::Config for Runtime {
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type ExecuteOverweightOrigin = system::EnsureRoot<AccountId>;
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::Call;
+	use frame_support::sp_io;
+	use sp_core::{Pair, H256};
+	use sp_runtime::generic::Era;
+	use sp_runtime::traits::IdentifyAccount;
+	use sp_runtime::MultiSigner;
+
+	#[test]
+	fn construct_ext() {
+		let extra = (
+			system::CheckSpecVersion::<Runtime>::new(),
+			system::CheckTxVersion::<Runtime>::new(),
+			system::CheckGenesis::<Runtime>::new(),
+			system::CheckEra::<Runtime>::from(Era::Immortal),
+			system::CheckNonce::<Runtime>::from(11),
+			system::CheckWeight::<Runtime>::new(),
+			transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
+			crowdloan_rewards::PrevalidateAssociation::<Runtime>::new(),
+		);
+		let genesis =
+			hex::decode("6811a339673c9daa897944dcdac99c6e2939cc88245ed21951a0a3c9a2be75bc")
+				.unwrap();
+		let hash = H256::from_slice(&genesis);
+		let additional = (200u32, 2u32, hash, hash, (), (), (), ());
+		let payload = SignedPayload::from_raw(
+			Call::Sudo(sudo::Call::sudo {
+				call: Box::new(Call::System(system::Call::set_storage {
+					items: vec![(
+						hex::decode(
+							"0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f",
+						)
+						.unwrap(),
+						hex::decode("27080000").unwrap(),
+					)],
+				})),
+			}),
+			extra,
+			additional,
+		);
+		let pair = sp_core::sr25519::Pair::from_string("", None).unwrap();
+		let address = MultiSigner::from(pair.public()).into_account();
+		let signature = payload.using_encoded(|encoded| pair.sign(encoded));
+
+		let (call, extra, additional) = payload.deconstruct();
+
+		let ext = UncheckedExtrinsic::new_signed(call, address.into(), signature.into(), extra);
+
+		println!("ext: {}", hex::encode(ext.encode()))
+	}
+}
