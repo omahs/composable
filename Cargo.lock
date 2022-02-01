@@ -6110,9 +6110,12 @@ dependencies = [
 name = "pallet-call-filter"
 version = "0.1.0"
 dependencies = [
+ "beefy-primitives",
  "composable-traits",
  "frame-support",
  "frame-system",
+ "hex",
+ "libsecp256k1",
  "pallet-balances",
  "parity-scale-codec",
  "scale-info",
