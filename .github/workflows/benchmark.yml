@@ -57,11 +57,7 @@ jobs:
 
       - uses: EndBug/add-and-commit@v8 
         with: 
-<<<<<<< HEAD
-          add: 'runtime/picasso'
-=======
           add: 'runtime'
->>>>>>> 17e009ce7a4f9b9314545c307a4d7cbea87326eb
           message: 'Pushing benchmark changes'
           push: "true"
           new_branch: ${{ steps.branch-name.outputs.current_branch }}

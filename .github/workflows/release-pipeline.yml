@@ -47,11 +47,6 @@ jobs:
       - uses: release-drafter/release-drafter@v5
         id: release_drafter
 
-      - name: Set Permission
-        continue-on-error: true
-        run: |
-          sudo su runner
-
       - uses: actions/setup-node@v2
         with:
           node-version: "16"
