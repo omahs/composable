@@ -37,5 +37,5 @@ jobs:
         pr_branch: '0.1.x'
       env:
         GITHUB_TOKEN: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
-        GITBOT_EMAIL: <BOT_EMAIL>
+        GITBOT_EMAIL: haroldsphinx@gmail.com
         DRY_RUN: false
