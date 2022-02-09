@@ -10,12 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Clean up
-      continue-on-error: true
-      run: |
-        sudo chown -R $USER:$USER $GITHUB_WORKSPACE
-        docker system prune --force --all --volumes
-        
+
     - uses: actions/setup-node@v2
       with:
         node-version: "16"
