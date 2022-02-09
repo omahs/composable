@@ -64,6 +64,19 @@ _Note: The table above is an estimation and does not mean you necessarily need t
 
 Note: The above requirements represents our current best estimate
 
+
+
+### Operating System Requirements:
+
+Composable binary is distributed as:
+
+* An executable file targeting an amd64 architecture&#x20;
+* A linux container image
+
+`Later releases for composable binary will allow you the freddom to choose your own architecture,  this means that there will be most cross platform support for different OS architecture and you can modify to suit your needs as you please`
+
+``
+
 ### Networking Requirements:
 
 All nodes will require a static IPv4 address or a valid DNS name that points to your node, Firewall settings should follow this recommendations:\
@@ -71,7 +84,20 @@ Inbound Traffic: TCP/443 for grpc
 
 OutBound Traffic: TCP/30333, TCP/30334 for bootnodes peering
 
+_Note: All nodes must have port 30333 and 30334 accessible to all_
 
+| Port  | Protocol              |   |
+| ----- | --------------------- | - |
+| 30333 | Relaychain p2p        |   |
+| 30334 | Parachain p2p         |   |
+| 9944  | ws                    |   |
+| 9933  | rpc                   |   |
+| 9615  | relaychain prometheus |   |
+| 9616  | parachain prometheus  |   |
+
+__
+
+__
 
 ## Setting up Node
 
@@ -120,9 +146,107 @@ In composable network, the rpc node client exposes https and wsss endpoint for r
 composable --rpc-port
 ```
 
+Now that we have understood all different node types, let us proceed to getting our composable binary ready for our nodes operations
+
+### Node Prerequisities: Install Rust dependencies
+
+This step will guide you through the steps you need to prepare and bake your composable binary in a way that you want for you to use in your node operations, the first thing you will need to do is setup your environment for rust, once that is done, you can then move ahead to building your binaries and distributing to any where you want
+
+1. **Building Rust Dependencies**
+
+{% tabs %}
+{% tab title="Debian" %}
+```
+sudo apt update
+sudo apt install -y git clang curl libssl-dev llvm libudev-dev
+// Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+// Set path
+source ~/.cargo/env
+
+```
+{% endtab %}
+
+{% tab title="Fedora" %}
+```
+sudo dnf update
+sudo dnf install clang curl git openssl-devel
+```
+{% endtab %}
+{% endtabs %}
+
+2\. Setup Rust development environment
+
+```
+// Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+// Set path
+source ~/.cargo/env
+```
+
+3\. Configure Rust toolchain to default to the latest stable version and add nightly target
+
+```
+rustup default stable
+rustup update
+rustup update nightly
+rustup target add wasm32-unknown-unknown --toolchain nightly
+```
+
+4\. Confirm your setup
+
+To see what Rust toolcchain you are presently using, run:
+
+```
+rustup show
+```
+
+this will show you an output like this
+
+```
+Default host: x86_64-unknown-linux-gnu
+rustup home:  /home/user/.rustup
+
+installed toolchains
+--------------------
+
+stable-x86_64-unknown-linux-gnu (default)
+nightly-2020-10-06-x86_64-unknown-linux-gnu
+nightly-x86_64-unknown-linux-gnu
+
+installed targets for active toolchain
+--------------------------------------
+
+wasm32-unknown-unknown
+x86_64-unknown-linux-gnu
+
+active toolchain
+----------------
+
+stable-x86_64-unknown-linux-gnu (default)
+rustc 1.50.0 (cb75ad5db 2021-02-10)
+```
+
+###
+
 ### Setup Data Disks
 
-Composable&#x20;
+Composable stores all its state on disk, using a key-value store database called RocksDB, there are two types of states that are going to be stored on your disk:
+
+* Relaychain Data
+* Parachain Data
+
+**Relaychain Data**
+
+****
+
+**Parachain Data**
+
+****
+
+**Confidential Data and How to treat them**
+
+###
 
 ### Generating Node Keys
 
