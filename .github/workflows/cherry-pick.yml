@@ -15,9 +15,13 @@ jobs:
       run: |
         sudo chown -R $USER:$USER $GITHUB_WORKSPACE
         docker system prune --force --all --volumes
+        
     - uses: actions/setup-node@v2
       with:
         node-version: "16"
+
+    - name: checkout
+      uses: actions/checkout@v2
 
     - name: Get commits
       id: get_commit
@@ -25,6 +29,7 @@ jobs:
         cd scripts/github && npm install
         npm run get-commit-for-pr -- --repo=composableFi/composable --commit_sha=$GITHUB_SHA
         echo ${{ steps.get_commit.outputs }}
+        
 
     - name: Run cherry pick actions
       # if: ${{ steps.get_commit.outputs.cherry_pick == 1 }}
