@@ -34,7 +34,7 @@ jobs:
       # if: ${{ steps.get_commit.outputs.cherry_pick == 1 }}
       uses: gorillio/github-action-cherry-pick@master
       with:
-        pr_branch: '0.1.x'
+        pr_branch: 'seun-ci-fixes'
       env:
         GITHUB_TOKEN: ${{ secrets.COMPOSABLE_GITHUB_TOKEN }}
         GITBOT_EMAIL: haroldsphinx@gmail.com
