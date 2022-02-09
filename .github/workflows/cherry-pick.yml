@@ -7,11 +7,7 @@ on:
 
 jobs:
   cherry-pick-commits:
-    runs-on: 
-        - self-hosted
-        - linux
-        - X64
-        - sre
+    runs-on: ubuntu-latest
 
     steps:
     - name: Clean up
