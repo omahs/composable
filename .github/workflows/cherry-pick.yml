@@ -31,7 +31,7 @@ jobs:
         echo ${{ steps.get_commit.outputs }}
 
     - name: Run cherry pick actions
-      if: ${{ steps.get_commit.outputs.cherry_pick == 1 }}
+      # if: ${{ steps.get_commit.outputs.cherry_pick == 1 }}
       uses: gorillio/github-action-cherry-pick@master
       with:
         pr_branch: '0.1.x'
