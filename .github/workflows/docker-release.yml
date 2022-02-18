@@ -24,7 +24,7 @@ jobs:
       cancel-in-progress: true
     strategy: 
       fail-fast: true
-      
+
     steps:
     - name: Clean up
       continue-on-error: true
@@ -83,9 +83,8 @@ jobs:
         echo "RELEASE_VERSION=$(git tag --sort=committerdate | grep -E '^v[0-9]' | tail -1 )" >> $GITHUB_ENV
 
     - name: Run ansible playbook
-      working-directory: "./.maintain/playbooks"
       run: |
-        ansible-playbook -l _environment_testnet client-upgrade.yml -i gcp.yaml  --user runner -e 'ansible_python_interpreter=/usr/bin/python3'
+        ansible-playbook -l _environment_testnet /opt/ansible/inventory/client-upgrade.yml -i /opt/ansible/inventory/gcp.yaml  --user runner -e 'ansible_python_interpreter=/usr/bin/python3'
 
     - uses: 8398a7/action-slack@v3
       with:
