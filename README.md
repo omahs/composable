@@ -202,6 +202,15 @@ To query ntpd for status information in order to verifiy that everything is work
 sudo ntpq -p
 ```
 
+### Setting up Data Directory
+
+Composable stores all its state on disk, using a key-value store database called RocksDB, there are two types of states that are going to be stored on your disk:
+
+* Relaychain Data
+* Parachain Data
+
+By default rocksdb  files are stored in $USER/.local/chains/ on the user directory running the composable command.
+
 ### Building and Installing composable Binary
 
 There are several ways to install composable binary:
@@ -241,7 +250,22 @@ cargo build --release -p composable
 
 ### Downloading prebuilt binary
 
-We provide pre-compiled binary executables for common operating systems and architectures
+We provide pre-compiled binary executables for common operating systems and architectures, you can find all our releases here [https://github.com/ComposableFi/composable/releases](https://github.com/ComposableFi/composable/releases), to download the latest composable release, run the following commands:
+
+```
+RELEASE_VERSION=$(git tag --sort=committerdate | grep -E '^v[0-9]' | tail -1)
+curl -O -L "https://github.com/ComposableFi/composable/releases/download/$RELEASE_VERSION/composable"
+// make sure it is executable and move to executable folder
+mv composable /usr/bin && chmod a+x composable 
+// confirm that the binary works fine 
+composable --version 
+
+
+```
+
+if you have the right binary, the output of the commnd should match the version in your RELEASE\_VERSION.
+
+#### Installing with Package Manager (Coming Soon)
 
 ### Setting up Nodes
 
@@ -292,23 +316,6 @@ composable --rpc-port
 ```
 
 Now that we have understood all different node types, let us proceed to getting our composable binary ready for our nodes operations
-
-### Setup Data Disks
-
-Composable stores all its state on disk, using a key-value store database called RocksDB, there are two types of states that are going to be stored on your disk:
-
-* Relaychain Data
-* Parachain Data
-
-**Relaychain Data**
-
-****
-
-**Parachain Data**
-
-****
-
-**Confidential Data and How to treat them**
 
 ###
 
