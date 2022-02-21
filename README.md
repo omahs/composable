@@ -99,6 +99,8 @@ __
 
 ### Node Prerequisities: Install Rust dependencies
 
+Once you have setup your VM and its fully up and running, the next step is to get all the dependencies that is needed to run or build a composable node from scratch ready, composable is fully written in RUST, this means we need to have rust and its dependencies setup on our vm, if you have never installed RUst, it's okay, follow the instruction below on how to setup rust on your vm
+
 This step will guide you through the steps you need to prepare and bake your composable binary in a way that you want for you to use in your node operations, the first thing you will need to do is setup your environment for rust, once that is done, you can then move ahead to building your binaries and distributing to any where you want
 
 1. **Installing Rust Dependencies**
@@ -282,9 +284,20 @@ Spinning up a collator node on the composable network is quite simple, you can f
 to run collator nodes:
 
 ```
-composable --collator  --chain=<chain>  --name <node-name> --base-path </path/to/data/dir>  
+composable --collator  --chain=picasso  --name <node-name> --base-path </path/to/data/dir>  
 --listen-addr=/ip4/0.0.0.0/tcp/30334 --public-addr=/ip4/<public_ip>/tcp/30334  --execution=wasm  -- 
---execution=wasm  --listen-addr=/ip4/0.0.0.0/tcp/30333 --public-addr=/ip4/35.205.160.54/tcp/30333 -l gossip=debug,peerset=debug 
+--execution=wasm  --listen-addr=/ip4/0.0.0.0/tcp/30333 --public-addr=/ip4/<public_ip>/tcp/30333 -l gossip=debug,peerset=debug 
+```
+
+### Using Docker
+
+Pull the docker image from composablefi/composable:$RELEASE\_VERSION and run the following commands
+
+```
+docker run  -it -v composable-data:/data  composablefi/composable:$RELEASE_VERSION
+ composable --collator  --chain=picasso --base-path /data   --listen-addr=/ip4/0.0.0.0/tcp/30334 
+ --public-addr=/ip4/127.0.0.1/tcp/30334  --execution=wasm  -- --execution=wasm  
+ --listen-addr=/ip4/0.0.0.0/tcp/30333 --public-addr=/ip4/127.0.0.1/tcp/30333
 ```
 
 ### Running a Boot Node
@@ -296,8 +309,10 @@ Bootnodes are regular nodes used to discover other peer of nodes,&#x20;
 Each bootnode has a peer ID, the peer id is automatically generated when the composable binary is run, however becuase the peer ID is generated everytime the composable binary is run, this means that the peer id will change often, to have a static peer id that doesnt change, use this command to generate a node key that your bootnode can use as its peer id
 
 ```
-// Some code
-parachain-utils genrate keys 
+composable --name <node_name>  --pruning=archive --chain=picasso  --node-key-file <path-to-node-key-file>
+ --base-path <path-to-data-dir>  --listen-addr=/ip4/0.0.0.0/tcp/30334 
+ --public-addr=/ip4/<public_ip>/tcp/30334  --execution=wasm  -- --execution=wasm 
+  --listen-addr=/ip4/0.0.0.0/tcp/30333 --public-addr=/ip4/<public_ip>/tcp/30333
 ```
 
 
@@ -308,75 +323,22 @@ All decentralized applications need a way to communoicate with their blockchains
 
 RPC nodes also run as an archive nodes, this mean they keeps all the state of the past blocks, archive node makes it convenient to query the past state of the chain at any point in time.&#x20;
 
-In composable network, the rpc node client exposes https and wsss endpoint for rpc connections using port 9933 and 9944 respectively, to run a node as an rpc client, run the following commands
+In composable network, the rpc node client exposes https and wss endpoint for rpc connections using port 9933 and 9944 respectively, to run a node as an rpc client, run the following commands
 
 ```
-// Some code
-composable --rpc-port
+composable --name composable-rpcnode-00   --pruning=archive  --ws-port 9944
+ --unsafe-ws-external  --rpc-methods=safe --rpc-cors=all  --chain=picasso 
+ --base-path /var/lib/composable-data/  --ws-max-connections 5000 
+ --listen-addr=/ip4/0.0.0.0/tcp/30334 --public-addr=/ip4/35.190.204.39/tcp/30334
+  --execution=wasm  -- --execution=wasm  --listen-addr=/ip4/0.0.0.0/tcp/30333
+   --public-addr=/ip4/35.190.204.39/tcp/30333
 ```
 
 Now that we have understood all different node types, let us proceed to getting our composable binary ready for our nodes operations
 
-###
+
 
 ### Generating Node Keys
-
-
-
-#### Setup dependencies
-
-#### Install Rust and its dependencies
-
-Once you have setup your VM and its fully up and running, the next step is to get all the dependencies that is needed to run or build a composable node from scratch ready, composable is fully written in RUST, this means we need to have rust and its dependencies setup on our vm, if you have never installed RUst, it's okay, follow the instruction below on how to setup rust on your vm
-
-```
-#!/bin/bash
-sudo apt install make clang pkg-config libssl-dev build-essential
-curl https://sh.rustup.rs -sSf | sh -s -- -y
-source $HOME/.cargo/env
-rustc --version
-
-
-
-```
-
-However, uf you already have rust installed, you can proceed to this next step to byild composable binary from source
-
-####
-
-
-
-
-
-### Building and Installing a Composable Binary
-
-There are different ways to get started running a composable node:
-
-1. Installing composable with a Package Manager
-2. Using already built composable binary
-3. Building composable Binary from source
-
-### 1. Installing composable with a package manager
-
-{% tabs %}
-{% tab title="Debian" %}
-
-{% endtab %}
-
-{% tab title="RPM" %}
-
-{% endtab %}
-{% endtabs %}
-
-
-
-### Starting Node with Composable Binary
-
-
-
-### Generate Session Keys
-
-### Using Docker
 
 
 
