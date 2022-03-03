@@ -188,11 +188,14 @@ use sp_runtime::{
 	ArithmeticError, DispatchError, DispatchResult, RuntimeDebug,
 };
 use sp_std::prelude::*;
+use composable_support::validation::Validated;
+use crate::validation::ValidProposal;
 
 mod conviction;
 mod types;
 mod vote;
 mod vote_threshold;
+mod validation;
 
 #[allow(clippy::all)]
 pub mod weights;
@@ -731,10 +734,10 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			proposal_hash: T::Hash,
 			asset_id: T::AssetId,
-			#[pallet::compact] value: BalanceOf<T>,
+			#[pallet::compact] value: Validated<BalanceOf<T>,ValidProposal<T::MinimumDeposit>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(value >= T::MinimumDeposit::get(), Error::<T>::ValueLow);
+			let validated_value = value.value();
 			let id = ProposalId { hash: proposal_hash, asset_id };
 			let index = Self::public_prop_count().unwrap_or(0);
 			let real_prop_count = PublicProps::<T>::decode_len().unwrap_or(0) as u32;
@@ -748,13 +751,13 @@ pub mod pallet {
 				);
 			}
 
-			T::NativeCurrency::hold(&who, value)?;
+			T::NativeCurrency::hold(&who, validated_value)?;
 			PublicPropCount::<T>::put(index + 1);
-			<DepositOf<T>>::insert(index, (&[&who][..], value));
+			<DepositOf<T>>::insert(index, (&[&who][..], validated_value));
 
 			<PublicProps<T>>::append((index, id, who));
 
-			Self::deposit_event(Event::<T>::Proposed(index, value));
+			Self::deposit_event(Event::<T>::Proposed(index, validated_value));
 			Ok(())
 		}
 
