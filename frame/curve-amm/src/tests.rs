@@ -9,6 +9,7 @@ use frame_support::{
 	traits::fungibles::{Inspect, Mutate},
 };
 use proptest::prelude::*;
+use sp_arithmetic::assert_eq_error_rate;
 use sp_runtime::{Permill, TokenError};
 
 fn create_pool(
@@ -123,8 +124,111 @@ fn test() {
 #[test]
 fn test_amp_0() {
 	new_test_ext().execute_with(|| {
-		test_dex_demo(0_u16);
+		let pool_id = test_dex_demo(0_u16);
 	});
+}
+
+// TODO: make prop test of it
+#[test]
+fn curve_with_amp_zero_is_constant_sum() {
+	new_test_ext().execute_with(|| {
+		let pool_id = StableSwap::do_create_pool(
+			&ALICE,
+			CurrencyPair::new(USDC, USDT),
+			0,
+			Permill::zero(),
+			Permill::zero(),
+		)
+		.unwrap();
+
+		let unit = 1_000_000_000_000_u128;
+		let usdc_price = 1 * unit;
+
+		let nb_of_usdc = 1_000_000_000_000_000_000;
+		let usdt_price = 1 * unit;
+
+		let nb_of_usdt = 1_000_000_000_000_000_000;
+
+		let initial_usdc = nb_of_usdc * usdc_price;
+		let initial_usdt = nb_of_usdt * usdt_price;
+
+		assert_ok!(Tokens::mint_into(USDC, &ALICE, initial_usdc));
+		assert_ok!(Tokens::mint_into(USDT, &ALICE, initial_usdt));
+
+		// Add the liquidity
+		assert_ok!(StableSwap::add_liquidity(
+			Origin::signed(ALICE),
+			pool_id,
+			initial_usdc,
+			initial_usdt,
+			0,
+			false
+		));
+
+		let mut constant_sum = ConstantSum::new(initial_usdc);
+
+		// ISSUE: it is NOT ratio, please rename
+		let ratio =
+			<StableSwap as Amm>::get_exchange_value(pool_id, USDC, unit).expect("impossible; qed;");
+		let constant_ratio = constant_sum.amount_of_b_for_amont_of_a(unit);
+		assert_eq_error_rate!(ratio, constant_ratio, 0);
+
+		let swap_usdc = 1_000_000_000_u128 * unit;
+		assert_ok!(Tokens::mint_into(USDC, &BOB, swap_usdc));
+		// mint 1 USDT, after selling 100 USDC we get 99 USDT so to buy 100 USDC we need 100 USDT
+		assert_ok!(Tokens::mint_into(USDT, &BOB, unit));
+
+		StableSwap::sell(Origin::signed(BOB), pool_id, USDC, swap_usdc, false)
+			.expect("impossible; qed;");
+
+		constant_sum.swap_a_to_b(swap_usdc);
+
+		let ratio_after =
+			<StableSwap as Amm>::get_exchange_value(pool_id, USDC, unit).expect("impossible; qed;");
+		println!("{:?}", constant_sum);
+		let constant_ratio_after = constant_sum.swap_a_to_b(unit);
+		assert_ne!(ratio_after, ratio);
+		assert_eq!(ratio_after, constant_ratio_after);
+	});
+}
+
+#[derive(Debug)]
+struct ConstantSum {
+	pub a: u128,
+	pub b: u128,
+}
+
+impl ConstantSum {
+	pub fn new(amount: u128) -> Self {
+		Self { a: amount, b: amount }
+	}
+
+	pub fn swap_a_to_b(&mut self, da: u128) -> u128 {
+		let sum = self.a + self.b;
+
+		let new_a = self.a + da;
+		let new_b = sum - new_a;
+
+		let new_sum = new_a + new_b;
+		assert_eq!(new_sum, sum);
+		let result = self.b - new_b;
+		assert_ne!(self.a, new_a);
+		assert_ne!(self.b, new_b);
+		self.a = new_a;
+		self.b = new_b;
+		result
+	}
+
+	pub fn amount_of_b_for_amont_of_a(&self, amount_of_a: u128) -> u128 {
+		let sum = self.a + self.b;
+
+		let new_a = self.a + amount_of_a;
+		let new_b = sum - new_a;
+
+		let new_sum = new_a + new_b;
+		assert_eq!(new_sum, sum);
+		self.b - new_b
+	}
 }
 
 //- test lp mint/burn
