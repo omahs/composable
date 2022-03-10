@@ -18,7 +18,9 @@ LABEL description="Precompiled Docker image for Composable" \
       image.documentation="https://github.com/ComposableFi/composable#readme"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN curl -o composable "https://github.com/ComposableFi/composable/releases/download/${VERSION}/composable"  
+
+COPY target/release/composable .
+# RUN curl -o composable "https://github.com/ComposableFi/composable/releases/download/${VERSION}/composable"  
     
 RUN mv composable /usr/local/bin && chmod +x /usr/local/bin/composable  
 
