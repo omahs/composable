@@ -18,6 +18,8 @@ When building the chain, we use different names to target different [relay chain
 | Picasso           | Kusama      | KSM                     |
 | Composable        | Polkadot    | DOT                     |
 
+test
+
 The runtimes can be found under the `runtime` directory.
 The chain specs are located in `node/src/chain_spec`.
 
