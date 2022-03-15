@@ -25,6 +25,8 @@ sh scripts/init.sh
 cargo build --release
 ```
 
+test
+
 or you can simply install it with this one liner:    
 
 ```sh
