@@ -17,6 +17,7 @@ fn call_test_extrinsic() {
 			.event;
 
 		// System::assert_last_event(Event::Options(pallet::Event::Test { issuer: ALICE }));
-		assert_eq!(event, Event::Options(pallet::Event::Test { issuer: ALICE }))
+		assert_eq!(event, Event::Options(pallet::Event::Test { issuer: ALICE }));
+		assert_ne!(event, Event::Options(pallet::Event::Test { issuer: BOB }))
 	});
 }
