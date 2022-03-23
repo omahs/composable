@@ -1,3 +1,11 @@
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod mock;
+
+// mod weights;
+
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -8,7 +16,7 @@ pub mod pallet {
 	use frame_support::{transactional, PalletId};
 	use frame_system::ensure_signed;
 
-	use composable_traits::vault::{Deposit as Duration, Vault, VaultConfig};
+	// use composable_traits::vault::{Deposit as Duration, StrategicVault, Vault, VaultConfig};
 
 	// ----------------------------------------------------------------------------------------------------
 	//                                    Declaration Of The Pallet Type
@@ -22,28 +30,34 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
+		#[allow(missing_docs)]
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 	}
 
 	// ----------------------------------------------------------------------------------------------------
+	//										Pallet Helper Types
+	// ----------------------------------------------------------------------------------------------------
+
+	// ----------------------------------------------------------------------------------------------------
 	//                                      Runtime Storage
 	// ----------------------------------------------------------------------------------------------------
-	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	pub type Something<T> = StorageValue<_, u32>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn something)]
+	// pub type Something<T> = StorageValue<_, u32>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//                                      Runtime Events
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {}
+	pub enum Event<T: Config> {
+		Test { issuer: T::AccountId },
+	}
 
 	// ----------------------------------------------------------------------------------------------------
 	//                                      Runtime  Errors
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::error]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Error<T> {}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -57,7 +71,16 @@ pub mod pallet {
 	//                                        Extrinsics
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		#[pallet::weight(0)]
+		pub fn test(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+			let from = ensure_signed(origin)?;
+
+			Self::deposit_event(Event::Test { issuer: from });
+
+			Ok(().into())
+		}
+	}
 }
 
 // ----------------------------------------------------------------------------------------------------

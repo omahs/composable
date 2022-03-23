@@ -1,5 +1,5 @@
 [package]
-name = "tokenized-options"
+name = "pallet-tokenized-options"
 version = "0.1.0"
 authors = ["Composable Developers"]
 homepage = "https://composable.finance"
