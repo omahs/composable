@@ -8,6 +8,17 @@ Each liquidation strategy parameters can be changed by strategy's owner.
 
 Default engine is [Dutch Auction](../dutch-auction)
 
+## XCM
+
+XCM compabile chains provide liqudations engine functionality throguht `Xcm::Transact` . 
+
+Liqudations engine expose extrinsic binary compabible `XcmSell`
+
+
+
+
+
+
 ## References
 
 https://docs.makerdao.com/smart-contract-modules/dog-and-clipper-detailed-documentation

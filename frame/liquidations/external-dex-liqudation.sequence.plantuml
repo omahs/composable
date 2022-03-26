@@ -1,5 +1,19 @@
 @startuml
 
+/* Building fully decoupled flow is described bellow. Will avoid that for now.
+		 * ```plantuml
+		 * `solves question - how pallet can invoke list of other pallets with different configuration types
+		 * `so yet sharing some liquidation part and tracing liquidation id
+		 * dutch_auction_strategy -> liquidation : Create new strategy id
+		 * dutch_auction_strategy -> liquidation : Add Self Dispatchable call (baked with strategyid)
+		 * liquidation -> liquidation: Add liquidation order
+		 * liquidation -> liquidation: Get Dispatchable by Strategyid
+		 * liquidation --> dutch_auction_strategy: Invoke Dispatchable
+		 * dutch_auction_strategy -> dutch_auction_strategy: Get liquidation configuration by id previosly baked into call
+		 * dutch_auction_strategy --> liquidation: Pop next order
+		 * dutch_auction_strategy -> dutch_auction_strategy: Start liquidation
+		 * ``
+
 box Composable #LightYellow
   participant "Assets" as pallet_assets
   participant "Lending" as pallet_lending

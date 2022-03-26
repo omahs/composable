@@ -60,7 +60,7 @@ pub mod pallet {
 		traits::{Get, IsType, UnixTime},
 		PalletId, Parameter, Twox64Concat,
 	};
-	use frame_system::ensure_signed;
+	use frame_system::{ensure_signed, Origin};
 
 	#[cfg(feature = "std")]
 	use frame_support::traits::GenesisBuild;
@@ -127,7 +127,7 @@ pub mod pallet {
 			_configuraiton: LiquidationStrategyConfiguration<T::ParachainId>,
 		) -> DispatchResultWithPostInfo {
 			Err(DispatchError::Other("add_liquidation_strategy: no implemented").into())
-		}
+		} 
 		#[pallet::weight(10_000)]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -138,7 +138,22 @@ pub mod pallet {
 			Self::liquidate(&who, order, configuration)?;
 			Ok(().into())
 		}
+		
+		
+		
+		#[pallet::weight(10_000)]
+		pub fn xcm_sell(origin: OriginFor<T>,  from: T::AccountId, amount:  u128, intput: u128, output_asset: u128, para:id) -> DispatchResultWithPostInfo {
+			// assumes XCM did `Transfer` to acccount happneded before
+			// can we thinkg of sell also will Mint to this network?
+			// it sets stuff to any proper liqudations engine
+			// if liqudations immediate, call complete
+			Ok(())
+		}
+
+
 	}
+
+
 
 	#[pallet::storage]
 	#[pallet::getter(fn strategies)]
@@ -188,21 +203,8 @@ pub mod pallet {
 	pub enum LiquidationStrategyConfiguration<ParachainId> {
 		DutchAuction(TimeReleaseFunction),
 		UniswapV2 { slippage: Perquintill },
-		XcmDex { parachain_id: ParachainId },
-		/* Building fully decoupled flow is described bellow. Will avoid that for now.
-		 * ```plantuml
-		 * `solves question - how pallet can invoke list of other pallets with different configuration types
-		 * `so yet sharing some liquidation part and tracing liquidation id
-		 * dutch_auction_strategy -> liquidation : Create new strategy id
-		 * dutch_auction_strategy -> liquidation : Add Self Dispatchable call (baked with strategyid)
-		 * liquidation -> liquidation: Add liquidation order
-		 * liquidation -> liquidation: Get Dispatchable by Strategyid
-		 * liquidation --> dutch_auction_strategy: Invoke Dispatchable
-		 * dutch_auction_strategy -> dutch_auction_strategy: Get liquidation configuration by id previosly baked into call
-		 * dutch_auction_strategy --> liquidation: Pop next order
-		 * dutch_auction_strategy -> dutch_auction_strategy: Start liquidation
-		 * ```
-		 *Dynamic { liquidate: Dispatch, minimum_price: Balance }, */
+
+		Xcm { parachain_id: ParachainId, pallet_id: u8, method_id : u8 },
 	}
 
 	#[cfg(feature = "std")]
