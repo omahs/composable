@@ -22,4 +22,4 @@ RUN mv faucet-server /usr/local/bin && chmod +x /usr/local/bin/faucet-server
 
 EXPOSE 8080
 
-CMD ["faucet-server"]
+CMD ["faucet-server --port 8080"]
