@@ -17,6 +17,8 @@ WORKDIR /composable
 
 RUN wget "https://storage.googleapis.com/composable-binaries/community-releases/utils/faucet-server"  
 
+RUN chmod +x faucet-server
+
     
 RUN mv faucet-server /usr/local/bin && chmod +x /usr/local/bin/faucet-server  
 
