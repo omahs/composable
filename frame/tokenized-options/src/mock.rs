@@ -1,24 +1,29 @@
 use crate as pallet_tokenized_options;
-use frame_support::{parameter_types, traits::Everything, PalletId};
-use frame_system::EnsureRoot;
-use orml_traits::parameter_type_with_key;
+use crate::currency::{CurrencyId, PICA};
+use composable_traits::defi::DeFiComposableConfig;
+use composable_traits::governance::SignedRawOrigin;
+use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId};
+use frame_system::{EnsureRoot, EnsureSignedBy};
+use orml_traits::{parameter_type_with_key, GetByKey};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{ConvertInto, IdentityLookup},
 };
+
 pub type BlockNumber = u64;
 pub type AccountId = u128;
+pub type AssetId = u128;
 pub type Balance = u128;
-use crate::currency::{CurrencyId, PICA};
-pub type VaultId = u64;
+pub type VaultId = u128;
 pub type Amount = i128;
 
-pub const ALICE: AccountId = 0;
-pub const BOB: AccountId = 1;
+pub const ADMIN: AccountId = 0;
+pub const ALICE: AccountId = 1;
+pub const BOB: AccountId = 2;
 
 // ----------------------------------------------------------------------------------------------------
-//                                                Config
+//		Config
 // ----------------------------------------------------------------------------------------------------
 
 parameter_types! {
@@ -53,7 +58,15 @@ impl frame_system::Config for MockRuntime {
 }
 
 // ----------------------------------------------------------------------------------------------------
-//                                                Balances
+//		Composable Config
+// ----------------------------------------------------------------------------------------------------
+impl DeFiComposableConfig for MockRuntime {
+	type Balance = Balance;
+	type MayBeAssetId = AssetId;
+}
+
+// ----------------------------------------------------------------------------------------------------
+//		Balances
 // ----------------------------------------------------------------------------------------------------
 
 parameter_types! {
@@ -73,7 +86,7 @@ impl pallet_balances::Config for MockRuntime {
 }
 
 // ----------------------------------------------------------------------------------------------------
-//                                           Currency Factory
+//		Currency Factory
 // ----------------------------------------------------------------------------------------------------
 
 impl pallet_currency_factory::Config for MockRuntime {
@@ -85,7 +98,7 @@ impl pallet_currency_factory::Config for MockRuntime {
 }
 
 // ----------------------------------------------------------------------------------------------------
-//                                                Tokens
+//		Tokens
 // ----------------------------------------------------------------------------------------------------
 
 parameter_type_with_key! {
@@ -107,12 +120,54 @@ impl orml_tokens::Config for MockRuntime {
 }
 
 // ----------------------------------------------------------------------------------------------------
-//                                                Vault
+//		Governance Registry
+// ----------------------------------------------------------------------------------------------------
+
+pub struct GovernanceRegistry;
+impl composable_traits::governance::GovernanceRegistry<CurrencyId, AccountId>
+	for GovernanceRegistry
+{
+	fn set(_k: CurrencyId, _value: composable_traits::governance::SignedRawOrigin<AccountId>) {}
+}
+
+impl GetByKey<CurrencyId, Result<SignedRawOrigin<u128>, sp_runtime::DispatchError>>
+	for GovernanceRegistry
+{
+	fn get(_k: &CurrencyId) -> Result<SignedRawOrigin<u128>, sp_runtime::DispatchError> {
+		Ok(SignedRawOrigin::Root)
+	}
+}
+
+// ----------------------------------------------------------------------------------------------------
+//		Assets
+// ----------------------------------------------------------------------------------------------------
+
+parameter_types! {
+	pub const NativeAssetId: CurrencyId = PICA::ID;
+}
+
+ord_parameter_types! {
+	pub const RootAccount: AccountId = ADMIN;
+}
+
+impl pallet_assets::Config for MockRuntime {
+	type NativeAssetId = NativeAssetId;
+	type GenerateCurrencyId = LpTokenFactory;
+	type AssetId = CurrencyId;
+	type Balance = Balance;
+	type NativeCurrency = Balances;
+	type MultiCurrency = Tokens;
+	type WeightInfo = ();
+	type AdminOrigin = EnsureSignedBy<RootAccount, AccountId>;
+	type GovernanceRegistry = GovernanceRegistry;
+}
+
+// ----------------------------------------------------------------------------------------------------
+//		Vault
 // ----------------------------------------------------------------------------------------------------
 
 parameter_types! {
 	pub const MaxStrategies: usize = 255;
-	pub const NativeAssetId: CurrencyId = PICA::ID;
 	pub const CreationDeposit: Balance = 10;
 	pub const ExistentialDeposit: Balance = 1000;
 	pub const RentPerBlock: Balance = 1;
@@ -153,10 +208,13 @@ parameter_types! {
 impl pallet_tokenized_options::Config for MockRuntime {
 	type Event = Event;
 	type WeightInfo = ();
-	type Balance = Balance;
 	type AssetId = CurrencyId;
+	type Balance = Balance;
+	type CurrencyFactory = LpTokenFactory;
+	type NativeCurrency = Balances;
+	type MultiCurrency = Assets;
 	type VaultId = VaultId;
-	type Vault = Vault;
+	type AssetVault = Vault;
 	type PalletId = TokenizedOptionsPalletId;
 }
 
@@ -176,10 +234,17 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 		LpTokenFactory: pallet_currency_factory::{Pallet, Storage, Event<T>},
+		Assets: pallet_assets::{Pallet, Call, Storage},
+		// GovernanceRegistry: governance::{Pallet, Call, Storage, Event<T>},
+
 		Vault: pallet_vault::{Pallet, Call, Storage, Event<T>},
 		TokenizedOptions: pallet_tokenized_options::{Pallet, Call, Storage, Event<T>},
 	}
 );
+
+// ----------------------------------------------------------------------------------------------------
+//                                             ExtBuilder
+// ----------------------------------------------------------------------------------------------------
 
 #[derive(Default)]
 pub struct ExtBuilder {
@@ -191,12 +256,10 @@ impl ExtBuilder {
 		let mut storage =
 			frame_system::GenesisConfig::default().build_storage::<MockRuntime>().unwrap();
 
-		// pallet_balances::GenesisConfig::<Runtime> { balances: vec![(ALICE, 1_000_000)] }
-		// 	.assimilate_storage(&mut storage)
-		// 	.unwrap();
-
 		let mut ext: sp_io::TestExternalities = storage.into();
+
 		ext.execute_with(|| System::set_block_number(1));
+
 		ext
 	}
 }

@@ -19,6 +19,7 @@ sp-arithmetic = { default-features = false, git = "https://github.com/paritytech
 sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "9e041dc9d213f843b18b3008f32f3acabb287dcb", default-features = false}
 
 codec = { default-features = false, features = [
     "derive",
@@ -36,8 +37,8 @@ pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "p
 pallet-currency-factory = { path = "../currency-factory" }
 pallet-vault = { default-features = false, path = "../vault"}
 pallet-assets = { default-features = false, path = "../assets"}
+governance-registry = { package = "pallet-governance-registry", path = "../governance-registry" }
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "9e041dc9d213f843b18b3008f32f3acabb287dcb" }
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "9e041dc9d213f843b18b3008f32f3acabb287dcb" }
 proptest = "1.0"
 hex-literal = "0.3.3"
 
@@ -52,6 +53,7 @@ std = [
     "sp-io/std",
     "sp-core/std",
     "sp-std/std",
+    "orml-traits/std",
     "codec/std",
     "log/std",
     "scale-info/std",
