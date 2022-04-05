@@ -1587,6 +1587,7 @@ dependencies = [
  "is_sorted",
  "parity-scale-codec",
  "proptest",
+ "rustc-hex",
  "scale-info",
  "serde",
  "serde_json",
@@ -5531,6 +5532,7 @@ dependencies = [
  "pallet-democracy 4.0.0-dev",
  "pallet-governance-registry",
  "pallet-indices",
+ "pallet-liquidations",
  "pallet-membership",
  "pallet-oracle",
  "pallet-randomness-collective-flip",
@@ -5541,6 +5543,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-uniswap-v2",
  "pallet-utility",
  "pallet-vault",
  "pallet-xcm",
@@ -6482,6 +6485,7 @@ name = "pallet-assets-registry"
 version = "0.1.0"
 dependencies = [
  "composable-traits",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log 0.4.16",
@@ -6805,6 +6809,7 @@ dependencies = [
 name = "pallet-crowdloan-rewards"
 version = "0.0.1"
 dependencies = [
+ "composable-support",
  "composable-traits",
  "frame-support",
  "frame-system",
