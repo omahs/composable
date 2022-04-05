@@ -41,6 +41,7 @@ jobs:
         /home/runner/.cargo/bin/rustup target add --toolchain=nightly wasm32-unknown-unknown
         /home/runner/.cargo/bin/cargo build --release -p faucet-server
         gsutil cp target/release/faucet-server gs://composable-binaries/community-releases/utils/
+        
 
     - name: Build Docker image
       run: RELEASE_VERSION=$(git tag --sort=committerdate | grep -E '^v[0-9]' | tail -1) make containerize-faucet-server 
