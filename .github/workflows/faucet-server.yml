@@ -38,6 +38,7 @@ jobs:
 
     - name: Build Faucet server
       run: |
+        /home/runner/.cargo/bin/rustup target add --toolchain=nightly wasm32-unknown-unknown
         /home/runner/.cargo/bin/cargo build --release -p faucet-server
         gsutil cp target/release/faucet-server gs://composable-binaries/community-releases/utils/
 
