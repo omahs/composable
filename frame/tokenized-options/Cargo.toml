@@ -41,6 +41,7 @@ governance-registry = { package = "pallet-governance-registry", path = "../gover
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "9e041dc9d213f843b18b3008f32f3acabb287dcb" }
 proptest = "1.0"
 hex-literal = "0.3.3"
+itertools = "0.10.3"
 
 [features]
 default = ["std"]

@@ -14,6 +14,9 @@ mod weights;
 pub use pallet::*;
 
 #[frame_support::pallet]
+#[allow(unused_imports)]
+#[allow(unused_variables)]
+#[allow(dead_code)]
 pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Imports and Dependencies
@@ -36,8 +39,8 @@ pub mod pallet {
 		},
 		transactional, PalletId,
 	};
-	use frame_system::ensure_signed;
 	use frame_system::pallet_prelude::*;
+	use frame_system::{ensure_root, ensure_signed};
 	use sp_runtime::{
 		traits::{
 			AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, Zero,
@@ -58,31 +61,9 @@ pub mod pallet {
 	//		Config Trait
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + DeFiComposableConfig {
 		#[allow(missing_docs)]
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
-		type Balance: Default
-			+ Parameter
-			+ Codec
-			+ MaxEncodedLen
-			+ Copy
-			+ Ord
-			+ CheckedAdd
-			+ CheckedSub
-			+ CheckedMul
-			+ AtLeast32BitUnsigned
-			+ Zero;
-
-		type AssetId: FullCodec
-			+ MaxEncodedLen
-			+ Eq
-			+ PartialEq
-			+ Copy
-			+ MaybeSerializeDeserialize
-			+ Debug
-			+ Default
-			+ TypeInfo;
 
 		/// tokenized_options PalletId
 		#[pallet::constant]
@@ -102,7 +83,7 @@ pub mod pallet {
 
 		type VaultId: Clone + Codec + MaxEncodedLen + Debug + PartialEq + Default + Parameter;
 
-		type AssetVault: CapabilityVault<
+		type Vault: CapabilityVault<
 			AssetId = AssetIdOf<Self>,
 			Balance = BalanceOf<Self>,
 			AccountId = AccountIdOf<Self>,
@@ -114,19 +95,19 @@ pub mod pallet {
 	//		Helper Pallet Types
 	// ----------------------------------------------------------------------------------------------------
 	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-	type AssetIdOf<T> = <T as Config>::AssetId;
-	type BalanceOf<T> = <T as Config>::Balance;
+	type AssetIdOf<T> = <T as DeFiComposableConfig>::MayBeAssetId;
+	type BalanceOf<T> = <T as DeFiComposableConfig>::Balance;
 	type VaultIdOf<T> = <T as Config>::VaultId;
 	type OptionOf<T> = OptionToken<AssetIdOf<T>, BalanceOf<T>>;
-	type AssetVaultOf<T> = <T as Config>::AssetVault;
+	type VaultOf<T> = <T as Config>::Vault;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
 	// ----------------------------------------------------------------------------------------------------
 
 	#[pallet::storage]
-	#[pallet::getter(fn option_id_counter)]
-	pub type OptionIdCounter<T: Config> = StorageValue<_, AssetIdOf<T>, ValueQuery>;
+	#[pallet::getter(fn asset_id_to_vault_id)]
+	pub type AssetToVault<T: Config> = StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn option_id_to_option)]
@@ -135,16 +116,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn option_id_to_option_vault_id)]
-	pub type OptionIdToOptionVaultId<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn asset_id_to_vault_id)]
-	pub type AssetIdToVaultId<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
-
-	//  TODO: Maps each account to its minted options for a particular asset
-	//  TODO: Maps each account to its collateral for a particular asset
+	pub type OptionToVault<T: Config> = StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Events
@@ -152,8 +124,9 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		CreatedAssetVault,
-		CreatedOptionVault,
+		CreatedAssetVault { vault_id: VaultIdOf<T>, asset_id: AssetIdOf<T> },
+		CreatedOption { option_id: AssetIdOf<T>, option: OptionOf<T> },
+		CreatedOptionVault { option_id: AssetIdOf<T>, vault_id: VaultIdOf<T>, option: OptionOf<T> },
 		SellOption,
 		BuyOption,
 	}
@@ -177,24 +150,6 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Genesis Config
 	// ----------------------------------------------------------------------------------------------------
-	#[pallet::genesis_config]
-	pub struct GenesisConfig<T: Config> {
-		pub options_counter: AssetIdOf<T>,
-	}
-
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			Self { options_counter: Default::default() }
-		}
-	}
-
-	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
-		fn build(&self) {
-			OptionIdCounter::<T>::put(self.options_counter);
-		}
-	}
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Extrinsics
@@ -205,29 +160,46 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::create_asset_vault())]
 		pub fn create_asset_vault(
 			_origin: OriginFor<T>,
-			_asset: AssetIdOf<T>,
+			_config: VaultConfig<AccountIdOf<T>, AssetIdOf<T>>,
 		) -> DispatchResultWithPostInfo {
 			let from = ensure_signed(_origin)?;
 
-			let vault_id = Self::do_create_asset_vault(&_asset)?;
+			let vault_id = Self::do_create_asset_vault(&_config)?;
 
-			Self::deposit_event(Event::CreatedAssetVault);
+			Self::deposit_event(Event::CreatedAssetVault { vault_id, asset_id: _config.asset_id });
 
 			Ok(().into())
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::create_option_vault())]
-		pub fn create_option_vault(
+		#[pallet::weight(<T as Config>::WeightInfo::create_option())]
+		pub fn create_option(
 			_origin: OriginFor<T>,
-			_amount: BalanceOf<T>,
+			_option: OptionOf<T>,
+		) -> DispatchResultWithPostInfo {
+			let from = ensure_signed(_origin)?;
+
+			let option_id = <Self as TokenizedOptions>::create_option(from, &_option)?;
+
+			Self::deposit_event(Event::CreatedOption { option_id, option: _option });
+
+			Ok(().into())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::create_option_with_vault())]
+		pub fn create_option_with_vault(
+			_origin: OriginFor<T>,
 			_option: OptionOf<T>,
 		) -> DispatchResultWithPostInfo {
 			let from = ensure_signed(_origin)?;
 
 			let (option_id, option_vault_id) =
-				<Self as TokenizedOptions>::create_option_vault(from, _amount, &_option)?;
+				<Self as TokenizedOptions>::create_option_with_vault(from, &_option)?;
 
-			Self::deposit_event(Event::CreatedOptionVault);
+			Self::deposit_event(Event::CreatedOptionVault {
+				option_id,
+				vault_id: option_vault_id,
+				option: _option,
+			});
 
 			Ok(().into())
 		}
@@ -272,12 +244,20 @@ pub mod pallet {
 		type Balance = BalanceOf<T>;
 		type VaultId = VaultIdOf<T>;
 
-		fn create_option_vault(
+		fn create_option(
 			_from: Self::AccountId,
-			_amount: Self::Balance,
+			_option: &OptionToken<Self::AssetId, Self::Balance>,
+		) -> Result<Self::AssetId, DispatchError> {
+			let option_id = Self::do_create_option(&_option).unwrap();
+
+			Ok(option_id)
+		}
+
+		fn create_option_with_vault(
+			_from: Self::AccountId,
 			_option: &OptionToken<Self::AssetId, Self::Balance>,
 		) -> Result<(Self::AssetId, Self::VaultId), DispatchError> {
-			let (option_id, option_vault_id) = Self::do_create_option_vault(&_option).unwrap();
+			let (option_id, option_vault_id) = Self::do_create_option_with_vault(&_option).unwrap();
 
 			Ok((option_id, option_vault_id))
 		}
@@ -287,7 +267,7 @@ pub mod pallet {
 			_amount: Self::Balance,
 			_option_id: Self::AssetId,
 		) -> Result<(), DispatchError> {
-			Self::do_sell_option(_amount, _option_id).unwrap();
+			// Self::do_sell_option(_amount, _option_id).unwrap();
 
 			// Save that "_from" deposited
 
@@ -299,7 +279,7 @@ pub mod pallet {
 			_amount: Self::Balance,
 			_option_id: Self::AssetId,
 		) -> Result<(), DispatchError> {
-			Self::do_buy_option(_from, _amount, _option_id).unwrap();
+			// Self::do_buy_option(_from, _amount, _option_id).unwrap();
 
 			// Save that "_from" has bought
 
@@ -315,13 +295,18 @@ pub mod pallet {
 			T::PalletId::get().into_sub_account(_asset)
 		}
 
-		fn do_create_asset_vault(_asset_id: &AssetIdOf<T>) -> Result<VaultIdOf<T>, DispatchError> {
-			let asset_id = *_asset_id;
-			// Get pallet asset_account
+		#[transactional]
+		fn do_create_asset_vault(
+			_config: &VaultConfig<AccountIdOf<T>, AssetIdOf<T>>,
+		) -> Result<VaultIdOf<T>, DispatchError> {
+			let asset_id = _config.asset_id;
+			ensure!(!AssetToVault::<T>::contains_key(asset_id), Error::<T>::VaultAlreadyExists);
+
+			// Get pallet account for the asset
 			let account_id = Self::account_id(asset_id);
 
-			// Create new vault for depositing base asset
-			let asset_vault_id: T::VaultId = T::AssetVault::create(
+			// Create new vault for the asset
+			let asset_vault_id: T::VaultId = T::Vault::create(
 				Duration::Existential,
 				VaultConfig {
 					asset_id,
@@ -331,13 +316,27 @@ pub mod pallet {
 				},
 			)?;
 
-			// Add base_asset_id to the corresponding asset vault
-			AssetIdToVaultId::<T>::insert(_asset_id, &asset_vault_id);
+			// Add asset to the corresponding asset vault
+			AssetToVault::<T>::insert(asset_id, &asset_vault_id);
 
 			Ok(asset_vault_id)
 		}
 
-		fn do_create_option_vault(
+		#[transactional]
+		fn do_create_option(_option: &OptionOf<T>) -> Result<AssetIdOf<T>, DispatchError> {
+			// Check if option already exists (how?)
+
+			// Generate new option_id for the option token
+			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
+
+			// Add option_id to corresponding option
+			OptionIdToOption::<T>::insert(option_id, _option);
+
+			Ok(option_id)
+		}
+
+		#[transactional]
+		fn do_create_option_with_vault(
 			_option: &OptionOf<T>,
 		) -> Result<(AssetIdOf<T>, VaultIdOf<T>), DispatchError> {
 			// Generate new option_id for the option token
@@ -347,7 +346,7 @@ pub mod pallet {
 			let account_id = Self::account_id(option_id);
 
 			// Create new vault to gather option tokens
-			let option_vault_id: T::VaultId = T::AssetVault::create(
+			let option_vault_id: T::VaultId = T::Vault::create(
 				Duration::Existential,
 				VaultConfig {
 					asset_id: option_id,
@@ -361,11 +360,12 @@ pub mod pallet {
 			OptionIdToOption::<T>::insert(option_id, _option.clone());
 
 			// Add option_id to the corresponding token vault
-			OptionIdToOptionVaultId::<T>::insert(option_id, &option_vault_id);
+			OptionToVault::<T>::insert(option_id, &option_vault_id);
 
 			Ok((option_id, option_vault_id))
 		}
 
+		#[transactional]
 		fn do_sell_option(
 			_amount: BalanceOf<T>,
 			_option_id: AssetIdOf<T>,
@@ -373,11 +373,10 @@ pub mod pallet {
 			// Get pallet option_account
 			let account_id = Self::account_id(_option_id);
 
-			T::MultiCurrency::mint_into(_option_id, &account_id, _amount)?;
-
 			Ok(())
 		}
 
+		#[transactional]
 		fn do_buy_option(
 			_from: AccountIdOf<T>,
 			_amount: BalanceOf<T>,
@@ -385,8 +384,6 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			// Get pallet option_account
 			let account_id = Self::account_id(_option_id);
-
-			T::MultiCurrency::mint_into(_option_id, &_from, _amount)?;
 
 			Ok(())
 		}

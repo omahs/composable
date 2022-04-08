@@ -1,7 +1,7 @@
 use crate as pallet_tokenized_options;
-use crate::currency::{CurrencyId, PICA};
-use composable_traits::defi::DeFiComposableConfig;
-use composable_traits::governance::SignedRawOrigin;
+use crate::currency::{defs::*, CurrencyId};
+use accounts::*;
+use composable_traits::{defi::DeFiComposableConfig, governance::SignedRawOrigin};
 use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId};
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{parameter_type_with_key, GetByKey};
@@ -12,18 +12,57 @@ use sp_runtime::{
 };
 
 pub type BlockNumber = u64;
-pub type AccountId = u128;
 pub type AssetId = u128;
 pub type Balance = u128;
-pub type VaultId = u128;
+pub type VaultId = u64;
 pub type Amount = i128;
 
-pub const ADMIN: AccountId = 0;
-pub const ALICE: AccountId = 1;
-pub const BOB: AccountId = 2;
+pub mod accounts {
+	use hex_literal::hex;
+	use sp_core::sr25519::{Public, Signature};
+	use sp_runtime::traits::{IdentifyAccount, Verify};
+	pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+	pub static ADMIN: Public =
+		Public(hex!("0000000000000000000000000000000000000000000000000000000000000000"));
+	pub static ALICE: Public =
+		Public(hex!("0000000000000000000000000000000000000000000000000000000000000001"));
+	pub static BOB: Public =
+		Public(hex!("0000000000000000000000000000000000000000000000000000000000000002"));
+	pub static CHARLIE: Public =
+		Public(hex!("0000000000000000000000000000000000000000000000000000000000000003"));
+	pub static DAVE: Public =
+		Public(hex!("0000000000000000000000000000000000000000000000000000000000000004"));
+	pub static EVEN: Public =
+		Public(hex!("0000000000000000000000000000000000000000000000000000000000000005"));
+}
 
 // ----------------------------------------------------------------------------------------------------
-//		Config
+//                                             Runtime
+// ----------------------------------------------------------------------------------------------------
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<MockRuntime>;
+type Block = frame_system::mocking::MockBlock<MockRuntime>;
+
+frame_support::construct_runtime!(
+	pub enum MockRuntime where
+		Block = Block,
+		NodeBlock = Block,
+		UncheckedExtrinsic = UncheckedExtrinsic,
+	{
+		System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
+		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
+		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
+		LpTokenFactory: pallet_currency_factory::{Pallet, Storage, Event<T>},
+		Assets: pallet_assets::{Pallet, Call, Storage},
+		// GovernanceRegistry: governance::{Pallet, Call, Storage, Event<T>},
+
+		Vault: pallet_vault::{Pallet, Call, Storage, Event<T>},
+		TokenizedOptions: pallet_tokenized_options::{Pallet, Call, Storage, Event<T>},
+	}
+);
+
+// ----------------------------------------------------------------------------------------------------
+//		Frame System Config
 // ----------------------------------------------------------------------------------------------------
 
 parameter_types! {
@@ -130,10 +169,15 @@ impl composable_traits::governance::GovernanceRegistry<CurrencyId, AccountId>
 	fn set(_k: CurrencyId, _value: composable_traits::governance::SignedRawOrigin<AccountId>) {}
 }
 
-impl GetByKey<CurrencyId, Result<SignedRawOrigin<u128>, sp_runtime::DispatchError>>
-	for GovernanceRegistry
+impl
+	GetByKey<
+		CurrencyId,
+		Result<SignedRawOrigin<sp_core::sr25519::Public>, sp_runtime::DispatchError>,
+	> for GovernanceRegistry
 {
-	fn get(_k: &CurrencyId) -> Result<SignedRawOrigin<u128>, sp_runtime::DispatchError> {
+	fn get(
+		_k: &CurrencyId,
+	) -> Result<SignedRawOrigin<sp_core::sr25519::Public>, sp_runtime::DispatchError> {
 		Ok(SignedRawOrigin::Root)
 	}
 }
@@ -147,7 +191,7 @@ parameter_types! {
 }
 
 ord_parameter_types! {
-	pub const RootAccount: AccountId = ADMIN;
+	pub const RootAccount: AccountId = accounts::ADMIN;
 }
 
 impl pallet_assets::Config for MockRuntime {
@@ -198,7 +242,7 @@ impl pallet_vault::Config for MockRuntime {
 }
 
 // ----------------------------------------------------------------------------------------------------
-//                                             Options
+//		Options
 // ----------------------------------------------------------------------------------------------------
 
 parameter_types! {
@@ -208,42 +252,16 @@ parameter_types! {
 impl pallet_tokenized_options::Config for MockRuntime {
 	type Event = Event;
 	type WeightInfo = ();
-	type AssetId = CurrencyId;
-	type Balance = Balance;
 	type CurrencyFactory = LpTokenFactory;
 	type NativeCurrency = Balances;
 	type MultiCurrency = Assets;
 	type VaultId = VaultId;
-	type AssetVault = Vault;
+	type Vault = Vault;
 	type PalletId = TokenizedOptionsPalletId;
 }
 
 // ----------------------------------------------------------------------------------------------------
-//                                             Runtime
-// ----------------------------------------------------------------------------------------------------
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<MockRuntime>;
-type Block = frame_system::mocking::MockBlock<MockRuntime>;
-
-frame_support::construct_runtime!(
-	pub enum MockRuntime where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
-		System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
-		LpTokenFactory: pallet_currency_factory::{Pallet, Storage, Event<T>},
-		Assets: pallet_assets::{Pallet, Call, Storage},
-		// GovernanceRegistry: governance::{Pallet, Call, Storage, Event<T>},
-
-		Vault: pallet_vault::{Pallet, Call, Storage, Event<T>},
-		TokenizedOptions: pallet_tokenized_options::{Pallet, Call, Storage, Event<T>},
-	}
-);
-
-// ----------------------------------------------------------------------------------------------------
-//                                             ExtBuilder
+//		ExtBuilder
 // ----------------------------------------------------------------------------------------------------
 
 #[derive(Default)]

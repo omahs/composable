@@ -81,8 +81,12 @@ pub mod defs {
 	use super::Currency;
 
 	pub type PICA = Currency<1, 12>;
-	pub type BTC = Currency<2000, 12>;
 	pub type USDC = Currency<1000, 12>;
+	pub type BTC = Currency<2000, 12>;
+	pub type LAYR = Currency<3000, 12>;
+	pub type DOT = Currency<4000, 12>;
+	pub type KSM = Currency<5000, 12>;
+	pub type ETH = Currency<6000, 12>;
 
 	pub type NORMALIZED = USDC;
 }
