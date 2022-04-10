@@ -25,12 +25,12 @@
         - [NFT Contract Details](./products/mosaic/mural-nft-transfers-on-mosaic-via-the-summoner-vault/nft-contract-details.md)
         - [Moonbeans Integration](./products/mosaic/mural-nft-transfers-on-mosaic-via-the-summoner-vault/moonbeans-integration.md)
     - [The Composable SDK](./products/mosaic/the-composable-sdk.md)
-- [Angular](./products/angular/product-brief.md)
+- [Angular](./products/angular/README.md)
     - [Technical Specification](./products/angular/technical-specification.md)
         - [Pools](./products/angular/technical-specification/pools.md)
         - [Models](./products/angular/technical-specification/models.md)
-        - [Liquidations](./products/angular/technical-specification/liquidations.md)
-            - [Liquidation Interface](./products/angular/technical-specification/liquidations/liquidation-interface.md)
+        - [Liquidations](./products/angular/technical-specification/liquidations/README.md)
+            - [Liquidation Interface](./roducts/angular/technical-specification/liquidations/liquidation-interface.md)
                 - [XCM](./products/angular/technical-specification/liquidations/liquidation-interface/xcm.md)
                 - [IBC](./products/angular/technical-specification/liquidations/liquidation-interface/ibc.md)
             - [Implementation](./products/angular/technical-specification/liquidations/implementation.md)
@@ -95,4 +95,3 @@
 
 # 📖 BOOK
 - [Contributing](./book/contributing.md)
-

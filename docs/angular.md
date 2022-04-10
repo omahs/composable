@@ -41,3 +41,13 @@ Penalize withdarawal of assets.
 - read whitepaper and medium article
 - outline how it works well with vault pallet
 - outline how it works with staking-rewards pallet
+
+
+# Flash loans
+
+See @KaiserKarel doc on that.
+
+
+# NFT as collateral
+
+NFT as 
