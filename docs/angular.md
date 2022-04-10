@@ -68,6 +68,9 @@ veANGL obtained by locking into vault or reward-staking.
 
 # Leverage as Service
 
+TODO: read sentiment
+https://twitter.com/sentimentxyz?s=21
+
 https://docs.google.com/document/d/1xaVRDvtPg1Y_wLrLvwC54H1S0WFOfc7s0eKBggtW-Bc
 
 # Liqudation with ML for better collaterizaion
@@ -94,3 +97,12 @@ Buy rigth to borrow some amount for some amount collateral in future? Is OB need
 
 
 # Hedge engine
+
+
+# others
+
+just briefly explain
+
+https://docs.euler.finance/getting-started/white-paper
+
+https://medium.com/zklend/introducing-zklend-coming-out-of-stealth-mode-92090d3ce1db
