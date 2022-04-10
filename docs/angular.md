@@ -12,8 +12,8 @@ Borrow is used on market.
 
 # veAngular
 
-As equivalent of staken amount in normalized (stable coing usually) asset you get amount of veAngular. 
-veAngular shared accross pools. 
+As equivalent of staken amount in normalized (stable coing usually) asset you get amount of veANGL 
+veANGL shared accross pools. 
 
 
 # Chiesel model with an integration of Bribe
@@ -50,4 +50,47 @@ See @KaiserKarel doc on that.
 
 # NFT as collateral
 
-NFT as 
+fNFT as collateral. how to determine price? worth return in case of immediate return with penalty? what is penalty?
+
+
+# Persmissioless creation veANGL contolled
+
+So when we create any pool, we need to take ED of veANGL.
+veANGL obtained by locking into vault or reward-staking.
+? veANGL price is one to one with normalized asset
+
+# Iron bank functionality
+
+
+# Cross chain
+
+? is it guide on how to create foreign assets to be handled by XCMP/IBC/MOSAIC?
+
+# Leverage as Service
+
+https://docs.google.com/document/d/1xaVRDvtPg1Y_wLrLvwC54H1S0WFOfc7s0eKBggtW-Bc
+
+# Liqudation with ML for better collaterizaion
+
+https://docs.google.com/document/d/1oJSQozCljna1zStVU4N6YpX0RvN0jX1rwyC540fH9HM
+
+? Real time adjustments of factor
+
+
+# Concentrated Lending
+
+like univ3/orderbook https://app.clickup.com/t/2b3dmnh
+
+? how order book is related? ask to borrow under specified return obligation?
+like OB which creates some bonding? no pooled lending?
+
+
+
+TODO: read the paper
+
+# Options protocol
+
+Buy rigth to borrow some amount for some amount collateral in future? Is OB needed?
+
+
+# Hedge engine
