@@ -44,7 +44,8 @@ executed.
 
 Protocol is not protected from sniper bots, whales and other attackers.
 Could lock amounts after into time locked fNFTs, vested, or offer to depend on time and already
-taken amount.
+taken amount. 
+[dutch-auction](../dutch-auction/README.md) and [pablo liquidity bootstrapping](../pablo/README.md) do have some protection.
 
 ## Bond Offer Workflow
 
@@ -97,4 +98,3 @@ However, this will not cancel currently vested rewards.
 ## Technical Notes
 
 * This pallet implements the `composable_traits::bonded_finance::BondedFinance` trait.
-
