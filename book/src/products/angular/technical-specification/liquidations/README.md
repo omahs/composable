@@ -8,6 +8,8 @@ Once detected, the lending protocol will initiate a sequence of operations to li
 
 Amount is used to repau debt, reward liquidator and remaining, if any, goes back to user.
 
+In case of there is not enough to cover debts, Treasury is used to add more borrow asset back into pool.
+
 #### When collateral ratio may drop?
 
 
