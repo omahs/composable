@@ -1,7 +1,12 @@
 # Liquidations
 
-A liquidation is a process that occurs when a borrower's collateralization ratio drops below a certain threshold. Once detected, the lending protocol will initiate a sequence of operations to liquidate the collateral of the user in order to obtain more borrow assets and stabilize the collateralization ratio.
+A liquidation is a process that occurs when a borrower's postion is unhealthy.
 
+That happens if collateralization ratio drops below a certain threshold or if [Credit Account] health is below treshhold. 
+
+Once detected, the lending protocol will initiate a sequence of operations to liquidate the collateral of the user in order to obtain more borrow assets and stabilize the collateralization ratio.
+
+Amount is used to repau debt, reward liquidator and remaining, if any, goes back to user.
 
 #### When collateral ratio may drop?
 
