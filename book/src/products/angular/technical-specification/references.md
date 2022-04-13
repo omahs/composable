@@ -14,7 +14,7 @@
 | ----------- | --------------- | -------------------- | ---- | ----------------------------------------------------- |
 | Notes       |                 |                      |      |        [Gearbox overview]!                                               |
 | Integration | Treasury        | Basic Liquidity Pool |      |                                                       |
-| Leverage    | Credit Accounts |                      |      | Leverage with magin health                            |
+| Leverage    | [Credit Accounts](credit-account.md) |                      |      | Yes                            |
 
 
 

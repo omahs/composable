@@ -22,7 +22,7 @@ Complex applications and products are coming to Kusama
 What are we solving for?
 ------------------------
 
-Angular Finance - an isolated lending pair pallet, designed to isolate risk and set to open new opportunities for use cases such as:
+Angular - an isolated lending pair one-sided permissionless protocol, designed to isolate risk and set to open new opportunities for use cases such as:
 
 *   Leverage on interest bearing assets
 *   Lending protocol for leveraged trading, options, and derivatives
