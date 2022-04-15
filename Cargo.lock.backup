@@ -15264,12 +15264,12 @@ version = "0.9.17"
 source = "git+https://github.com/composableFi/polkadot?branch=release-v0.9.17#1db48fed44a2b28648b464e6c3696fb40604dba0"
 
 [[patch.unused]]
-name = "xcm-simulator-example"
+name = "xcm-simulator-fuzzer"
 version = "0.9.17"
 source = "git+https://github.com/composableFi/polkadot?branch=release-v0.9.17#1db48fed44a2b28648b464e6c3696fb40604dba0"
 
 [[patch.unused]]
-name = "xcm-simulator-fuzzer"
+name = "xcm-simulator-example"
 version = "0.9.17"
 source = "git+https://github.com/composableFi/polkadot?branch=release-v0.9.17#1db48fed44a2b28648b464e6c3696fb40604dba0"
 
