@@ -1,4 +1,5 @@
 # Oracle
 
-Collateral prices are provided through Apollo 
-[https://composablefinance.atlassian.net/wiki/spaces/COM/pages/33194147/Architecture+Overview](https://composablefinance.atlassian.net/wiki/spaces/COM/pages/33194147/Architecture+Overview).
+Collateral prices are provided through Apollo.
+
+TODO: On market configuration allow to choose using TWAP, median or geometric mean price (as in univ3)
