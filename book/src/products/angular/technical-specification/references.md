@@ -64,12 +64,14 @@ https://twitter.com/kamikaz_ETH/status/1513139548683128835
 
 https://twitter.com/tbr90/status/1513904811263119361
 
+https://twitter.com/omaronchain/status/1514721348362379264
+
+https://resources.silo.finance/welcome-to-silo/why-secure-money-markets
 
 ### Eurler
 
 https://twitter.com/macromate8/status/1508810487068348424 
 
-https://twitter.com/omaronchain/status/1514721348362379264?s=21&t=S2CG9lPOjZ2zgEOCFtD9Og
 
 # Bastion
 

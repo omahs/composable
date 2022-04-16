@@ -1,4 +1,8 @@
 //! Lending pallet
+// TODO: add governance pallet id so that for providers of borrow asset
+// TODO: they are issued ANGL denominated normalized asset
+// TODO: total ANGL value should be equal to total price of all borrows
+// TODO: https://resources.silo.finance/welcome-to-silo/protocol-overview
 #![cfg_attr(
 	not(any(test, feature = "runtime-benchmarks")),
 	deny(
@@ -1131,7 +1135,7 @@ pub mod pallet {
 		type MarketId = MarketIndex;
 		type BlockNumber = T::BlockNumber;
 		type LiquidationStrategyId = <T as Config>::LiquidationStrategyId;
-
+	
 		fn create(
 			manager: Self::AccountId,
 			config_input: CreateInput<Self::LiquidationStrategyId, Self::MayBeAssetId>,

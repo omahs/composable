@@ -242,6 +242,8 @@ pub mod pallet {
 			configuration: Vec<Self::LiquidationStrategyId>,
 		) -> Result<T::OrderId, DispatchError> {
 			let mut configuration = configuration;
+			// TODO: make liquidation dependtan of healh. so liquidator get more if health is less with some max https://docs.euler.finance/protocol/eulers-default-parameters
+			// TODO: allow partial liquidaiton, until health factor returns
 			if configuration.is_empty() {
 				configuration.push(DefaultStrategyIndex::<T>::get())
 			};
