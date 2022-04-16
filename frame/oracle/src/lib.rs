@@ -239,10 +239,11 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	/// Price for an asset and blocknumber asset was updated.
+	/// Default history for an asset is an empty list.
 	#[pallet::storage]
 	#[pallet::getter(fn price_history)]
-	#[allow(clippy::disallowed_type)] // default history for an asset is an empty list, which is valid in this context.
-	/// Price for an asset and blocknumber asset was updated at
+	#[allow(clippy::disallowed_type)] 
 	pub type PriceHistory<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
@@ -892,6 +893,7 @@ pub mod pallet {
 		}
 
 		// REVIEW: indexing
+		// ISSUE: this is  NOT TWAP
 		#[allow(clippy::indexing_slicing)] // to get CI to pass
 		pub fn get_twap(
 			asset_id: T::AssetId,
@@ -906,8 +908,8 @@ pub mod pallet {
 			let sum = Self::price_values_sum(&price_weights);
 			ensure!(sum == precision, Error::<T>::MustSumTo100);
 
-			let last_weight = price_weights.pop().unwrap_or_else(|| 0_u128.into());
-			ensure!(last_weight != 0_u128.into(), Error::<T>::ArithmeticError);
+			let last_weight = price_weights.pop().unwrap_or_default();
+			ensure!(last_weight != T::PriceValue::zero(), Error::<T>::ArithmeticError);
 
 			let mut weighted_prices = price_weights
 				.iter()
@@ -935,7 +937,7 @@ pub mod pallet {
 		fn price_values_sum(price_values: &[T::PriceValue]) -> T::PriceValue {
 			price_values
 				.iter()
-				.fold(T::PriceValue::from(0_u128), |acc, b| acc.saturating_add(*b))
+				.fold(T::PriceValue::zero(), |acc, b| acc.saturating_add(*b))
 		}
 
 		// REVIEW: indexing
