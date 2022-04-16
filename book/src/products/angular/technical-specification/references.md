@@ -72,6 +72,7 @@ https://resources.silo.finance/welcome-to-silo/why-secure-money-markets
 
 https://twitter.com/macromate8/status/1508810487068348424 
 
+https://messari.io/article/euler-finance
 
 # Bastion
 

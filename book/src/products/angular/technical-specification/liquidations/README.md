@@ -49,3 +49,5 @@ Here, the actor (possibly an off chain worker), first executes the sell side of 
 TODO:
 
 * after liquidation happened, where should go amount? should account be erased from debt fully? what percentage to amount can be returned him back? is it possible to partially liquidate? kind of sold out part? different type of auction (acala like)? global vs local liquidation . if sell off did not covered debt, should take amount from stability fee? how to punish operators?
+
+TODO: add discount to liquidators who will depoist their tokens for liqudaion onto picasso protocol under goverannace 
