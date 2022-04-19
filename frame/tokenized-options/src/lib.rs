@@ -6,9 +6,6 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-#[cfg(test)]
-mod currency;
-
 mod weights;
 
 pub use pallet::*;
@@ -104,7 +101,6 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
 	// ----------------------------------------------------------------------------------------------------
-
 	#[pallet::storage]
 	#[pallet::getter(fn asset_id_to_vault_id)]
 	pub type AssetToVault<T: Config> = StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
@@ -127,8 +123,8 @@ pub mod pallet {
 		CreatedAssetVault { vault_id: VaultIdOf<T>, asset_id: AssetIdOf<T> },
 		CreatedOption { option_id: AssetIdOf<T>, option: OptionOf<T> },
 		CreatedOptionVault { option_id: AssetIdOf<T>, vault_id: VaultIdOf<T>, option: OptionOf<T> },
-		SellOption,
-		BuyOption,
+		SellOption { who: AccountIdOf<T>, amount: BalanceOf<T>, option_id: AssetIdOf<T> },
+		BuyOption { who: AccountIdOf<T>, amount: BalanceOf<T>, option_id: AssetIdOf<T> },
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -136,14 +132,13 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::error]
 	pub enum Error<T> {
-		VaultAlreadyExists,
-		AssetDoesNotHaveVault,
+		AssetVaultAlreadyExists,
+		OptionIdNotFound,
 	}
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Hooks
 	// ----------------------------------------------------------------------------------------------------
-
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
 
@@ -154,7 +149,6 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Extrinsics
 	// ----------------------------------------------------------------------------------------------------
-
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(<T as Config>::WeightInfo::create_asset_vault())]
@@ -212,9 +206,13 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let from = ensure_signed(_origin)?;
 
-			<Self as TokenizedOptions>::sell_option(from, _amount, _option_id)?;
+			<Self as TokenizedOptions>::sell_option(&from, _amount, _option_id)?;
 
-			Self::deposit_event(Event::SellOption);
+			Self::deposit_event(Event::SellOption {
+				who: from,
+				amount: _amount,
+				option_id: _option_id,
+			});
 
 			Ok(().into())
 		}
@@ -229,7 +227,7 @@ pub mod pallet {
 
 			<Self as TokenizedOptions>::buy_option(from, _amount, _option_id)?;
 
-			Self::deposit_event(Event::BuyOption);
+			// Self::deposit_event(Event::BuyOption);
 
 			Ok(().into())
 		}
@@ -263,13 +261,13 @@ pub mod pallet {
 		}
 
 		fn sell_option(
-			_from: Self::AccountId,
+			_from: &Self::AccountId,
 			_amount: Self::Balance,
 			_option_id: Self::AssetId,
 		) -> Result<(), DispatchError> {
-			// Self::do_sell_option(_amount, _option_id).unwrap();
+			ensure!(OptionIdToOption::<T>::contains_key(_option_id), Error::<T>::OptionIdNotFound);
 
-			// Save that "_from" deposited
+			Self::do_sell_option(&_from, _amount, _option_id);
 
 			Ok(())
 		}
@@ -279,9 +277,9 @@ pub mod pallet {
 			_amount: Self::Balance,
 			_option_id: Self::AssetId,
 		) -> Result<(), DispatchError> {
-			// Self::do_buy_option(_from, _amount, _option_id).unwrap();
+			ensure!(OptionIdToOption::<T>::contains_key(_option_id), Error::<T>::OptionIdNotFound);
 
-			// Save that "_from" has bought
+			Self::do_buy_option(_from, _amount, _option_id);
 
 			Ok(())
 		}
@@ -300,7 +298,10 @@ pub mod pallet {
 			_config: &VaultConfig<AccountIdOf<T>, AssetIdOf<T>>,
 		) -> Result<VaultIdOf<T>, DispatchError> {
 			let asset_id = _config.asset_id;
-			ensure!(!AssetToVault::<T>::contains_key(asset_id), Error::<T>::VaultAlreadyExists);
+			ensure!(
+				!AssetToVault::<T>::contains_key(asset_id),
+				Error::<T>::AssetVaultAlreadyExists
+			);
 
 			// Get pallet account for the asset
 			let account_id = Self::account_id(asset_id);
@@ -367,11 +368,21 @@ pub mod pallet {
 
 		#[transactional]
 		fn do_sell_option(
+			_from: &AccountIdOf<T>,
 			_amount: BalanceOf<T>,
 			_option_id: AssetIdOf<T>,
 		) -> Result<(), DispatchError> {
 			// Get pallet option_account
 			let account_id = Self::account_id(_option_id);
+
+			let option =
+				Self::option_id_to_option(_option_id).ok_or(Error::<T>::OptionIdNotFound)?;
+
+			// Do stuff with option (based on option's attributes)
+
+			// Right now I'm simply calling this since there is no a fixed design for options yet
+			// and I'm setting the test env for this function
+			<T as Config>::MultiCurrency::mint_into(_option_id, _from, _amount);
 
 			Ok(())
 		}
@@ -384,6 +395,9 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			// Get pallet option_account
 			let account_id = Self::account_id(_option_id);
+
+			let option =
+				Self::option_id_to_option(_option_id).ok_or(Error::<T>::OptionIdNotFound)?;
 
 			Ok(())
 		}

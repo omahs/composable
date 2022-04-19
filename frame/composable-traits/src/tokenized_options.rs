@@ -38,7 +38,7 @@ pub trait TokenizedOptions {
 	) -> Result<(Self::AssetId, Self::VaultId), DispatchError>;
 
 	fn sell_option(
-		_from: Self::AccountId,
+		_from: &Self::AccountId,
 		_amount: Self::Balance,
 		_option_id: Self::AssetId,
 	) -> Result<(), DispatchError>;

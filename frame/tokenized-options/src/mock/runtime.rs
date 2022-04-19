@@ -1,7 +1,8 @@
 use crate as pallet_tokenized_options;
-use crate::currency::{defs::*, CurrencyId};
+use crate::mock::currency::{defs::*, CurrencyId};
 use accounts::*;
 use composable_traits::{defi::DeFiComposableConfig, governance::SignedRawOrigin};
+use frame_support::traits::GenesisBuild;
 use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId};
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{parameter_type_with_key, GetByKey};
@@ -266,7 +267,8 @@ impl pallet_tokenized_options::Config for MockRuntime {
 
 #[derive(Default)]
 pub struct ExtBuilder {
-	// balances: Vec<(AccountId, Balance)>,
+	pub native_balances: Vec<(AccountId, Balance)>,
+	pub balances: Vec<(AccountId, AssetId, Balance)>,
 }
 
 impl ExtBuilder {
@@ -274,10 +276,30 @@ impl ExtBuilder {
 		let mut storage =
 			frame_system::GenesisConfig::default().build_storage::<MockRuntime>().unwrap();
 
+		pallet_balances::GenesisConfig::<MockRuntime> { balances: self.native_balances }
+			.assimilate_storage(&mut storage)
+			.unwrap();
+
+		orml_tokens::GenesisConfig::<MockRuntime> { balances: self.balances }
+			.assimilate_storage(&mut storage)
+			.unwrap();
+
 		let mut ext: sp_io::TestExternalities = storage.into();
 
 		ext.execute_with(|| System::set_block_number(1));
 
 		ext
+	}
+
+	pub fn init_balances(mut self, balances: Vec<(AccountId, AssetId, Balance)>) -> ExtBuilder {
+		balances.into_iter().for_each(|(account, asset, balance)| {
+			if asset == PICA::ID {
+				self.native_balances.push((account, balance));
+			} else {
+				self.balances.push((account, asset, balance));
+			}
+		});
+
+		self
 	}
 }

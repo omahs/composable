@@ -22,6 +22,8 @@
 pub struct Currency<const ID: u128, const EXPONENT: u8> {}
 
 impl<const ID: u128, const EXPONENT: u8> Currency<ID, EXPONENT> {
+	#![allow(unused)]
+
 	/// The exponent of the currency. Specifies the precision level; can be thought of as the number
 	/// of decimal points in base 10.
 	///
@@ -87,8 +89,6 @@ pub mod defs {
 	pub type DOT = Currency<4000, 12>;
 	pub type KSM = Currency<5000, 12>;
 	pub type ETH = Currency<6000, 12>;
-
-	pub type NORMALIZED = USDC;
 }
 
 pub use defs::*;

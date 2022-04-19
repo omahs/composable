@@ -1,14 +1,16 @@
-use crate::currency::{defs::*, CurrencyId};
-use crate::mock::{
-	accounts::*, AssetId, Balance, Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions,
+use crate::mock::currency::defs::*;
+use crate::mock::runtime::{
+	accounts::*, AssetId, Balance, Event, ExtBuilder, MockRuntime, Origin, System,
+	TokenizedOptions, VaultId,
 };
 use crate::{pallet, pallet::AssetToVault, pallet::Error};
 use crate::{OptionIdToOption, OptionToVault};
 use composable_traits::{
-	tokenized_options::{ExerciseType, OptionToken, OptionType},
+	tokenized_options::{ExerciseType, OptionToken, OptionType, TokenizedOptions as OptionsTrait},
 	vault::VaultConfig,
 };
 use frame_support::{assert_noop, assert_ok};
+use frame_system::ensure_signed;
 use itertools::Itertools;
 use proptest::{
 	prelude::*,
@@ -19,13 +21,13 @@ use sp_runtime::Perquintill;
 use std::collections::BTreeMap;
 
 // ----------------------------------------------------------------------------------------------------
-//		Setup VaultBuilder
+//		Setup VaultConfigBuilder
 // ----------------------------------------------------------------------------------------------------
 struct VaultConfigBuilder {
-	pub asset_id: CurrencyId,
+	pub asset_id: AssetId,
 	pub manager: AccountId,
-	pub reserved: Perquintill,
-	pub strategies: BTreeMap<AccountId, Perquintill>,
+	// pub reserved: Perquintill,
+	// pub strategies: BTreeMap<AccountId, Perquintill>,
 }
 
 impl Default for VaultConfigBuilder {
@@ -33,14 +35,14 @@ impl Default for VaultConfigBuilder {
 		VaultConfigBuilder {
 			asset_id: BTC::ID,
 			manager: ADMIN,
-			reserved: Perquintill::one(),
-			strategies: BTreeMap::new(),
+			// reserved: Perquintill::one(),
+			// strategies: BTreeMap::new(),
 		}
 	}
 }
 
 impl VaultConfigBuilder {
-	fn build(self) -> VaultConfig<AccountId, CurrencyId> {
+	fn build(self) -> VaultConfig<AccountId, AssetId> {
 		VaultConfig {
 			asset_id: self.asset_id,
 			manager: self.manager,
@@ -49,7 +51,7 @@ impl VaultConfigBuilder {
 		}
 	}
 
-	fn asset_id(mut self, asset: CurrencyId) -> Self {
+	fn asset_id(mut self, asset: AssetId) -> Self {
 		self.asset_id = asset;
 		self
 	}
@@ -103,10 +105,63 @@ impl OptionsBuilder {
 }
 
 // ----------------------------------------------------------------------------------------------------
-//		Pick Functions
+//		Extrinsic Simulations
+// ----------------------------------------------------------------------------------------------------
+
+// Simulate exstrinsic call `create_option`, but returning values
+fn trait_create_option(_origin: Origin, _option: &OptionToken<AssetId, Balance>) -> AssetId {
+	let account_id = ensure_signed(_origin).unwrap();
+
+	let option_id = <TokenizedOptions as OptionsTrait>::create_option(account_id, _option).unwrap();
+
+	TokenizedOptions::deposit_event(pallet::Event::CreatedOption {
+		option_id,
+		option: _option.clone(),
+	});
+
+	option_id
+}
+
+// Simulate exstrinsic call `create_option_with_vault`, but returning values
+fn trait_create_option_with_vault(
+	_origin: Origin,
+	_option: &OptionToken<AssetId, Balance>,
+) -> (AssetId, VaultId) {
+	let account_id = ensure_signed(_origin).unwrap();
+
+	let (option_id, vault_id) =
+		<TokenizedOptions as OptionsTrait>::create_option_with_vault(account_id, _option).unwrap();
+
+	TokenizedOptions::deposit_event(pallet::Event::CreatedOptionVault {
+		option_id,
+		vault_id,
+		option: _option.clone(),
+	});
+
+	(option_id, vault_id)
+}
+
+// Simulate exstrinsic call `sell_option`, but returning values
+fn trait_sell_option(_origin: Origin, _amount: Balance, _option_id: AssetId) -> () {
+	let account_id = ensure_signed(_origin).unwrap();
+
+	// Not yet correctly implemented
+	<TokenizedOptions as OptionsTrait>::sell_option(&account_id, _amount, _option_id).unwrap();
+
+	TokenizedOptions::deposit_event(pallet::Event::SellOption {
+		who: account_id,
+		amount: _amount,
+		option_id: _option_id,
+	});
+
+	()
+}
+
+// ----------------------------------------------------------------------------------------------------
+//		Prop Compose
 // ----------------------------------------------------------------------------------------------------
 #[allow(dead_code)]
-pub fn pick_currency() -> impl Strategy<Value = CurrencyId> {
+pub fn pick_currency() -> impl Strategy<Value = AssetId> {
 	prop_oneof![
 		Just(PICA::ID),
 		Just(USDC::ID),
@@ -122,9 +177,7 @@ pub fn pick_currency() -> impl Strategy<Value = CurrencyId> {
 pub fn pick_account() -> impl Strategy<Value = AccountId> {
 	prop_oneof![Just(ALICE), Just(BOB), Just(CHARLIE), Just(DAVE), Just(EVEN),]
 }
-// ----------------------------------------------------------------------------------------------------
-//		Prop Compose
-// ----------------------------------------------------------------------------------------------------
+
 #[allow(dead_code)]
 const MINIMUM_RESERVE: Balance = 1_000;
 
@@ -158,23 +211,49 @@ prop_compose! {
 prop_compose! {
 	fn generate_assets()(
 		assets in prop::collection::vec(pick_currency(), 1..=TOTAL_NUM_OF_ASSETS),
-	) -> Vec<CurrencyId>{
+	) -> Vec<AssetId>{
 		assets
    }
 }
 
 prop_compose! {
-	fn generate_strike_prices()(
-		strike_prices in prop::collection::vec(MINIMUM_STRIKE_PRICE..MAXIMUM_STRIKE_PRICE, 1..=TOTAL_NUM_OF_ASSETS),
+	fn generate_balances()(
+		balances in prop::collection::vec(MINIMUM_RESERVE..MAXIMUM_RESERVE, 1..=TOTAL_NUM_OF_ASSETS),
 	) -> Vec<Balance>{
-		strike_prices
+		balances
    }
 }
 
 prop_compose! {
-	fn generate_markets()(assets in generate_assets(), strike_prices in generate_strike_prices()) -> Vec<(AssetId, Balance)>{
-		assets.into_iter().unique().zip(strike_prices.into_iter()).collect()
+	fn generate_prices()(
+		prices in prop::collection::vec(MINIMUM_STRIKE_PRICE..MAXIMUM_STRIKE_PRICE, 1..=TOTAL_NUM_OF_ASSETS),
+	) -> Vec<Balance>{
+		prices
+   }
+}
+
+prop_compose! {
+	fn generate_markets()(assets in generate_assets(), prices in generate_prices()) -> Vec<(AssetId, Balance)>{
+		assets.into_iter().unique().zip(prices.into_iter()).collect()
 	}
+}
+
+prop_compose! {
+	fn generate_blockchain_state()(
+		accounts in generate_accounts(),
+		assets in generate_assets(),
+		balances in generate_balances(),
+		asset_prices in generate_prices()
+	) -> Vec<(AccountId, AssetId, Balance, Balance)>{
+		accounts.into_iter()
+			.zip(assets.into_iter())
+			.unique()
+			.zip(balances.into_iter())
+			.unique()
+			.zip(asset_prices.into_iter())
+			.map(|(((account, asset), balance), asset_price)| (account, asset, balance, asset_price))
+			.collect()
+   }
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -183,14 +262,21 @@ prop_compose! {
 #[test]
 fn test_create_vault_and_emit_event() {
 	ExtBuilder::default().build().execute_with(|| {
-		let btc_vault = VaultConfigBuilder::default().build();
+		// Get default vault config
+		let vault_config = VaultConfigBuilder::default().build();
 
-		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), btc_vault.clone()));
+		// Create vault
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), vault_config));
 
+		// Check vault has been created
 		assert!(AssetToVault::<MockRuntime>::contains_key(BTC::ID));
 
+		// Get created vault_id
+		let vault_id = TokenizedOptions::asset_id_to_vault_id(BTC::ID).unwrap();
+
+		// Check event is emitted correctly
 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedAssetVault {
-			vault_id: 1u64,
+			vault_id,
 			asset_id: BTC::ID,
 		}));
 	});
@@ -199,18 +285,31 @@ fn test_create_vault_and_emit_event() {
 #[test]
 fn test_create_same_vault_and_emit_error() {
 	ExtBuilder::default().build().execute_with(|| {
-		let btc_vault = VaultConfigBuilder::default().build();
+		// Get default vault config
+		let vault_config = VaultConfigBuilder::default().build();
 
-		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), btc_vault.clone()));
+		// Create vault
+		assert_ok!(TokenizedOptions::create_asset_vault(
+			Origin::signed(ADMIN),
+			vault_config.clone()
+		));
 
+		// Check vault has been created
+		assert!(AssetToVault::<MockRuntime>::contains_key(BTC::ID));
+
+		// Get created vault_id
+		let vault_id = TokenizedOptions::asset_id_to_vault_id(BTC::ID).unwrap();
+
+		// Check event is emitted correctly
 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedAssetVault {
-			vault_id: 1u64,
+			vault_id,
 			asset_id: BTC::ID,
 		}));
 
+		// Create same vault again and check error is raised
 		assert_noop!(
-			TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), btc_vault.clone()),
-			Error::<MockRuntime>::VaultAlreadyExists
+			TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), vault_config.clone()),
+			Error::<MockRuntime>::AssetVaultAlreadyExists
 		);
 	});
 }
@@ -218,19 +317,25 @@ fn test_create_same_vault_and_emit_error() {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
-	fn proptest_create_vault_and_emit_event_or_error(assets in generate_assets()) {
+	fn proptest_create_vault(assets in generate_assets()) {
 		ExtBuilder::default().build().execute_with(|| {
 			assets.iter().for_each(|&asset| {
-
+				// Get vault config with custom asset
 				let config = VaultConfigBuilder::default().asset_id(asset).build();
 
+				// Check if vault has not been already created and create it or raise error
 				if !AssetToVault::<MockRuntime>::contains_key(config.asset_id) {
 					assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), config.clone()));
 					assert!(AssetToVault::<MockRuntime>::contains_key(config.asset_id));
+					let vault_id = TokenizedOptions::asset_id_to_vault_id(config.asset_id).unwrap();
+					System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedAssetVault {
+						vault_id,
+						asset_id: config.asset_id,
+					}));
 				} else {
 					assert_noop!(
 						TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), config.clone()),
-						Error::<MockRuntime>::VaultAlreadyExists
+						Error::<MockRuntime>::AssetVaultAlreadyExists
 					);
 				}
 			});
@@ -244,15 +349,19 @@ proptest! {
 #[test]
 fn test_create_option_and_emit_event() {
 	ExtBuilder::default().build().execute_with(|| {
-		let option_btc = OptionsBuilder::default().build();
+		// Get default option
+		let option = OptionsBuilder::default().build();
 
-		assert_ok!(TokenizedOptions::create_option(Origin::signed(ADMIN), option_btc.clone()));
+		// Create option and get option id
+		let option_id = trait_create_option(Origin::signed(ADMIN), &option);
 
-		assert!(OptionIdToOption::<MockRuntime>::contains_key(100_000_000_001u128));
+		// Check option has been created
+		assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
 
+		// Check event is emitted correctly
 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
-			option_id: 100_000_000_001u128,
-			option: option_btc,
+			option_id,
+			option,
 		}));
 	});
 }
@@ -260,20 +369,22 @@ fn test_create_option_and_emit_event() {
 #[test]
 fn test_create_option_with_vault_and_emit_event() {
 	ExtBuilder::default().build().execute_with(|| {
-		let option_btc = OptionsBuilder::default().build();
+		// Get default option
+		let option = OptionsBuilder::default().build();
 
-		assert_ok!(TokenizedOptions::create_option_with_vault(
-			Origin::signed(ADMIN),
-			option_btc.clone()
-		));
+		// Create option and related vault and get ids
+		let (option_id, vault_id) = trait_create_option_with_vault(Origin::signed(ADMIN), &option);
 
-		assert!(OptionIdToOption::<MockRuntime>::contains_key(100_000_000_001u128));
-		assert!(OptionToVault::<MockRuntime>::contains_key(100_000_000_001u128));
+		// Check option has been created
+		assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
+		// Check vault has been created
+		assert!(OptionToVault::<MockRuntime>::contains_key(option_id));
 
+		// Check event is emitted correctly
 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOptionVault {
-			option_id: 100_000_000_001u128,
-			vault_id: 1u64,
-			option: option_btc.clone(),
+			option_id,
+			vault_id,
+			option: option.clone(),
 		}));
 	});
 }
@@ -288,9 +399,14 @@ proptest! {
 			}).collect();
 
 			options.iter().for_each(|option|{
-				assert_ok!(TokenizedOptions::create_option(Origin::signed(ADMIN), option.clone()));
+				let option_id = trait_create_option(Origin::signed(ADMIN), &option);
 
-				// How to get the created value and make checks?
+				assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
+
+				System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
+					option_id,
+					option: option.clone(),
+				}));
 			})
 		});
 	}
@@ -307,9 +423,49 @@ proptest! {
 
 			options.iter().for_each(|option|{
 				assert_ok!(TokenizedOptions::create_option_with_vault(Origin::signed(ADMIN), option.clone()));
+				let (option_id, vault_id) =
+				trait_create_option_with_vault(Origin::signed(ADMIN), &option);
 
-				// How to get the created value and make checks?
+				assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
+				assert!(OptionToVault::<MockRuntime>::contains_key(option_id));
+
+				System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOptionVault {
+					option_id,
+					vault_id,
+					option: option.clone(),
+				}));
 			})
 		});
 	}
+}
+
+// ----------------------------------------------------------------------------------------------------
+//		Sell/Buy Options Tests
+// ----------------------------------------------------------------------------------------------------
+#[test]
+fn test_sell_option_and_emit_event() {
+	ExtBuilder::default().build().execute_with(|| {
+		let option_btc = OptionsBuilder::default().build();
+
+		assert_ok!(TokenizedOptions::create_option(Origin::signed(ADMIN), option_btc.clone()));
+
+		assert!(OptionIdToOption::<MockRuntime>::contains_key(100_000_000_001u128));
+
+		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
+			option_id: 100_000_000_001u128,
+			option: option_btc.clone(),
+		}));
+
+		assert_ok!(TokenizedOptions::sell_option(
+			Origin::signed(ADMIN),
+			1u128,
+			100_000_000_001u128
+		));
+
+		System::assert_last_event(Event::TokenizedOptions(pallet::Event::SellOption {
+			option_id: 100_000_000_001u128,
+			who: ADMIN,
+			amount: 1u128,
+		}));
+	});
 }
