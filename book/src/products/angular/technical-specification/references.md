@@ -68,6 +68,8 @@ https://twitter.com/omaronchain/status/1514721348362379264
 
 https://resources.silo.finance/welcome-to-silo/why-secure-money-markets
 
+https://resources.silo.finance/
+
 ### Eurler
 
 https://twitter.com/macromate8/status/1508810487068348424 
@@ -77,3 +79,8 @@ https://messari.io/article/euler-finance
 # Bastion
 
 https://twitter.com/BastionProtocol/status/1514787969147695110
+
+
+# Solend
+
+Isolated market pairs. Likely imitate pools with mutlitoken swap any to any by one owner has several pairs and rebalancing, 
