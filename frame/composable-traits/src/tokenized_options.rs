@@ -32,11 +32,6 @@ pub trait TokenizedOptions {
 		_option: &OptionToken<Self::AssetId, Self::Balance>,
 	) -> Result<Self::AssetId, DispatchError>;
 
-	fn create_option_with_vault(
-		_from: Self::AccountId,
-		_option: &OptionToken<Self::AssetId, Self::Balance>,
-	) -> Result<(Self::AssetId, Self::VaultId), DispatchError>;
-
 	fn sell_option(
 		_from: &Self::AccountId,
 		_amount: Self::Balance,

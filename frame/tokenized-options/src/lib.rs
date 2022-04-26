@@ -110,10 +110,6 @@ pub mod pallet {
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionOf<T>>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn option_id_to_option_vault_id)]
-	pub type OptionToVault<T: Config> = StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
-
 	// ----------------------------------------------------------------------------------------------------
 	//		Events
 	// ----------------------------------------------------------------------------------------------------
@@ -122,7 +118,6 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		CreatedAssetVault { vault_id: VaultIdOf<T>, asset_id: AssetIdOf<T> },
 		CreatedOption { option_id: AssetIdOf<T>, option: OptionOf<T> },
-		CreatedOptionVault { option_id: AssetIdOf<T>, vault_id: VaultIdOf<T>, option: OptionOf<T> },
 		SellOption { who: AccountIdOf<T>, amount: BalanceOf<T>, option_id: AssetIdOf<T> },
 		BuyOption { who: AccountIdOf<T>, amount: BalanceOf<T>, option_id: AssetIdOf<T> },
 	}
@@ -179,25 +174,6 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::create_option_with_vault())]
-		pub fn create_option_with_vault(
-			_origin: OriginFor<T>,
-			_option: OptionOf<T>,
-		) -> DispatchResultWithPostInfo {
-			let from = ensure_signed(_origin)?;
-
-			let (option_id, option_vault_id) =
-				<Self as TokenizedOptions>::create_option_with_vault(from, &_option)?;
-
-			Self::deposit_event(Event::CreatedOptionVault {
-				option_id,
-				vault_id: option_vault_id,
-				option: _option,
-			});
-
-			Ok(().into())
-		}
-
 		#[pallet::weight(<T as Config>::WeightInfo::sell_option())]
 		pub fn sell_option(
 			_origin: OriginFor<T>,
@@ -249,15 +225,6 @@ pub mod pallet {
 			let option_id = Self::do_create_option(&_option).unwrap();
 
 			Ok(option_id)
-		}
-
-		fn create_option_with_vault(
-			_from: Self::AccountId,
-			_option: &OptionToken<Self::AssetId, Self::Balance>,
-		) -> Result<(Self::AssetId, Self::VaultId), DispatchError> {
-			let (option_id, option_vault_id) = Self::do_create_option_with_vault(&_option).unwrap();
-
-			Ok((option_id, option_vault_id))
 		}
 
 		fn sell_option(
@@ -334,36 +301,6 @@ pub mod pallet {
 			OptionIdToOption::<T>::insert(option_id, _option);
 
 			Ok(option_id)
-		}
-
-		#[transactional]
-		fn do_create_option_with_vault(
-			_option: &OptionOf<T>,
-		) -> Result<(AssetIdOf<T>, VaultIdOf<T>), DispatchError> {
-			// Generate new option_id for the option token
-			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
-
-			// Get pallet option_account
-			let account_id = Self::account_id(option_id);
-
-			// Create new vault to gather option tokens
-			let option_vault_id: T::VaultId = T::Vault::create(
-				Duration::Existential,
-				VaultConfig {
-					asset_id: option_id,
-					manager: account_id,
-					reserved: Perquintill::one(),
-					strategies: BTreeMap::new(),
-				},
-			)?;
-
-			// Add option_id to corresponding option
-			OptionIdToOption::<T>::insert(option_id, _option.clone());
-
-			// Add option_id to the corresponding token vault
-			OptionToVault::<T>::insert(option_id, &option_vault_id);
-
-			Ok((option_id, option_vault_id))
 		}
 
 		#[transactional]

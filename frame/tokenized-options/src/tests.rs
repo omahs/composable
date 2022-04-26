@@ -3,8 +3,8 @@ use crate::mock::runtime::{
 	accounts::*, AssetId, Balance, Event, ExtBuilder, MockRuntime, Origin, System,
 	TokenizedOptions, VaultId,
 };
+use crate::OptionIdToOption;
 use crate::{pallet, pallet::AssetToVault, pallet::Error};
-use crate::{OptionIdToOption, OptionToVault};
 use composable_traits::{
 	tokenized_options::{ExerciseType, OptionToken, OptionType, TokenizedOptions as OptionsTrait},
 	vault::VaultConfig,
@@ -120,25 +120,6 @@ fn trait_create_option(_origin: Origin, _option: &OptionToken<AssetId, Balance>)
 	});
 
 	option_id
-}
-
-// Simulate exstrinsic call `create_option_with_vault`, but returning values
-fn trait_create_option_with_vault(
-	_origin: Origin,
-	_option: &OptionToken<AssetId, Balance>,
-) -> (AssetId, VaultId) {
-	let account_id = ensure_signed(_origin).unwrap();
-
-	let (option_id, vault_id) =
-		<TokenizedOptions as OptionsTrait>::create_option_with_vault(account_id, _option).unwrap();
-
-	TokenizedOptions::deposit_event(pallet::Event::CreatedOptionVault {
-		option_id,
-		vault_id,
-		option: _option.clone(),
-	});
-
-	(option_id, vault_id)
 }
 
 // Simulate exstrinsic call `sell_option`, but returning values
@@ -366,29 +347,6 @@ fn test_create_option_and_emit_event() {
 	});
 }
 
-#[test]
-fn test_create_option_with_vault_and_emit_event() {
-	ExtBuilder::default().build().execute_with(|| {
-		// Get default option
-		let option = OptionsBuilder::default().build();
-
-		// Create option and related vault and get ids
-		let (option_id, vault_id) = trait_create_option_with_vault(Origin::signed(ADMIN), &option);
-
-		// Check option has been created
-		assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
-		// Check vault has been created
-		assert!(OptionToVault::<MockRuntime>::contains_key(option_id));
-
-		// Check event is emitted correctly
-		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOptionVault {
-			option_id,
-			vault_id,
-			option: option.clone(),
-		}));
-	});
-}
-
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
@@ -405,33 +363,6 @@ proptest! {
 
 				System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
 					option_id,
-					option: option.clone(),
-				}));
-			})
-		});
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(100))]
-	#[test]
-	fn proptest_create_option_with_vault(market_prices in generate_markets()) {
-		ExtBuilder::default().build().execute_with(|| {
-			let options: Vec<OptionToken<AssetId, Balance>> = market_prices.iter().map(|&(asset, strike_price)| {
-				OptionsBuilder::default().base_asset_id(asset).strike_price(strike_price).build()
-			}).collect();
-
-			options.iter().for_each(|option|{
-				assert_ok!(TokenizedOptions::create_option_with_vault(Origin::signed(ADMIN), option.clone()));
-				let (option_id, vault_id) =
-				trait_create_option_with_vault(Origin::signed(ADMIN), &option);
-
-				assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
-				assert!(OptionToVault::<MockRuntime>::contains_key(option_id));
-
-				System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOptionVault {
-					option_id,
-					vault_id,
 					option: option.clone(),
 				}));
 			})
@@ -468,4 +399,35 @@ fn test_sell_option_and_emit_event() {
 			amount: 1u128,
 		}));
 	});
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(100))]
+	#[test]
+	fn proptest_sell_option(blockchain_state in generate_blockchain_state()) {
+
+		let balances: Vec<(AccountId, AssetId, Balance)> = blockchain_state.into_iter().map(|(account, asset, balance, price)| (account, asset, balance)).collect();
+
+		ExtBuilder::default().init_balances(balances.clone()).build().execute_with(|| {
+
+			// let options: Vec<OptionToken<AssetId, Balance>> = balances.iter().map(|&(_, asset, price)| {
+			// 	OptionsBuilder::default().base_asset_id(asset).strike_price(price).build()
+			// }).collect();
+
+			// options.iter().for_each(|option|{
+			// 	assert_ok!(TokenizedOptions::create_option_with_vault(Origin::signed(ADMIN), option.clone()));
+			// 	let (option_id, vault_id) =
+			// 	trait_create_option_with_vault(Origin::signed(ADMIN), &option);
+
+			// 	assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
+			// 	assert!(OptionToVault::<MockRuntime>::contains_key(option_id));
+
+			// 	System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOptionVault {
+			// 		option_id,
+			// 		vault_id,
+			// 		option: option.clone(),
+			// 	}));
+			// })
+		});
+	}
 }
