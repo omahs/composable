@@ -1,35 +1,20 @@
-use frame_support::{pallet_prelude::*, sp_std::fmt::Debug};
+use frame_support::{pallet_prelude::*, sp_std::fmt::Debug, traits::UnixTime};
 use scale_info::TypeInfo;
-
-#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum OptionType {
-	Call,
-	Put,
-}
-
-#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum ExerciseType {
-	European,
-	American,
-}
-
-#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct OptionToken<AssetId, Balance> {
-	pub base_asset_id: AssetId,
-	pub strike_price: Balance,
-	pub option_type: OptionType,
-	pub exercise_type: ExerciseType,
-}
 
 pub trait TokenizedOptions {
 	type AccountId;
 	type Balance;
 	type AssetId;
-	type VaultId;
+	type OptionToken;
+
+	// fn create_option(
+	// 	_from: Self::AccountId,
+	// 	_option: &OptionToken<Self::AssetId, Self::Balance, Self::UnixTime, Self::Epoch>,
+	// ) -> Result<Self::AssetId, DispatchError>;
 
 	fn create_option(
 		_from: Self::AccountId,
-		_option: &OptionToken<Self::AssetId, Self::Balance>,
+		_option: &Self::OptionToken,
 	) -> Result<Self::AssetId, DispatchError>;
 
 	fn sell_option(

@@ -22,9 +22,9 @@ pub mod pallet {
 	use codec::{Codec, FullCodec};
 	use composable_traits::currency::{AssetIdLike, BalanceLike, CurrencyFactory, RangeId};
 	use composable_traits::defi::DeFiComposableConfig;
-	use composable_traits::tokenized_options::{
-		ExerciseType, OptionToken, OptionType, TokenizedOptions,
-	};
+	use composable_traits::time::Timestamp;
+	use composable_traits::tokenized_options::*;
+	use frame_support::traits::UnixTime;
 	use sp_runtime::DispatchError;
 
 	use composable_traits::vault::{CapabilityVault, Deposit as Duration, Vault, VaultConfig};
@@ -68,6 +68,18 @@ pub mod pallet {
 
 		type WeightInfo: WeightInfo;
 
+		// type UnixTime = UnixTime;
+
+		type Timestamp: Default
+			+ Clone
+			+ Copy
+			+ Debug
+			+ FullCodec
+			+ MaxEncodedLen
+			+ MaybeSerializeDeserialize
+			+ PartialEq
+			+ TypeInfo;
+
 		type CurrencyFactory: CurrencyFactory<AssetIdOf<Self>>;
 
 		type NativeCurrency: NativeTransfer<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -91,12 +103,64 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Helper Pallet Types
 	// ----------------------------------------------------------------------------------------------------
+	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub enum OptionType {
+		Call,
+		Put,
+	}
+
+	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub enum ExerciseType {
+		European,
+		American,
+	}
+
+	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub enum WindowType {
+		Deposit,
+		Purchase,
+		Exercise,
+		Withdraw,
+	}
+
+	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct OptionToken<AssetId, Balance, Timestamp> {
+		pub base_asset_id: AssetId,
+		pub quote_asset_id: AssetId,
+		pub base_asset_strike_price: Balance,
+		// pub quote_asset_strike_price: Balance, // Assume stablecoin as quote asset right now, so always 1
+		pub option_type: OptionType,
+		pub exercise_type: ExerciseType,
+		pub expiring_date: Timestamp,
+		pub base_asset_amount_per_option: Balance,
+		// pub quote_asset_amount_per_option: Balance, // Assume stablecoin as quote asset right now, so always 1
+		pub total_issuance_seller: Balance,
+		pub total_issuance_buyer: Balance,
+		pub epoch: Epoch<TimeWindow<Timestamp>>,
+	}
+
+	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub struct TimeWindow<Timestamp> {
+		pub start: Timestamp,
+		pub end: Timestamp,
+		pub window_type: WindowType,
+	}
+
+	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub struct Epoch<TimeWindow> {
+		pub deposit_window: TimeWindow,
+		pub purchase_window: TimeWindow,
+		pub exercise_window: TimeWindow,
+		pub withdraw_window: TimeWindow,
+	}
+
 	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	type AssetIdOf<T> = <T as DeFiComposableConfig>::MayBeAssetId;
 	type BalanceOf<T> = <T as DeFiComposableConfig>::Balance;
 	type VaultIdOf<T> = <T as Config>::VaultId;
-	type OptionOf<T> = OptionToken<AssetIdOf<T>, BalanceOf<T>>;
+	type TimestampOf<T> = <T as Config>::Timestamp;
 	type VaultOf<T> = <T as Config>::Vault;
+	type OptionOf<T> = OptionToken<AssetIdOf<T>, BalanceOf<T>, TimestampOf<T>>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
@@ -216,11 +280,11 @@ pub mod pallet {
 		type AccountId = AccountIdOf<T>;
 		type AssetId = AssetIdOf<T>;
 		type Balance = BalanceOf<T>;
-		type VaultId = VaultIdOf<T>;
+		type OptionToken = OptionOf<T>;
 
 		fn create_option(
 			_from: Self::AccountId,
-			_option: &OptionToken<Self::AssetId, Self::Balance>,
+			_option: &Self::OptionToken,
 		) -> Result<Self::AssetId, DispatchError> {
 			let option_id = Self::do_create_option(&_option).unwrap();
 
