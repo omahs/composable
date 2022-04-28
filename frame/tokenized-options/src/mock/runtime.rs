@@ -17,6 +17,7 @@ pub type AssetId = u128;
 pub type Balance = u128;
 pub type VaultId = u64;
 pub type Amount = i128;
+pub type Moment = u64;
 
 pub mod accounts {
 	use hex_literal::hex;
@@ -51,6 +52,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
+		Timestamp: pallet_timestamp,
 		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 		LpTokenFactory: pallet_currency_factory::{Pallet, Storage, Event<T>},
@@ -95,6 +97,14 @@ impl frame_system::Config for MockRuntime {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+}
+
+impl pallet_timestamp::Config for MockRuntime {
+	type Moment = Moment;
+	type OnTimestampSet = ();
+	// One second.
+	type MinimumPeriod = frame_support::traits::ConstU64<1000>;
+	type WeightInfo = ();
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -252,13 +262,15 @@ parameter_types! {
 
 impl pallet_tokenized_options::Config for MockRuntime {
 	type Event = Event;
+	type PalletId = TokenizedOptionsPalletId;
 	type WeightInfo = ();
+	type Moment = Moment;
+	type Time = Timestamp;
 	type CurrencyFactory = LpTokenFactory;
 	type NativeCurrency = Balances;
 	type MultiCurrency = Assets;
 	type VaultId = VaultId;
 	type Vault = Vault;
-	type PalletId = TokenizedOptionsPalletId;
 }
 
 // ----------------------------------------------------------------------------------------------------

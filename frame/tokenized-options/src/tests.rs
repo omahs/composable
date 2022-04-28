@@ -1,14 +1,11 @@
 use crate::mock::currency::defs::*;
 use crate::mock::runtime::{
-	accounts::*, AssetId, Balance, Event, ExtBuilder, MockRuntime, Origin, System,
-	TokenizedOptions, VaultId,
+	accounts::*, AssetId, Balance, Event, ExtBuilder, MockRuntime, Moment, Origin, System,
+	TokenizedOptions,
 };
 use crate::OptionIdToOption;
-use crate::{pallet, pallet::AssetToVault, pallet::Error};
-use composable_traits::{
-	tokenized_options::{ExerciseType, OptionToken, OptionType, TokenizedOptions as OptionsTrait},
-	vault::VaultConfig,
-};
+use crate::{pallet, pallet::AssetToVault, pallet::Error, ExerciseType, OptionToken, OptionType};
+use composable_traits::{tokenized_options::TokenizedOptions as OptionsTrait, vault::VaultConfig};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::ensure_signed;
 use itertools::Itertools;
@@ -84,7 +81,7 @@ impl Default for OptionsBuilder {
 }
 
 impl OptionsBuilder {
-	fn build(self) -> OptionToken<AssetId, Balance> {
+	fn build(self) -> OptionToken<AssetId, Balance, Moment> {
 		OptionToken {
 			base_asset_id: self.base_asset_id,
 			strike_price: self.strike_price,
@@ -109,7 +106,10 @@ impl OptionsBuilder {
 // ----------------------------------------------------------------------------------------------------
 
 // Simulate exstrinsic call `create_option`, but returning values
-fn trait_create_option(_origin: Origin, _option: &OptionToken<AssetId, Balance>) -> AssetId {
+fn trait_create_option(
+	_origin: Origin,
+	_option: &OptionToken<AssetId, Balance, Moment>,
+) -> AssetId {
 	let account_id = ensure_signed(_origin).unwrap();
 
 	let option_id = <TokenizedOptions as OptionsTrait>::create_option(account_id, _option).unwrap();

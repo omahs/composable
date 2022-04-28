@@ -24,7 +24,6 @@ pub mod pallet {
 	use codec::{Codec, FullCodec};
 	use composable_traits::currency::{AssetIdLike, BalanceLike, CurrencyFactory, RangeId};
 	use composable_traits::defi::DeFiComposableConfig;
-	use composable_traits::time::Timestamp;
 	use composable_traits::tokenized_options::*;
 	use sp_runtime::DispatchError;
 
@@ -34,6 +33,7 @@ pub mod pallet {
 		traits::{
 			fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
 			fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
+			Time,
 		},
 		transactional, PalletId,
 	};
@@ -41,7 +41,8 @@ pub mod pallet {
 	use frame_system::{ensure_root, ensure_signed};
 	use sp_runtime::{
 		traits::{
-			AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, Zero,
+			AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, CheckedMul,
+			CheckedSub, Zero,
 		},
 		Perquintill,
 	};
@@ -68,15 +69,11 @@ pub mod pallet {
 
 		type WeightInfo: WeightInfo;
 
-		type Timestamp: Default
-			+ Clone
-			+ Copy
-			+ Debug
-			+ FullCodec
-			+ MaxEncodedLen
-			+ MaybeSerializeDeserialize
-			+ PartialEq
-			+ TypeInfo;
+		/// Type of time moment. NB: we need this type to be PartialOrd for moments comparison.
+		type Moment: AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
+
+		/// The time provider.
+		type Time: Time<Moment = Self::Moment>;
 
 		type CurrencyFactory: CurrencyFactory<AssetIdOf<Self>>;
 
@@ -122,25 +119,25 @@ pub mod pallet {
 	}
 
 	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct OptionToken<AssetId, Balance, Timestamp> {
+	pub struct OptionToken<AssetId, Balance, Moment> {
 		pub base_asset_id: AssetId,
 		pub quote_asset_id: AssetId,
 		pub base_asset_strike_price: Balance,
 		// pub quote_asset_strike_price: Balance, // Assume stablecoin as quote asset right now, so always 1
 		pub option_type: OptionType,
 		pub exercise_type: ExerciseType,
-		pub expiring_date: Timestamp,
+		pub expiring_date: Moment,
 		pub base_asset_amount_per_option: Balance,
 		// pub quote_asset_amount_per_option: Balance, // Assume stablecoin as quote asset right now, so always 1
 		pub total_issuance_seller: Balance,
 		pub total_issuance_buyer: Balance,
-		pub epoch: Epoch<TimeWindow<Timestamp>>,
+		pub epoch: Epoch<TimeWindow<Moment>>,
 	}
 
 	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
-	pub struct TimeWindow<Timestamp> {
-		pub start: Timestamp,
-		pub end: Timestamp,
+	pub struct TimeWindow<Moment> {
+		pub start: Moment,
+		pub end: Moment,
 		pub window_type: WindowType,
 	}
 
@@ -156,9 +153,9 @@ pub mod pallet {
 	type AssetIdOf<T> = <T as DeFiComposableConfig>::MayBeAssetId;
 	type BalanceOf<T> = <T as DeFiComposableConfig>::Balance;
 	type VaultIdOf<T> = <T as Config>::VaultId;
-	type TimestampOf<T> = <T as Config>::Timestamp;
+	type MomentOf<T> = <T as Config>::Moment;
 	type VaultOf<T> = <T as Config>::Vault;
-	type OptionOf<T> = OptionToken<AssetIdOf<T>, BalanceOf<T>, TimestampOf<T>>;
+	type OptionOf<T> = OptionToken<AssetIdOf<T>, BalanceOf<T>, MomentOf<T>>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
@@ -296,7 +293,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			ensure!(OptionIdToOption::<T>::contains_key(_option_id), Error::<T>::OptionIdNotFound);
 
-			Self::do_sell_option(&_from, _amount, _option_id);
+			Self::do_sell_option(&_from, _amount, _option_id)?;
 
 			Ok(())
 		}
@@ -308,7 +305,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			ensure!(OptionIdToOption::<T>::contains_key(_option_id), Error::<T>::OptionIdNotFound);
 
-			Self::do_buy_option(_from, _amount, _option_id);
+			Self::do_buy_option(_from, _amount, _option_id)?;
 
 			Ok(())
 		}
@@ -381,7 +378,7 @@ pub mod pallet {
 
 			// Right now I'm simply calling this since there is no a fixed design for options yet
 			// and I'm setting the test env for this function
-			<T as Config>::MultiCurrency::mint_into(_option_id, _from, _amount);
+			<T as Config>::MultiCurrency::mint_into(_option_id, _from, _amount)?;
 
 			Ok(())
 		}
