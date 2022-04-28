@@ -1,5 +1,7 @@
 //! # Options Pallet
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
 #[cfg(test)]
 mod tests;
 
@@ -24,7 +26,6 @@ pub mod pallet {
 	use composable_traits::defi::DeFiComposableConfig;
 	use composable_traits::time::Timestamp;
 	use composable_traits::tokenized_options::*;
-	use frame_support::traits::UnixTime;
 	use sp_runtime::DispatchError;
 
 	use composable_traits::vault::{CapabilityVault, Deposit as Duration, Vault, VaultConfig};
@@ -44,8 +45,7 @@ pub mod pallet {
 		},
 		Perquintill,
 	};
-	use sp_std::fmt::Debug;
-	use std::collections::BTreeMap;
+	use sp_std::{collections::btree_map::BTreeMap, fmt::Debug};
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Declaration Of The Pallet Type
@@ -67,8 +67,6 @@ pub mod pallet {
 		type PalletId: Get<PalletId>;
 
 		type WeightInfo: WeightInfo;
-
-		// type UnixTime = UnixTime;
 
 		type Timestamp: Default
 			+ Clone
