@@ -226,6 +226,43 @@ fn add_lp_with_min_mint_amount() {
 	});
 }
 
+#[test]
+fn vivek() {
+	new_test_ext().execute_with(|| {
+		let unit = 1_000_000_000_000_u128;
+		let initial_usdc = 2500_u128 * unit;
+		let initial_usdt = 2500_u128 * unit;
+		let pool = create_pool(
+			USDC,
+			USDT,
+			initial_usdc,
+			initial_usdt,
+			Permill::from_percent(1),
+			Permill::zero(),
+		);
+
+		let base_amount = 30_u128 * unit;
+		let quote_amount = 1_00_u128 * unit;
+		assert_ok!(Tokens::mint_into(USDC, &ALICE, base_amount));
+		assert_ok!(Tokens::mint_into(USDT, &ALICE, quote_amount));
+
+		// Add the liquidity
+		assert_ok!(<Pablo as Amm>::add_liquidity(
+			&ALICE,
+			pool,
+			base_amount,
+			quote_amount,
+			0,
+			false
+		));
+		let alice_usdc = Tokens::balance(USDC, &ALICE);
+		let alice_usdt = Tokens::balance(USDT, &ALICE);
+		sp_std::if_std! {
+			println!("{:?} {:?}", alice_usdc, alice_usdt);
+		}
+	});
+}
+
 //
 // - test error if trying to remove > lp than we have
 #[test]

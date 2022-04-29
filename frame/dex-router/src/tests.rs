@@ -2,14 +2,14 @@ use crate::{mock::*, Error};
 use composable_tests_helpers::test::helper::acceptable_computation_error;
 use composable_traits::{
 	defi::CurrencyPair,
-	dex::{Amm as AmmTrait, DexRouter as DexRouterTrait},
+	dex::{Amm as AmmTrait, DexRouter as DexRouterTrait, LiquidityBootstrappingPoolInfo, Sale},
 };
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::fungibles::{Inspect, Mutate},
 };
 use pallet_pablo::{Error as PabloError, PoolInitConfiguration};
-use sp_runtime::Permill;
+use sp_runtime::{PerThing, Permill};
 
 // Create Amm pool with given amounts added as liquidity to the pool.
 fn create_curve_amm_pool(
@@ -79,6 +79,41 @@ fn create_constant_product_amm_pool(
 		&BOB, pool_id, amounts[0], amounts[1], 0_u128, true
 	));
 	pool_id
+}
+
+fn create_lbp_pool(assets: CurrencyPair<AssetId>, amounts: Vec<Balance>) -> PoolId {
+	let base = assets.base;
+	let quote = assets.quote;
+	assert_ok!(Tokens::mint_into(base, &ALICE, amounts[0]));
+	assert_ok!(Tokens::mint_into(quote, &ALICE, amounts[1]));
+	let initial_weight = Permill::from_percent(95);
+	let final_weight = Permill::from_percent(5);
+	let fee = Permill::from_perthousand(1);
+	let init_config =
+		PoolInitConfiguration::LiquidityBootstrapping(LiquidityBootstrappingPoolInfo {
+			owner: ALICE,
+			pair: assets,
+			sale: Sale { start: 3, end: 72000, initial_weight, final_weight },
+			fee,
+		});
+	let p = Pablo::do_create_pool(init_config);
+	assert_ok!(&p);
+	let pool_id = p.unwrap();
+	System::set_block_number(1);
+	// Add liquidity from ALICE's account to pool
+	assert_ok!(<Pablo as AmmTrait>::add_liquidity(
+		&ALICE, pool_id, amounts[0], amounts[1], 0_u128, true
+	));
+	pool_id
+}
+
+fn create_usdc_eth_lbp() -> PoolId {
+	let unit = 1_000_000_000_000_u128;
+	let initial_usdc = 95 * 1000000 * unit;
+	let initial_eth = 1000000 * unit;
+	let amounts = vec![initial_usdc, initial_eth];
+	let assets = CurrencyPair::new(USDC, ETH);
+	create_lbp_pool(assets, amounts)
 }
 
 fn create_usdt_usdc_pool() -> PoolId {
@@ -453,5 +488,82 @@ fn single_pool_route_test() {
 		let bob_usdc_amount = Tokens::balance(USDC, &EVE);
 		assert_ok!(acceptable_computation_error(eth_amount, bob_eth_amount, precision, epsilon));
 		assert_ok!(acceptable_computation_error(usdc_amount, bob_usdc_amount, precision, epsilon));
+	});
+}
+
+#[test]
+fn vivek() {
+	new_test_ext().execute_with(|| {
+		let unit = 1_000_000_000_000_u128;
+		let currency_pair = CurrencyPair { base: USDC, quote: ETH };
+		let dex_route = vec![create_usdc_eth_lbp()];
+		// USDC/ETH
+		assert_ok!(DexRouter::update_route(
+			Origin::signed(ALICE),
+			currency_pair,
+			Some(dex_route.clone().try_into().unwrap())
+		));
+		System::set_block_number(4);
+		Timestamp::set_timestamp(1200);
+
+		assert_ok!(Tokens::mint_into(USDC, &CHARLIE, 23_u128 * unit));
+		let dy = <DexRouter as AmmTrait>::exchange(
+			&CHARLIE,
+			currency_pair.swap(),
+			currency_pair.swap(),
+			23_u128 * unit,
+			113700000000_u128,
+			false,
+		);
+		assert_ok!(dy);
+		let dy = dy.unwrap();
+		sp_std::if_std! {
+			println!("received ETH : {:?}", dy);
+		}
+
+		assert_ok!(Tokens::mint_into(ETH, &CHARLIE, 23_u128 * unit));
+		let dy = <DexRouter as AmmTrait>::exchange(
+			&CHARLIE,
+			currency_pair,
+			currency_pair,
+			23_u128 * unit,
+			113700000000_u128,
+			false,
+		);
+		assert_ok!(dy);
+		let dy = dy.unwrap();
+		sp_std::if_std! {
+			println!("received USDC : {:?}", dy);
+		}
+		// try to buy one USDC
+		assert_ok!(Tokens::mint_into(ETH, &CHARLIE, 23_u128 * unit));
+		let dy = <DexRouter as AmmTrait>::buy(
+			&CHARLIE,
+			currency_pair,
+			currency_pair.base, /* will be ignored */
+			unit,
+			0_u128,
+			false,
+		);
+		assert_ok!(dy);
+		let dy = dy.unwrap();
+		sp_std::if_std! {
+			println!("received USDC : {:?}", dy);
+		}
+		assert_ok!(Tokens::mint_into(USDC, &CHARLIE, 23_u128 * unit));
+		// try to buy one ETH
+		let dy = <DexRouter as AmmTrait>::buy(
+			&CHARLIE,
+			currency_pair.swap(),
+			currency_pair.base, /* will be ignored */
+			unit,
+			0_u128,
+			false,
+		);
+		assert_ok!(dy);
+		let dy = dy.unwrap();
+		sp_std::if_std! {
+			println!("received ETH : {:?}", dy);
+		}
 	});
 }
