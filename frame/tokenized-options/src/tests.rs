@@ -87,6 +87,13 @@ impl OptionsBuilder {
 			strike_price: self.strike_price,
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
+			quote_asset_id: todo!(),
+			base_asset_strike_price: todo!(),
+			expiring_date: todo!(),
+			base_asset_amount_per_option: todo!(),
+			total_issuance_seller: todo!(),
+			total_issuance_buyer: todo!(),
+			epoch: todo!(),
 		}
 	}
 
