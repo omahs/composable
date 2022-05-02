@@ -24,12 +24,13 @@ pub mod pallet {
 	use codec::{Codec, FullCodec};
 	use composable_traits::currency::{AssetIdLike, BalanceLike, CurrencyFactory, RangeId};
 	use composable_traits::defi::DeFiComposableConfig;
-	use composable_traits::tokenized_options::*;
+	use composable_traits::{swap_bytes::SwapBytes, tokenized_options::*};
 	use sp_runtime::DispatchError;
 
 	use composable_traits::vault::{CapabilityVault, Deposit as Duration, Vault, VaultConfig};
 	use frame_support::pallet_prelude::*;
 	use frame_support::{
+		storage::bounded_vec::BoundedVec,
 		traits::{
 			fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
 			fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
@@ -69,8 +70,9 @@ pub mod pallet {
 
 		type WeightInfo: WeightInfo;
 
-		/// Type of time moment. NB: we need this type to be PartialOrd for moments comparison.
-		type Moment: AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
+		/// Type of time moment. NB: we use swap_bytes to store this type in big-endian format
+		/// and take advantage of the fact that storage keys are stored in lexical order.
+		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
 
 		/// The time provider.
 		type Time: Time<Moment = Self::Moment>;
@@ -110,14 +112,6 @@ pub mod pallet {
 		American,
 	}
 
-	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
-	pub enum WindowType {
-		Deposit,
-		Purchase,
-		Exercise,
-		Withdraw,
-	}
-
 	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct OptionToken<AssetId, Balance, Moment> {
 		pub base_asset_id: AssetId,
@@ -131,22 +125,25 @@ pub mod pallet {
 		// pub quote_asset_amount_per_option: Balance, // Assume stablecoin as quote asset right now, so always 1
 		pub total_issuance_seller: Balance,
 		pub total_issuance_buyer: Balance,
-		pub epoch: Epoch<TimeWindow<Moment>>,
+		pub epoch: Epoch<Moment>,
 	}
 
 	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
-	pub struct TimeWindow<Moment> {
-		pub start: Moment,
+	pub enum MomentType {
+		Deposit,
+		Purchase,
+		Exercise,
+		Withdraw,
+		End,
+	}
+
+	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub struct Epoch<Moment> {
+		pub deposit: Moment,
+		pub purchase: Moment,
+		pub exercise: Moment,
+		pub withdraw: Moment,
 		pub end: Moment,
-		pub window_type: WindowType,
-	}
-
-	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
-	pub struct Epoch<TimeWindow> {
-		pub deposit_window: TimeWindow,
-		pub purchase_window: TimeWindow,
-		pub exercise_window: TimeWindow,
-		pub withdraw_window: TimeWindow,
 	}
 
 	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -168,6 +165,10 @@ pub mod pallet {
 	#[pallet::getter(fn option_id_to_option)]
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionOf<T>>;
+
+	#[pallet::storage]
+	pub(crate) type Schedule<T: Config> =
+		StorageDoubleMap<_, Identity, T::Moment, Identity, AssetIdOf<T>, MomentType>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Events
@@ -191,12 +192,6 @@ pub mod pallet {
 	}
 
 	// ----------------------------------------------------------------------------------------------------
-	//		Hooks
-	// ----------------------------------------------------------------------------------------------------
-	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
-
-	// ----------------------------------------------------------------------------------------------------
 	//		Genesis Config
 	// ----------------------------------------------------------------------------------------------------
 
@@ -209,7 +204,7 @@ pub mod pallet {
 		pub fn create_asset_vault(
 			_origin: OriginFor<T>,
 			_config: VaultConfig<AccountIdOf<T>, AssetIdOf<T>>,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let from = ensure_signed(_origin)?;
 
 			let vault_id = Self::do_create_asset_vault(&_config)?;
@@ -220,10 +215,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(<T as Config>::WeightInfo::create_option())]
-		pub fn create_option(
-			_origin: OriginFor<T>,
-			_option: OptionOf<T>,
-		) -> DispatchResultWithPostInfo {
+		pub fn create_option(_origin: OriginFor<T>, _option: OptionOf<T>) -> DispatchResult {
 			let from = ensure_signed(_origin)?;
 
 			let option_id = <Self as TokenizedOptions>::create_option(from, &_option)?;
@@ -238,7 +230,7 @@ pub mod pallet {
 			_origin: OriginFor<T>,
 			_amount: BalanceOf<T>,
 			_option_id: AssetIdOf<T>,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let from = ensure_signed(_origin)?;
 
 			<Self as TokenizedOptions>::sell_option(&from, _amount, _option_id)?;
@@ -257,7 +249,7 @@ pub mod pallet {
 			_origin: OriginFor<T>,
 			_amount: BalanceOf<T>,
 			_option_id: AssetIdOf<T>,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let from = ensure_signed(_origin)?;
 
 			<Self as TokenizedOptions>::buy_option(from, _amount, _option_id)?;
@@ -265,6 +257,32 @@ pub mod pallet {
 			// Self::deposit_event(Event::BuyOption);
 
 			Ok(().into())
+		}
+	}
+
+	// ----------------------------------------------------------------------------------------------------
+	//		Hooks
+	// ----------------------------------------------------------------------------------------------------
+	#[pallet::hooks]
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		fn on_idle(_n: T::BlockNumber, _remaining_weight: Weight) -> Weight {
+			let now = T::Time::now();
+			while let Some((moment, option_id, typ)) = <Schedule<T>>::iter().next() {
+				let moment = moment.swap_bytes();
+				if moment > now {
+					break;
+				}
+				<Schedule<T>>::remove(&moment, &option_id);
+				match typ {
+					MomentType::Deposit => Self::option_deposit_start(option_id),
+					MomentType::Purchase => Self::option_purchase_start(option_id),
+					MomentType::Exercise => Self::option_exercise_start(option_id),
+					MomentType::Withdraw => Self::option_withdraw_start(option_id),
+					MomentType::End => Self::option_end(option_id),
+				}
+				.unwrap();
+			}
+			10_000
 		}
 	}
 
@@ -279,33 +297,33 @@ pub mod pallet {
 
 		fn create_option(
 			_from: Self::AccountId,
-			_option: &Self::OptionToken,
+			option: &Self::OptionToken,
 		) -> Result<Self::AssetId, DispatchError> {
-			let option_id = Self::do_create_option(&_option).unwrap();
+			let option_id = Self::do_create_option(&option).unwrap();
 
 			Ok(option_id)
 		}
 
 		fn sell_option(
-			_from: &Self::AccountId,
-			_amount: Self::Balance,
-			_option_id: Self::AssetId,
+			from: &Self::AccountId,
+			amount: Self::Balance,
+			option_id: Self::AssetId,
 		) -> Result<(), DispatchError> {
-			ensure!(OptionIdToOption::<T>::contains_key(_option_id), Error::<T>::OptionIdNotFound);
+			ensure!(OptionIdToOption::<T>::contains_key(option_id), Error::<T>::OptionIdNotFound);
 
-			Self::do_sell_option(&_from, _amount, _option_id)?;
+			Self::do_sell_option(&from, amount, option_id)?;
 
 			Ok(())
 		}
 
 		fn buy_option(
-			_from: Self::AccountId,
-			_amount: Self::Balance,
-			_option_id: Self::AssetId,
+			from: Self::AccountId,
+			amount: Self::Balance,
+			option_id: Self::AssetId,
 		) -> Result<(), DispatchError> {
-			ensure!(OptionIdToOption::<T>::contains_key(_option_id), Error::<T>::OptionIdNotFound);
+			ensure!(OptionIdToOption::<T>::contains_key(option_id), Error::<T>::OptionIdNotFound);
 
-			Self::do_buy_option(_from, _amount, _option_id)?;
+			Self::do_buy_option(from, amount, option_id)?;
 
 			Ok(())
 		}
@@ -350,35 +368,35 @@ pub mod pallet {
 		}
 
 		#[transactional]
-		fn do_create_option(_option: &OptionOf<T>) -> Result<AssetIdOf<T>, DispatchError> {
+		fn do_create_option(option: &OptionOf<T>) -> Result<AssetIdOf<T>, DispatchError> {
 			// Check if option already exists (how?)
 
 			// Generate new option_id for the option token
 			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
 
 			// Add option_id to corresponding option
-			OptionIdToOption::<T>::insert(option_id, _option);
+			OptionIdToOption::<T>::insert(option_id, option);
 
 			Ok(option_id)
 		}
 
 		#[transactional]
 		fn do_sell_option(
-			_from: &AccountIdOf<T>,
-			_amount: BalanceOf<T>,
-			_option_id: AssetIdOf<T>,
+			from: &AccountIdOf<T>,
+			amount: BalanceOf<T>,
+			option_id: AssetIdOf<T>,
 		) -> Result<(), DispatchError> {
 			// Get pallet option_account
-			let account_id = Self::account_id(_option_id);
+			let account_id = Self::account_id(option_id);
 
 			let option =
-				Self::option_id_to_option(_option_id).ok_or(Error::<T>::OptionIdNotFound)?;
+				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdNotFound)?;
 
 			// Do stuff with option (based on option's attributes)
 
 			// Right now I'm simply calling this since there is no a fixed design for options yet
 			// and I'm setting the test env for this function
-			<T as Config>::MultiCurrency::mint_into(_option_id, _from, _amount)?;
+			<T as Config>::MultiCurrency::mint_into(option_id, from, amount)?;
 
 			Ok(())
 		}
@@ -387,13 +405,13 @@ pub mod pallet {
 		fn do_buy_option(
 			_from: AccountIdOf<T>,
 			_amount: BalanceOf<T>,
-			_option_id: AssetIdOf<T>,
+			option_id: AssetIdOf<T>,
 		) -> Result<(), DispatchError> {
 			// Get pallet option_account
-			let account_id = Self::account_id(_option_id);
+			let account_id = Self::account_id(option_id);
 
 			let option =
-				Self::option_id_to_option(_option_id).ok_or(Error::<T>::OptionIdNotFound)?;
+				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdNotFound)?;
 
 			Ok(())
 		}

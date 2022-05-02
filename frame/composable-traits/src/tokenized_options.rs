@@ -1,5 +1,4 @@
-use frame_support::{pallet_prelude::*, sp_std::fmt::Debug, traits::UnixTime};
-use scale_info::TypeInfo;
+use frame_support::pallet_prelude::*;
 
 pub trait TokenizedOptions {
 	type AccountId;
@@ -13,19 +12,39 @@ pub trait TokenizedOptions {
 	// ) -> Result<Self::AssetId, DispatchError>;
 
 	fn create_option(
-		_from: Self::AccountId,
-		_option: &Self::OptionToken,
+		from: Self::AccountId,
+		option: &Self::OptionToken,
 	) -> Result<Self::AssetId, DispatchError>;
 
 	fn sell_option(
-		_from: &Self::AccountId,
-		_amount: Self::Balance,
-		_option_id: Self::AssetId,
+		from: &Self::AccountId,
+		amount: Self::Balance,
+		option_id: Self::AssetId,
 	) -> Result<(), DispatchError>;
 
 	fn buy_option(
-		_from: Self::AccountId,
-		_amount: Self::Balance,
-		_option: Self::AssetId,
+		from: Self::AccountId,
+		amount: Self::Balance,
+		option: Self::AssetId,
 	) -> Result<(), DispatchError>;
+
+	fn option_deposit_start(option: Self::AssetId) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	fn option_purchase_start(option: Self::AssetId) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	fn option_exercise_start(option: Self::AssetId) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	fn option_withdraw_start(option: Self::AssetId) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	fn option_end(option: Self::AssetId) -> Result<(), DispatchError> {
+		Ok(())
+	}
 }

@@ -25,6 +25,7 @@ pub mod liquidation;
 pub mod math;
 pub mod oracle;
 pub mod privilege;
+pub mod swap_bytes;
 pub mod time;
 pub mod tokenized_options;
 pub mod vault;
