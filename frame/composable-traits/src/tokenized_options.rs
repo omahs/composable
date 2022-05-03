@@ -1,4 +1,5 @@
 use frame_support::pallet_prelude::*;
+#[allow(unused_variables)]
 
 pub trait TokenizedOptions {
 	type AccountId;

@@ -146,6 +146,12 @@ pub mod pallet {
 		pub end: Moment,
 	}
 
+	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub struct SellerPosition<Balance> {
+		option_amount: Balance,
+		shares_amount: Balance,
+	}
+
 	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	type AssetIdOf<T> = <T as DeFiComposableConfig>::MayBeAssetId;
 	type BalanceOf<T> = <T as DeFiComposableConfig>::Balance;
@@ -153,6 +159,7 @@ pub mod pallet {
 	type MomentOf<T> = <T as Config>::Moment;
 	type VaultOf<T> = <T as Config>::Vault;
 	type OptionOf<T> = OptionToken<AssetIdOf<T>, BalanceOf<T>, MomentOf<T>>;
+	type SellerPositionOf<T> = SellerPosition<BalanceOf<T>>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
@@ -165,6 +172,18 @@ pub mod pallet {
 	#[pallet::getter(fn option_id_to_option)]
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionOf<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn sellers)]
+	pub type Sellers<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		AccountIdOf<T>,
+		Blake2_128Concat,
+		AssetIdOf<T>,
+		SellerPositionOf<T>,
+		OptionQuery,
+	>;
 
 	#[pallet::storage]
 	pub(crate) type Schedule<T: Config> =
@@ -267,13 +286,17 @@ pub mod pallet {
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn on_idle(_n: T::BlockNumber, _remaining_weight: Weight) -> Weight {
 			let now = T::Time::now();
-			while let Some((moment, option_id, typ)) = <Schedule<T>>::iter().next() {
+
+			while let Some((moment, option_id, option_type)) = <Schedule<T>>::iter().next() {
 				let moment = moment.swap_bytes();
-				if moment > now {
+
+				if now < moment {
 					break;
 				}
+
 				<Schedule<T>>::remove(&moment, &option_id);
-				match typ {
+
+				match option_type {
 					MomentType::Deposit => Self::option_deposit_start(option_id),
 					MomentType::Purchase => Self::option_purchase_start(option_id),
 					MomentType::Exercise => Self::option_exercise_start(option_id),
@@ -282,6 +305,7 @@ pub mod pallet {
 				}
 				.unwrap();
 			}
+
 			10_000
 		}
 	}
@@ -333,7 +357,13 @@ pub mod pallet {
 	//		Internal Functions
 	// ----------------------------------------------------------------------------------------------------
 	impl<T: Config> Pallet<T> {
-		fn account_id(_asset: AssetIdOf<T>) -> AccountIdOf<T> {
+		// Protocol account
+		fn account_id() -> AccountIdOf<T> {
+			T::PalletId::get().into_account()
+		}
+
+		// Protocol account for a particular asset
+		fn protocol_asset_account_id(_asset: AssetIdOf<T>) -> AccountIdOf<T> {
 			T::PalletId::get().into_sub_account(_asset)
 		}
 
@@ -348,7 +378,7 @@ pub mod pallet {
 			);
 
 			// Get pallet account for the asset
-			let account_id = Self::account_id(asset_id);
+			let account_id = Self::protocol_asset_account_id(asset_id);
 
 			// Create new vault for the asset
 			let asset_vault_id: T::VaultId = T::Vault::create(
@@ -386,8 +416,8 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
 		) -> Result<(), DispatchError> {
-			// Get pallet option_account
-			let account_id = Self::account_id(option_id);
+			// Get pallet account
+			let protocol_account = Self::account_id();
 
 			let option =
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdNotFound)?;
@@ -408,7 +438,7 @@ pub mod pallet {
 			option_id: AssetIdOf<T>,
 		) -> Result<(), DispatchError> {
 			// Get pallet option_account
-			let account_id = Self::account_id(option_id);
+			let account_id = Self::account_id();
 
 			let option =
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdNotFound)?;
