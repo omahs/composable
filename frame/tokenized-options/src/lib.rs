@@ -128,7 +128,7 @@ pub mod pallet {
 		pub epoch: Epoch<Moment>,
 	}
 
-	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
+	#[derive(Clone, Copy, Encode, Decode, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 	pub enum MomentType {
 		Deposit,
 		Purchase,
@@ -137,7 +137,7 @@ pub mod pallet {
 		End,
 	}
 
-	#[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
+	#[derive(Clone, Copy, Encode, Decode, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 	pub struct Epoch<Moment> {
 		pub deposit: Moment,
 		pub purchase: Moment,
@@ -414,6 +414,24 @@ pub mod pallet {
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdNotFound)?;
 
 			Ok(())
+		}
+	}
+
+	impl<Moment: Ord> Epoch<Moment> {
+		pub fn moment_type(&self, moment: Moment) -> Option<MomentType> {
+			if moment < self.deposit {
+				None
+			} else if moment < self.purchase {
+				Some(MomentType::Deposit)
+			} else if moment < self.exercise {
+				Some(MomentType::Purchase)
+			} else if moment < self.withdraw {
+				Some(MomentType::Exercise)
+			} else if moment < self.end {
+				Some(MomentType::Withdraw)
+			} else {
+				Some(MomentType::End)
+			}
 		}
 	}
 }
