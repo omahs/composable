@@ -910,6 +910,7 @@ mod benches {
 		[bonded_finance, BondedFinance]
 		[vesting, Vesting]
 		[assets_registry, AssetsRegistry]
+		[cumulus_pallet_xcmp_queue, XcmpQueue]
 	);
 }
 

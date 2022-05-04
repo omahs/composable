@@ -835,6 +835,7 @@ mod benches {
 		[democracy, Democracy]
 		[collective, Council]
 		[utility, Utility]
+		[cumulus_pallet_xcmp_queue, XcmpQueue]
 	);
 }
 

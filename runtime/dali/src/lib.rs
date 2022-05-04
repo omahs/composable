@@ -1145,6 +1145,7 @@ mod benches {
 		[assets_registry, AssetsRegistry]
 		[pablo, Pablo]
 		[dex_router, DexRouter]
+		[cumulus_pallet_xcmp_queue, XcmpQueue]
 	);
 }
 
