@@ -5,9 +5,19 @@
 
 # Run locally
 
-1. `./update.sh REVISION` where `REVISION` is the latest deployed commit hash.
-2. Go back to the root directory and run `nix develop .#devnet` then run the devnet using `run-dali-dev`.
-3. Reach alice at `https://polkadot.js.org/apps/?rpc=ws://localhost:9944#/explorer`
+-  `./update.sh REVISION` where `REVISION` is the latest deployed commit hash.
+- From root directory run:
+``shell
+nix develop .#devnet
+```
+or 
+```shell
+nix develop .#devnet --extra-experimental-features nix-command --extra-experimental-features flakes
+```
+
+- then then run the devnet using `run-dali-dev`.
+
+- Reach alice at `https://polkadot.js.org/apps/?rpc=ws://localhost:9944#/explorer`
 
 # GCE
 
