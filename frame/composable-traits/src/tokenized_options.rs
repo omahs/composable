@@ -6,26 +6,19 @@ pub trait TokenizedOptions {
 	type Balance;
 	type AssetId;
 	type OptionToken;
+	type OptionConfig;
 
-	// fn create_option(
-	// 	_from: Self::AccountId,
-	// 	_option: &OptionToken<Self::AssetId, Self::Balance, Self::UnixTime, Self::Epoch>,
-	// ) -> Result<Self::AssetId, DispatchError>;
-
-	fn create_option(
-		from: Self::AccountId,
-		option: &Self::OptionToken,
-	) -> Result<Self::AssetId, DispatchError>;
+	fn create_option(option_config: Self::OptionConfig) -> Result<Self::AssetId, DispatchError>;
 
 	fn sell_option(
 		from: &Self::AccountId,
-		amount: Self::Balance,
+		option_amount: Self::Balance,
 		option_id: Self::AssetId,
 	) -> Result<(), DispatchError>;
 
 	fn buy_option(
-		from: Self::AccountId,
-		amount: Self::Balance,
+		from: &Self::AccountId,
+		option_amount: Self::Balance,
 		option: Self::AssetId,
 	) -> Result<(), DispatchError>;
 
