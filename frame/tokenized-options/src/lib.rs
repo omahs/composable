@@ -110,26 +110,26 @@ pub mod pallet {
 	pub type AssetIdOf<T> = <T as DeFiComposableConfig>::MayBeAssetId;
 	pub type BalanceOf<T> = <T as DeFiComposableConfig>::Balance;
 	pub type MomentOf<T> = <T as Config>::Moment;
+	pub type OptionConfigOf<T> = OptionConfig<AssetIdOf<T>, BalanceOf<T>, MomentOf<T>>;
 	pub type VaultIdOf<T> = <T as Config>::VaultId;
 	pub type VaultOf<T> = <T as Config>::Vault;
 	pub type VaultConfigOf<T> = VaultConfig<AccountIdOf<T>, AssetIdOf<T>>;
-	pub type OptionConfigOf<T> = OptionConfig<AssetIdOf<T>, BalanceOf<T>, MomentOf<T>>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
 	// ----------------------------------------------------------------------------------------------------
-	/// Maps and asset_id to its vault_id
+	/// Maps asset_id to its vault_id
 	#[pallet::storage]
 	#[pallet::getter(fn asset_id_to_vault_id)]
 	pub type AssetToVault<T: Config> = StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
 
-	/// Maps an option_id to the option struct
+	/// Maps option_id to the option struct
 	#[pallet::storage]
 	#[pallet::getter(fn option_id_to_option)]
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionToken<T>>;
 
-	/// Maps an account_id and an option_id to the user's provided collateral
+	/// Maps account_id and option_id to the user's provided collateral
 	#[pallet::storage]
 	#[pallet::getter(fn sellers)]
 	pub type Sellers<T: Config> = StorageDoubleMap<
@@ -142,7 +142,7 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	/// Maps a timestamp and an option_id to its currently active window_type.
+	/// Maps timestamp and option_id to its currently active window_type.
 	/// Scheduler is a timestamp-ordered list
 	#[pallet::storage]
 	pub(crate) type Scheduler<T: Config> =
@@ -169,7 +169,8 @@ pub mod pallet {
 		AssetVaultAlreadyExists,
 		OptionIdNotFound,
 		UserHasNotEnoughFundsToDeposit,
-		DepositIntoVaultFailed,
+		DepositIntoVaultCannotBePerformed,
+		TransferFailed,
 		NotIntoDepositWindow,
 		NotIntoPurchaseWindow,
 		NotIntoExerciseWindow,
@@ -238,7 +239,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			option_config: OptionConfigOf<T>,
 		) -> DispatchResult {
-			// Check if it's protocol to call the exstrinsic
+			// Check if it's protocol to call the exstrinsic (TODO)
 			let _from = ensure_signed(origin)?;
 
 			let option_id = <Self as TokenizedOptions>::create_option(option_config.clone())?;
@@ -328,8 +329,8 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	impl<T: Config> Pallet<T> {
 		// Protocol account for a particular asset
-		fn account_id(_asset: AssetIdOf<T>) -> AccountIdOf<T> {
-			T::PalletId::get().into_sub_account(_asset)
+		fn account_id(asset: AssetIdOf<T>) -> AccountIdOf<T> {
+			T::PalletId::get().into_sub_account(asset)
 		}
 
 		#[transactional]
@@ -394,14 +395,12 @@ pub mod pallet {
 			option_amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
 		) -> Result<(), DispatchError> {
-			// Get option
 			let option =
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdNotFound)?;
 
-			// Check if deposits are allowed
-			let now = T::Time::now();
+			// Check if we are in deposit window
 			ensure!(
-				option.epoch.window_type(now).unwrap() == WindowType::Deposit,
+				option.epoch.window_type(T::Time::now()).unwrap() == WindowType::Deposit,
 				Error::<T>::NotIntoDepositWindow
 			);
 
@@ -414,17 +413,13 @@ pub mod pallet {
 				asset_amount = option.base_asset_strike_price * option_amount;
 			};
 
-			// Get vault_id for depositing collateral
+			// Get vault_id and protocol account for depositing collateral
 			let vault_id =
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
-			// Get pallet account
 			let protocol_account = Self::account_id(asset_id);
 
-			// Get user's position if it already has one, otherwise create a default
-			let position = Self::sellers(from, option_id).unwrap();
-
-			// Check if user has funds for collateral
+			// Check if user has funds for collateral and can deposit
 			ensure!(
 				<T as Config>::MultiCurrency::can_withdraw(asset_id, &from, asset_amount)
 					.into_result()
@@ -432,7 +427,6 @@ pub mod pallet {
 				Error::<T>::UserHasNotEnoughFundsToDeposit
 			);
 
-			// Check if user can deposit
 			ensure!(
 				<T as Config>::MultiCurrency::can_deposit(
 					asset_id,
@@ -441,7 +435,7 @@ pub mod pallet {
 				)
 				.into_result()
 				.is_ok(),
-				Error::<T>::DepositIntoVaultFailed
+				Error::<T>::DepositIntoVaultCannotBePerformed
 			);
 
 			// Transfer collateral to protocol account
@@ -453,26 +447,42 @@ pub mod pallet {
 				asset_amount,
 				true,
 			)?;
-
 			// Protocol account deposits into the vault and keep shares_amount
 			// THIS SHOULD BE DONE AT THE END. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
 			let shares_amount = T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
 
-			// Add option amount to position
-			// THIS SHOULD BE DONE BEFORE TRANSFER AND DEPOSIT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
-			let new_option_amount = position
-				.option_amount
-				.checked_add(&option_amount)
-				.ok_or(ArithmeticError::Overflow)?;
+			Sellers::<T>::try_mutate_exists(
+				from,
+				option_id,
+				|position| -> Result<(), DispatchError> {
+					match position {
+						Some(position) => {
+							// Add option amount to position
+							// THIS SHOULD BE DONE BEFORE DEPOSIT INTO VAULT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
+							let new_option_amount = position
+								.option_amount
+								.checked_add(&option_amount)
+								.ok_or(ArithmeticError::Overflow)?;
 
-			// Add shares amount to position
-			// THIS SHOULD BE DONE BEFORE TRANSFER AND DEPOSIT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
-			let new_shares_amount = position
-				.shares_amount
-				.checked_add(&shares_amount)
-				.ok_or(ArithmeticError::Overflow)?;
+							// Add shares amount to position
+							// THIS SHOULD BE DONE BEFORE DEPOSIT INTO VAULT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
+							let new_shares_amount = position
+								.shares_amount
+								.checked_add(&shares_amount)
+								.ok_or(ArithmeticError::Overflow)?;
 
-			Ok(())
+							position.option_amount = new_option_amount;
+							position.shares_amount = new_shares_amount;
+							Ok(())
+						},
+						None => {
+							let position = SellerPosition { option_amount, shares_amount };
+							Sellers::<T>::insert(from, option_id, position);
+							Ok(())
+						},
+					}
+				},
+			)
 		}
 
 		#[transactional]
