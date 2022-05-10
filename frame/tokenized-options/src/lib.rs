@@ -35,6 +35,7 @@ pub mod pallet {
 	};
 	use frame_support::{
 		pallet_prelude::*,
+		sp_runtime::traits::Hash,
 		traits::{
 			fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
 			fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
@@ -42,6 +43,7 @@ pub mod pallet {
 		},
 		transactional, PalletId,
 	};
+
 	use frame_system::{ensure_signed, pallet_prelude::*};
 	use sp_runtime::{
 		traits::{
@@ -128,6 +130,10 @@ pub mod pallet {
 	#[pallet::getter(fn option_id_to_option)]
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionToken<T>>;
+
+	// #[pallet::storage]
+	// #[pallet::getter(fn options_hash)]
+	// pub type OptionsHash<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, OptionToken<T>>;
 
 	/// Maps account_id and option_id to the user's provided collateral
 	#[pallet::storage]
@@ -222,14 +228,17 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::create_asset_vault())]
 		pub fn create_asset_vault(
 			origin: OriginFor<T>,
-			config: VaultConfig<AccountIdOf<T>, AssetIdOf<T>>,
+			vault_config: VaultConfigOf<T>,
 		) -> DispatchResult {
-			// Check if it's protocol to call the exstrinsic
+			// Check if it's protocol to call the exstrinsic (TODO)
 			let _from = ensure_signed(origin)?;
 
-			let vault_id = Self::do_create_asset_vault(&config)?;
+			let vault_id = <Self as TokenizedOptions>::create_asset_vault(vault_config.clone())?;
 
-			Self::deposit_event(Event::CreatedAssetVault { vault_id, asset_id: config.asset_id });
+			Self::deposit_event(Event::CreatedAssetVault {
+				vault_id,
+				asset_id: vault_config.asset_id,
+			});
 
 			Ok(().into())
 		}
@@ -287,8 +296,18 @@ pub mod pallet {
 		type AccountId = AccountIdOf<T>;
 		type AssetId = AssetIdOf<T>;
 		type Balance = BalanceOf<T>;
-		type OptionToken = OptionToken<T>;
+		type VaultId = VaultIdOf<T>;
 		type OptionConfig = OptionConfigOf<T>;
+		type VaultConfig = VaultConfigOf<T>;
+
+		fn create_asset_vault(
+			vault_config: Self::VaultConfig,
+		) -> Result<Self::VaultId, DispatchError> {
+			match Validated::new(vault_config) {
+				Ok(validated_vault_config) => Self::do_create_asset_vault(validated_vault_config),
+				Err(_) => Err(DispatchError::from(Error::<T>::AssetVaultAlreadyExists)),
+			}
+		}
 
 		fn create_option(
 			option_config: Self::OptionConfig,
@@ -335,13 +354,14 @@ pub mod pallet {
 
 		#[transactional]
 		fn do_create_asset_vault(
-			config: &VaultConfig<AccountIdOf<T>, AssetIdOf<T>>,
+			config: Validated<VaultConfigOf<T>, ValidateVaultDoesNotExist<T>>,
 		) -> Result<VaultIdOf<T>, DispatchError> {
 			let asset_id = config.asset_id;
-			ensure!(
-				!AssetToVault::<T>::contains_key(asset_id),
-				Error::<T>::AssetVaultAlreadyExists
-			);
+
+			// ensure!(
+			// 	!AssetToVault::<T>::contains_key(asset_id),
+			// 	Error::<T>::AssetVaultAlreadyExists
+			// );
 
 			// Get pallet account for the asset
 			let account_id = Self::account_id(asset_id);

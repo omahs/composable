@@ -1,9 +1,30 @@
-use crate::pallet::{Config, OptionConfigOf};
+use crate::pallet::{AssetToVault, Config, OptionConfigOf, VaultConfigOf};
 
 use composable_support::validation::Validate;
 // use composable_traits::tokenized_options::*;
 
 use core::marker::PhantomData;
+
+// -----------------------------------------------------------------------------------------------
+//		ValidateVaultDoesNotExist
+// -----------------------------------------------------------------------------------------------
+
+#[derive(Clone, Copy)]
+pub struct ValidateVaultDoesNotExist<T> {
+	_marker: PhantomData<T>,
+}
+
+impl<T: Config> Validate<VaultConfigOf<T>, ValidateVaultDoesNotExist<T>>
+	for ValidateVaultDoesNotExist<T>
+{
+	fn validate(input: VaultConfigOf<T>) -> Result<VaultConfigOf<T>, &'static str> {
+		if AssetToVault::<T>::contains_key(input.asset_id) {
+			return Err("Vault Already Exists");
+		}
+
+		Ok(input)
+	}
+}
 
 // -----------------------------------------------------------------------------------------------
 //		ValidateOptionDoesNotExist

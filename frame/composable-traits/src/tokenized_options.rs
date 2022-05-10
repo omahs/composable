@@ -5,8 +5,11 @@ pub trait TokenizedOptions {
 	type AccountId;
 	type Balance;
 	type AssetId;
-	type OptionToken;
+	type VaultId;
 	type OptionConfig;
+	type VaultConfig;
+
+	fn create_asset_vault(config: Self::VaultConfig) -> Result<Self::VaultId, DispatchError>;
 
 	fn create_option(option_config: Self::OptionConfig) -> Result<Self::AssetId, DispatchError>;
 
