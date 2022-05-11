@@ -31,7 +31,7 @@ pub mod pallet {
 		currency::{CurrencyFactory, RangeId},
 		defi::DeFiComposableConfig,
 		oracle::Oracle,
-		swap_bytes::SwapBytes,
+		swap_bytes::{SwapBytes, Swapped},
 		tokenized_options::*,
 		vault::{CapabilityVault, Deposit as Duration, Vault, VaultConfig},
 	};
@@ -88,8 +88,9 @@ pub mod pallet {
 		/// Oracle pallet to retrieve prices
 		type Oracle: Oracle<AssetId = AssetIdOf<Self>, Balance = BalanceOf<Self>>;
 
-		/// Type of time moment. We use swap_bytes to store this type in big-endian format
-		/// and take advantage of the fact that storage keys are stored in lexical order.
+		/// Type of time moment. We use [`SwapBytes`] trait to store this type in
+		/// big endian format and take advantage of the fact that storage keys are
+		/// stored in lexical order.
 		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
 
 		/// The time provider
@@ -173,7 +174,7 @@ pub mod pallet {
 	/// Scheduler is a timestamp-ordered list
 	#[pallet::storage]
 	pub(crate) type Scheduler<T: Config> =
-		StorageDoubleMap<_, Identity, MomentOf<T>, Identity, AssetIdOf<T>, WindowType>;
+		StorageDoubleMap<_, Identity, Swapped<MomentOf<T>>, Identity, AssetIdOf<T>, WindowType>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Events
@@ -250,14 +251,15 @@ pub mod pallet {
 		fn on_idle(_n: T::BlockNumber, _remaining_weight: Weight) -> Weight {
 			let now = T::Time::now();
 
-			while let Some((moment, option_id, option_type)) = <Scheduler<T>>::iter().next() {
-				let moment = moment.swap_bytes();
+			while let Some((moment_swapped, option_id, option_type)) = <Scheduler<T>>::iter().next()
+			{
+				let moment = moment_swapped.into_value();
 
 				if now < moment {
 					break
 				}
 
-				<Scheduler<T>>::remove(&moment, &option_id);
+				<Scheduler<T>>::remove(moment_swapped, &option_id);
 
 				match option_type {
 					WindowType::Deposit => Self::option_deposit_start(option_id),
