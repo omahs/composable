@@ -36,6 +36,8 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::traits::Hash,
+		storage::bounded_btree_map::BoundedBTreeMap,
+		storage::bounded_btree_set::BoundedBTreeSet,
 		traits::{
 			fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
 			fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
@@ -45,6 +47,9 @@ pub mod pallet {
 	};
 
 	use frame_system::{ensure_signed, pallet_prelude::*};
+	use sp_core::H256;
+	use sp_runtime::traits::BlakeTwo256;
+	use sp_runtime::traits::Keccak256;
 	use sp_runtime::{
 		traits::{
 			AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, CheckedDiv,
@@ -81,6 +86,8 @@ pub mod pallet {
 
 		/// The time provider.
 		type Time: Time<Moment = Self::Moment>;
+
+		type MaxOptionNumber = Get<u32>;
 
 		/// Option IDs generator
 		type CurrencyFactory: CurrencyFactory<AssetIdOf<Self>>;
@@ -131,9 +138,10 @@ pub mod pallet {
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionToken<T>>;
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn options_hash)]
-	// pub type OptionsHash<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, OptionToken<T>>;
+	#[pallet::storage]
+	#[pallet::getter(fn options_hash)]
+	pub type OptionHashToOptionId<T: Config> =
+		StorageMap<_, Blake2_128Concat, BoundedBTreeSet<H256, T::MaxOptionNumber>, AssetIdOf<T>>;
 
 	/// Maps account_id and option_id to the user's provided collateral
 	#[pallet::storage]
@@ -173,7 +181,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		AssetVaultDoesNotExists,
 		AssetVaultAlreadyExists,
-		OptionIdNotFound,
+		OptionIdDoesNotExists,
+		OptionIdAlreadyExists,
 		UserHasNotEnoughFundsToDeposit,
 		DepositIntoVaultCannotBePerformed,
 		TransferFailed,
@@ -313,8 +322,8 @@ pub mod pallet {
 			option_config: Self::OptionConfig,
 		) -> Result<Self::AssetId, DispatchError> {
 			match Validated::new(option_config) {
-				Ok(validated_option_config) => Self::do_create_option(validated_option_config),
-				Err(_) => Err(DispatchError::from(Error::<T>::OptionIdNotFound)),
+				Ok(validated_option_config) => Self::do_create_option_hash(validated_option_config),
+				Err(_) => Err(DispatchError::from(Error::<T>::OptionIdDoesNotExists)),
 			}
 		}
 
@@ -323,7 +332,10 @@ pub mod pallet {
 			option_amount: Self::Balance,
 			option_id: Self::AssetId,
 		) -> Result<(), DispatchError> {
-			ensure!(OptionIdToOption::<T>::contains_key(option_id), Error::<T>::OptionIdNotFound);
+			ensure!(
+				OptionIdToOption::<T>::contains_key(option_id),
+				Error::<T>::OptionIdDoesNotExists
+			);
 
 			Self::do_sell_option(&from, option_amount, option_id)?;
 
@@ -335,7 +347,10 @@ pub mod pallet {
 			option_amount: Self::Balance,
 			option_id: Self::AssetId,
 		) -> Result<(), DispatchError> {
-			ensure!(OptionIdToOption::<T>::contains_key(option_id), Error::<T>::OptionIdNotFound);
+			ensure!(
+				OptionIdToOption::<T>::contains_key(option_id),
+				Error::<T>::OptionIdDoesNotExists
+			);
 
 			Self::do_buy_option(&from, option_amount, option_id)?;
 
@@ -350,6 +365,20 @@ pub mod pallet {
 		// Protocol account for a particular asset
 		fn account_id(asset: AssetIdOf<T>) -> AccountIdOf<T> {
 			T::PalletId::get().into_sub_account(asset)
+		}
+
+		fn generate_id(
+			base_asset_id: AssetIdOf<T>,
+			base_asset_strike_price: BalanceOf<T>,
+			option_type: OptionType,
+			expiring_date: MomentOf<T>,
+		) -> H256 {
+			BlakeTwo256::hash_of(&(
+				base_asset_id,
+				base_asset_strike_price,
+				option_type,
+				expiring_date,
+			))
 		}
 
 		#[transactional]
@@ -410,13 +439,52 @@ pub mod pallet {
 		}
 
 		#[transactional]
+		fn do_create_option_hash(
+			option_config: Validated<OptionConfigOf<T>, ValidateOptionDoesNotExist<T>>,
+		) -> Result<AssetIdOf<T>, DispatchError> {
+			let option_hash = Self::generate_id(
+				option_config.base_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+			);
+
+			ensure!(
+				!OptionHashToOptionId::<T>::contains_key(option_hash),
+				Error::<T>::OptionIdAlreadyExists
+			);
+
+			// Generate new option_id for the option token
+			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
+
+			let option = OptionToken {
+				base_asset_id: option_config.base_asset_id,
+				quote_asset_id: option_config.quote_asset_id,
+				base_asset_strike_price: option_config.base_asset_strike_price,
+				option_type: option_config.option_type,
+				exercise_type: option_config.exercise_type,
+				expiring_date: option_config.expiring_date,
+				base_asset_amount_per_option: option_config.base_asset_amount_per_option,
+				total_issuance_seller: option_config.total_issuance_seller,
+				total_issuance_buyer: option_config.total_issuance_buyer,
+				epoch: option_config.epoch,
+			};
+
+			// Add option_id to corresponding option
+			OptionHashToOptionId::<T>::insert(option_hash, option.clone());
+			OptionIdToOption::<T>::insert(option_id, option);
+
+			Ok(option_id)
+		}
+
+		#[transactional]
 		fn do_sell_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
 		) -> Result<(), DispatchError> {
 			let option =
-				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdNotFound)?;
+				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdDoesNotExists)?;
 
 			// Check if we are in deposit window
 			ensure!(

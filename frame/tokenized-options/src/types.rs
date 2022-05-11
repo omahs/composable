@@ -1,6 +1,5 @@
 use crate::Config;
 use frame_support::pallet_prelude::*;
-use frame_support::sp_runtime::traits::Hash;
 
 use sp_std::fmt::Debug;
 
@@ -63,26 +62,19 @@ impl<Moment: Ord> Epoch<Moment> {
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
 pub struct OptionToken<T: Config> {
-	// Core attributes of an option, used to uniquely identify an option
+	// Core attributes of an option, used to uniquely identify an option. quote_asset_id and its price will be added
 	pub base_asset_id: T::MayBeAssetId,
 	pub base_asset_strike_price: T::Balance,
 	pub option_type: OptionType,
 	pub expiring_date: T::Moment,
 
 	// Helper attributes
-	// #[codec(skip)]
 	pub exercise_type: ExerciseType, // Add to core contributes when American is implemented
-	// #[codec(skip)]
 	pub base_asset_amount_per_option: T::Balance,
-	// #[codec(skip)]
 	pub quote_asset_id: T::MayBeAssetId,
-	// #[codec(skip)]
 	pub total_issuance_seller: T::Balance,
-	// #[codec(skip)]
 	pub total_issuance_buyer: T::Balance,
-	// #[codec(skip)]
 	pub epoch: Epoch<T::Moment>,
-	// #[codec(skip)]
 	// pub quote_asset_amount_per_option: Balance, // Assume stablecoin as quote asset right now, so always 1
 	// pub quote_asset_strike_price: Balance, // Assume stablecoin as quote asset right now, so always 1
 }
