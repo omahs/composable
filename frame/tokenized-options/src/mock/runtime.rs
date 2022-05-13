@@ -19,24 +19,35 @@ pub type VaultId = u64;
 pub type Amount = i128;
 pub type Moment = u64;
 
-pub mod accounts {
-	use hex_literal::hex;
-	use sp_core::sr25519::{Public, Signature};
-	use sp_runtime::traits::{IdentifyAccount, Verify};
-	pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+// pub mod accounts {
+// 	use hex_literal::hex;
+// 	use sp_core::sr25519::{Public, Signature};
+// 	use sp_runtime::traits::{IdentifyAccount, Verify};
+// 	pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
-	pub static ADMIN: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000000"));
-	pub static ALICE: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000001"));
-	pub static BOB: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000002"));
-	pub static CHARLIE: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000003"));
-	pub static DAVE: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000004"));
-	pub static EVEN: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000005"));
+// 	pub static ADMIN: Public =
+// 		Public(hex!("0000000000000000000000000000000000000000000000000000000000000000"));
+// 	pub static ALICE: Public =
+// 		Public(hex!("0000000000000000000000000000000000000000000000000000000000000001"));
+// 	pub static BOB: Public =
+// 		Public(hex!("0000000000000000000000000000000000000000000000000000000000000002"));
+// 	pub static CHARLIE: Public =
+// 		Public(hex!("0000000000000000000000000000000000000000000000000000000000000003"));
+// 	pub static DAVE: Public =
+// 		Public(hex!("0000000000000000000000000000000000000000000000000000000000000004"));
+// 	pub static EVEN: Public =
+// 		Public(hex!("0000000000000000000000000000000000000000000000000000000000000005"));
+// }
+
+pub mod accounts {
+	pub type AccountId = u128;
+
+	pub static ADMIN: AccountId = 0;
+	pub static ALICE: AccountId = 1;
+	pub static BOB: AccountId = 2;
+	pub static CHARLIE: AccountId = 3;
+	pub static DAVE: AccountId = 4;
+	pub static EVEN: AccountId = 5;
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -180,15 +191,10 @@ impl composable_traits::governance::GovernanceRegistry<CurrencyId, AccountId>
 	fn set(_k: CurrencyId, _value: composable_traits::governance::SignedRawOrigin<AccountId>) {}
 }
 
-impl
-	GetByKey<
-		CurrencyId,
-		Result<SignedRawOrigin<sp_core::sr25519::Public>, sp_runtime::DispatchError>,
-	> for GovernanceRegistry
+impl GetByKey<CurrencyId, Result<SignedRawOrigin<AccountId>, sp_runtime::DispatchError>>
+	for GovernanceRegistry
 {
-	fn get(
-		_k: &CurrencyId,
-	) -> Result<SignedRawOrigin<sp_core::sr25519::Public>, sp_runtime::DispatchError> {
+	fn get(_k: &CurrencyId) -> Result<SignedRawOrigin<AccountId>, sp_runtime::DispatchError> {
 		Ok(SignedRawOrigin::Root)
 	}
 }
@@ -258,6 +264,7 @@ impl pallet_vault::Config for MockRuntime {
 
 parameter_types! {
 	pub const TokenizedOptionsPalletId: PalletId = PalletId(*b"options_");
+	pub const MaxOptionNumber: u32 = 1000;
 }
 
 impl pallet_tokenized_options::Config for MockRuntime {
@@ -266,6 +273,7 @@ impl pallet_tokenized_options::Config for MockRuntime {
 	type WeightInfo = ();
 	type Moment = Moment;
 	type Time = Timestamp;
+	type MaxOptionNumber = MaxOptionNumber;
 	type CurrencyFactory = LpTokenFactory;
 	type NativeCurrency = Balances;
 	type MultiCurrency = Assets;

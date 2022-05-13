@@ -49,7 +49,6 @@ pub mod pallet {
 	use frame_system::{ensure_signed, pallet_prelude::*};
 	use sp_core::H256;
 	use sp_runtime::traits::BlakeTwo256;
-	use sp_runtime::traits::Keccak256;
 	use sp_runtime::{
 		traits::{
 			AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, CheckedDiv,
@@ -80,14 +79,16 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
+		/// Maximum number of options that can be created
+		#[pallet::constant]
+		type MaxOptionNumber: Get<u32>;
+
 		/// Type of time moment. We use swap_bytes to store this type in big-endian format
 		/// and take advantage of the fact that storage keys are stored in lexical order.
 		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
 
-		/// The time provider.
+		/// The time provider
 		type Time: Time<Moment = Self::Moment>;
-
-		type MaxOptionNumber = Get<u32>;
 
 		/// Option IDs generator
 		type CurrencyFactory: CurrencyFactory<AssetIdOf<Self>>;
@@ -102,8 +103,10 @@ pub mod pallet {
 			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>;
 
+		/// Vault IDs
 		type VaultId: Clone + Codec + MaxEncodedLen + Debug + PartialEq + Default + Parameter;
 
+		/// Vaults to collect collaterals
 		type Vault: CapabilityVault<
 			AssetId = AssetIdOf<Self>,
 			Balance = BalanceOf<Self>,
@@ -138,10 +141,20 @@ pub mod pallet {
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionToken<T>>;
 
+	// #[pallet::storage]
+	// #[pallet::getter(fn options_btree)]
+	// pub type OptionHashBTreeSet<T: Config> = StorageMap<
+	// 	_,
+	// 	Blake2_128Concat,
+	// 	BoundedBTreeSet<[u8; 32], T::MaxOptionNumber>,
+	// 	AssetIdOf<T>,
+	// >;
+
+	/// Maps option's hash with the option_id. Used to check if option exists and basically
+	/// all the other searching usecases.
 	#[pallet::storage]
 	#[pallet::getter(fn options_hash)]
-	pub type OptionHashToOptionId<T: Config> =
-		StorageMap<_, Blake2_128Concat, BoundedBTreeSet<H256, T::MaxOptionNumber>, AssetIdOf<T>>;
+	pub type OptionHashToOptionId<T: Config> = StorageMap<_, Blake2_128Concat, H256, AssetIdOf<T>>;
 
 	/// Maps account_id and option_id to the user's provided collateral
 	#[pallet::storage]
@@ -179,13 +192,23 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::error]
 	pub enum Error<T> {
+		UnexpectedError,
+
+		// Asset vault errors
 		AssetVaultDoesNotExists,
 		AssetVaultAlreadyExists,
+
+		// Create option errors
 		OptionIdDoesNotExists,
 		OptionIdAlreadyExists,
+		OptionAssetVaultsDoNotExist,
+
+		// Sell option errors
 		UserHasNotEnoughFundsToDeposit,
 		DepositIntoVaultCannotBePerformed,
 		TransferFailed,
+
+		// Epoch errors
 		NotIntoDepositWindow,
 		NotIntoPurchaseWindow,
 		NotIntoExerciseWindow,
@@ -234,6 +257,7 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Create vault for a particular asset to deposit collateral
 		#[pallet::weight(<T as Config>::WeightInfo::create_asset_vault())]
 		pub fn create_asset_vault(
 			origin: OriginFor<T>,
@@ -252,6 +276,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Create an option to be listed for sale
 		#[pallet::weight(<T as Config>::WeightInfo::create_option())]
 		pub fn create_option(
 			origin: OriginFor<T>,
@@ -267,6 +292,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Sell an option providing collateral
 		#[pallet::weight(<T as Config>::WeightInfo::sell_option())]
 		pub fn sell_option(
 			origin: OriginFor<T>,
@@ -282,6 +308,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Buy an option paying premium
 		#[pallet::weight(<T as Config>::WeightInfo::buy_option())]
 		pub fn buy_option(
 			origin: OriginFor<T>,
@@ -309,6 +336,7 @@ pub mod pallet {
 		type OptionConfig = OptionConfigOf<T>;
 		type VaultConfig = VaultConfigOf<T>;
 
+		/// Create vault for a particular asset to deposit collateral
 		fn create_asset_vault(
 			vault_config: Self::VaultConfig,
 		) -> Result<Self::VaultId, DispatchError> {
@@ -318,15 +346,25 @@ pub mod pallet {
 			}
 		}
 
+		/// Create an option to be listed for sale
 		fn create_option(
 			option_config: Self::OptionConfig,
 		) -> Result<Self::AssetId, DispatchError> {
 			match Validated::new(option_config) {
 				Ok(validated_option_config) => Self::do_create_option_hash(validated_option_config),
-				Err(_) => Err(DispatchError::from(Error::<T>::OptionIdDoesNotExists)),
+				Err(error) => match error {
+					"ValidateOptionDoesNotExist" => {
+						Err(DispatchError::from(Error::<T>::OptionIdAlreadyExists))
+					},
+					"ValidateOptionAssetVaultsExist" => {
+						Err(DispatchError::from(Error::<T>::OptionAssetVaultsDoNotExist))
+					},
+					_ => Err(DispatchError::from(Error::<T>::UnexpectedError)),
+				},
 			}
 		}
 
+		/// Sell an option providing collateral
 		fn sell_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
@@ -342,6 +380,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Buy an option paying premium
 		fn buy_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
@@ -362,12 +401,13 @@ pub mod pallet {
 	//		Internal Pallet Functions
 	// ----------------------------------------------------------------------------------------------------
 	impl<T: Config> Pallet<T> {
-		// Protocol account for a particular asset
+		/// Protocol account for a particular asset
 		fn account_id(asset: AssetIdOf<T>) -> AccountIdOf<T> {
 			T::PalletId::get().into_sub_account(asset)
 		}
 
-		fn generate_id(
+		/// Calculate the hash of an option providing the required attributes
+		pub fn generate_id(
 			base_asset_id: AssetIdOf<T>,
 			base_asset_strike_price: BalanceOf<T>,
 			option_type: OptionType,
@@ -386,11 +426,6 @@ pub mod pallet {
 			config: Validated<VaultConfigOf<T>, ValidateVaultDoesNotExist<T>>,
 		) -> Result<VaultIdOf<T>, DispatchError> {
 			let asset_id = config.asset_id;
-
-			// ensure!(
-			// 	!AssetToVault::<T>::contains_key(asset_id),
-			// 	Error::<T>::AssetVaultAlreadyExists
-			// );
 
 			// Get pallet account for the asset
 			let account_id = Self::account_id(asset_id);
@@ -442,18 +477,6 @@ pub mod pallet {
 		fn do_create_option_hash(
 			option_config: Validated<OptionConfigOf<T>, ValidateOptionDoesNotExist<T>>,
 		) -> Result<AssetIdOf<T>, DispatchError> {
-			let option_hash = Self::generate_id(
-				option_config.base_asset_id,
-				option_config.base_asset_strike_price,
-				option_config.option_type,
-				option_config.expiring_date,
-			);
-
-			ensure!(
-				!OptionHashToOptionId::<T>::contains_key(option_hash),
-				Error::<T>::OptionIdAlreadyExists
-			);
-
 			// Generate new option_id for the option token
 			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
 
@@ -470,8 +493,12 @@ pub mod pallet {
 				epoch: option_config.epoch,
 			};
 
+			let option_hash = option.generate_id();
+
 			// Add option_id to corresponding option
-			OptionHashToOptionId::<T>::insert(option_hash, option.clone());
+			// OptionHashBTreeSet::<T>::insert(option_hash.to_fixed_bytes(), option_id);
+
+			OptionHashToOptionId::<T>::insert(option_hash, option_id);
 			OptionIdToOption::<T>::insert(option_id, option);
 
 			Ok(option_id)

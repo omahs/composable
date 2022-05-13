@@ -1,6 +1,9 @@
 use crate::Config;
 use frame_support::pallet_prelude::*;
 
+use sp_core::H256;
+use sp_runtime::traits::BlakeTwo256;
+use sp_runtime::traits::Hash;
 use sp_std::fmt::Debug;
 
 // ----------------------------------------------------------------------------------------------------
@@ -77,6 +80,17 @@ pub struct OptionToken<T: Config> {
 	pub epoch: Epoch<T::Moment>,
 	// pub quote_asset_amount_per_option: Balance, // Assume stablecoin as quote asset right now, so always 1
 	// pub quote_asset_strike_price: Balance, // Assume stablecoin as quote asset right now, so always 1
+}
+
+impl<T: Config> OptionToken<T> {
+	pub fn generate_id(&self) -> H256 {
+		BlakeTwo256::hash_of(&(
+			self.base_asset_id,
+			self.base_asset_strike_price,
+			self.option_type,
+			self.expiring_date,
+		))
+	}
 }
 
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, Debug)]

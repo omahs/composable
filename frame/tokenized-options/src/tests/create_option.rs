@@ -3,7 +3,9 @@ use crate::mock::runtime::{
 	TokenizedOptions,
 };
 use crate::tests::*;
-use crate::{pallet, OptionIdToOption};
+use crate::{pallet, Error, OptionIdToOption};
+use frame_support::{assert_noop, assert_ok};
+
 use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
 use frame_system::ensure_signed;
 
@@ -45,13 +47,39 @@ fn test_create_option_and_emit_event() {
 	});
 }
 
+#[test]
+fn test_create_same_option_and_emit_error() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Get default option config
+		let option_config = OptionsConfigBuilder::default().build();
+
+		let option_id = trait_create_option(Origin::signed(ADMIN), option_config.clone());
+
+		// Check option has been created
+		assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
+
+		// Check event is emitted correctly
+		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
+			option_id,
+			option_config: option_config.clone(),
+		}));
+
+		// Create same option again and check error is raised
+		assert_noop!(
+			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+			Error::<MockRuntime>::OptionIdAlreadyExists
+		);
+	});
+}
+
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(10))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn proptest_create_option(market_prices in generate_markets()) {
 		ExtBuilder::default().build().execute_with(|| {
+			// List of random option_config
 			let option_configs: Vec<OptionConfig<AssetId, Balance, Moment>> = market_prices.iter().map(|&(asset, strike_price)| {
-				OptionsConfigBuilder::default().base_asset_id(asset).base_asset_strike_price(strike_price).build()
+				let option_config = OptionsConfigBuilder::default().base_asset_id(asset).base_asset_strike_price(strike_price).build()
 			}).collect();
 
 			option_configs.iter().for_each(|option_config|{
