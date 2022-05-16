@@ -8,25 +8,6 @@ use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTr
 use frame_system::ensure_signed;
 
 use frame_support::{assert_err, assert_noop};
-use sp_runtime::DispatchError;
-
-// Simulate exstrinsic call `create_asset_vault`, but returning values
-fn trait_create_asset_vault(
-	_origin: Origin,
-	vault_config: VaultConfig<AccountId, AssetId>,
-) -> Result<VaultId, DispatchError> {
-	let _account_id = ensure_signed(_origin).unwrap();
-
-	let vault_id =
-		<TokenizedOptions as TokenizedOptionsTrait>::create_asset_vault(vault_config.clone())?;
-
-	TokenizedOptions::deposit_event(pallet::Event::CreatedAssetVault {
-		vault_id,
-		asset_id: vault_config.asset_id,
-	});
-
-	Ok(vault_id)
-}
 
 // ----------------------------------------------------------------------------------------------------
 //		Create Vault Tests

@@ -39,6 +39,7 @@ pub type Moment = u64;
 // 		Public(hex!("0000000000000000000000000000000000000000000000000000000000000005"));
 // }
 
+#[allow(dead_code)]
 pub mod accounts {
 	pub type AccountId = u128;
 
@@ -311,7 +312,10 @@ impl ExtBuilder {
 		ext
 	}
 
-	pub fn init_balances(mut self, balances: Vec<(AccountId, AssetId, Balance)>) -> ExtBuilder {
+	pub fn initialize_balances(
+		mut self,
+		balances: Vec<(AccountId, AssetId, Balance)>,
+	) -> ExtBuilder {
 		balances.into_iter().for_each(|(account, asset, balance)| {
 			if asset == PICA::ID {
 				self.native_balances.push((account, balance));

@@ -2,8 +2,14 @@ use crate::mock::currency::defs::*;
 use crate::mock::runtime::{
 	accounts::*, AssetId, Assets, Balance, Moment, Origin, TokenizedOptions, Vault, VaultId,
 };
+use crate::pallet::{self, AssetToVault, Error};
 use crate::types::*;
-use composable_traits::vault::{Vault as VaultTrait, VaultConfig};
+use composable_traits::{
+	tokenized_options::TokenizedOptions as TokenizedOptionsTrait,
+	vault::{Vault as VaultTrait, VaultConfig},
+};
+use frame_system::ensure_signed;
+
 use frame_support::{assert_ok, traits::fungibles::Mutate};
 use itertools::Itertools;
 use proptest::{
@@ -12,10 +18,11 @@ use proptest::{
 	strategy::{Just, Strategy},
 };
 
+use sp_runtime::DispatchError;
 use sp_runtime::Perquintill;
 use std::collections::BTreeMap;
 
-// pub mod create_option;
+pub mod create_option;
 pub mod create_vault;
 // pub mod sell_option;
 
@@ -196,7 +203,6 @@ pub const VEC_SIZE: usize = 10;
 pub fn pick_asset() -> impl Strategy<Value = AssetId> {
 	prop_oneof![
 		Just(PICA::ID),
-		Just(USDC::ID),
 		Just(BTC::ID),
 		Just(LAYR::ID),
 		Just(DOT::ID),
@@ -276,4 +282,58 @@ prop_compose! {
 			.map(|(((account, asset), balance), asset_price)| (account, asset, balance, asset_price))
 			.collect()
    }
+}
+
+prop_compose! {
+	fn prop_random_option_config()(base_asset_id in prop_random_asset(), base_asset_strike_price in prop_random_balance()) -> (AssetId, Balance){
+		(base_asset_id, base_asset_strike_price)
+	}
+}
+
+prop_compose! {
+	fn prop_random_option_config_vec()(
+		base_asset_ids in prop_random_asset_vec(),
+		base_asset_strike_prices in prop_random_balance_vec(),
+	) -> Vec<(AssetId, Balance)>{
+			base_asset_ids.into_iter()
+			.zip(base_asset_strike_prices.into_iter())
+			.collect()
+   }
+}
+
+// ----------------------------------------------------------------------------------------------------
+//		Extrinsic function simulators
+// ----------------------------------------------------------------------------------------------------
+
+// Simulate exstrinsic call `create_asset_vault`, but returning values
+pub fn trait_create_asset_vault(
+	_origin: Origin,
+	vault_config: VaultConfig<AccountId, AssetId>,
+) -> Result<VaultId, DispatchError> {
+	let _account_id = ensure_signed(_origin).unwrap();
+
+	let vault_id =
+		<TokenizedOptions as TokenizedOptionsTrait>::create_asset_vault(vault_config.clone())?;
+
+	TokenizedOptions::deposit_event(pallet::Event::CreatedAssetVault {
+		vault_id,
+		asset_id: vault_config.asset_id,
+	});
+
+	Ok(vault_id)
+}
+
+// Simulate exstrinsic call `create_option`, but returning values
+pub fn trait_create_option(
+	origin: Origin,
+	option_config: OptionConfig<AssetId, Balance, Moment>,
+) -> Result<AssetId, DispatchError> {
+	let _account_id = ensure_signed(origin).unwrap();
+
+	let option_id =
+		<TokenizedOptions as TokenizedOptionsTrait>::create_option(option_config.clone())?;
+
+	TokenizedOptions::deposit_event(pallet::Event::CreatedOption { option_id, option_config });
+
+	Ok(option_id)
 }

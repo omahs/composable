@@ -1,6 +1,8 @@
 //! # Options Pallet
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[allow(unused_imports)]
+#[allow(dead_code)]
 #[cfg(test)]
 mod tests;
 
@@ -33,6 +35,7 @@ pub mod pallet {
 		tokenized_options::*,
 		vault::{CapabilityVault, Deposit as Duration, Vault, VaultConfig},
 	};
+	use frame_support::pallet_prelude::ValueQuery;
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::traits::Hash,
@@ -141,14 +144,10 @@ pub mod pallet {
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionToken<T>>;
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn options_btree)]
-	// pub type OptionHashBTreeSet<T: Config> = StorageMap<
-	// 	_,
-	// 	Blake2_128Concat,
-	// 	BoundedBTreeSet<[u8; 32], T::MaxOptionNumber>,
-	// 	AssetIdOf<T>,
-	// >;
+	#[pallet::storage]
+	#[pallet::getter(fn options_btree)]
+	pub type OptionHashBTreeMap<T: Config> =
+		StorageValue<_, BoundedBTreeMap<[u8; 32], AssetIdOf<T>, T::MaxOptionNumber>, ValueQuery>;
 
 	/// Maps option's hash with the option_id. Used to check if option exists and basically
 	/// all the other searching usecases.
@@ -447,35 +446,41 @@ pub mod pallet {
 			Ok(asset_vault_id)
 		}
 
-		#[transactional]
-		fn do_create_option(
-			option_config: Validated<OptionConfigOf<T>, ValidateOptionDoesNotExist<T>>,
-		) -> Result<AssetIdOf<T>, DispatchError> {
-			// Generate new option_id for the option token
-			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
+		// #[transactional]
+		// fn do_create_option(
+		// 	option_config: Validated<
+		// 		OptionConfigOf<T>,
+		// 		(ValidateOptionDoesNotExist<T>, ValidateOptionAssetVaultsExist<T>),
+		// 	>,
+		// ) -> Result<AssetIdOf<T>, DispatchError> {
+		// 	// Generate new option_id for the option token
+		// 	let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
 
-			let option = OptionToken {
-				base_asset_id: option_config.base_asset_id,
-				quote_asset_id: option_config.quote_asset_id,
-				base_asset_strike_price: option_config.base_asset_strike_price,
-				option_type: option_config.option_type,
-				exercise_type: option_config.exercise_type,
-				expiring_date: option_config.expiring_date,
-				base_asset_amount_per_option: option_config.base_asset_amount_per_option,
-				total_issuance_seller: option_config.total_issuance_seller,
-				total_issuance_buyer: option_config.total_issuance_buyer,
-				epoch: option_config.epoch,
-			};
+		// 	let option = OptionToken {
+		// 		base_asset_id: option_config.base_asset_id,
+		// 		quote_asset_id: option_config.quote_asset_id,
+		// 		base_asset_strike_price: option_config.base_asset_strike_price,
+		// 		option_type: option_config.option_type,
+		// 		exercise_type: option_config.exercise_type,
+		// 		expiring_date: option_config.expiring_date,
+		// 		base_asset_amount_per_option: option_config.base_asset_amount_per_option,
+		// 		total_issuance_seller: option_config.total_issuance_seller,
+		// 		total_issuance_buyer: option_config.total_issuance_buyer,
+		// 		epoch: option_config.epoch,
+		// 	};
 
-			// Add option_id to corresponding option
-			OptionIdToOption::<T>::insert(option_id, option);
+		// 	// Add option_id to corresponding option
+		// 	OptionIdToOption::<T>::insert(option_id, option);
 
-			Ok(option_id)
-		}
+		// 	Ok(option_id)
+		// }
 
 		#[transactional]
 		fn do_create_option_hash(
-			option_config: Validated<OptionConfigOf<T>, ValidateOptionDoesNotExist<T>>,
+			option_config: Validated<
+				OptionConfigOf<T>,
+				(ValidateOptionDoesNotExist<T>, ValidateOptionAssetVaultsExist<T>),
+			>,
 		) -> Result<AssetIdOf<T>, DispatchError> {
 			// Generate new option_id for the option token
 			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
@@ -496,13 +501,49 @@ pub mod pallet {
 			let option_hash = option.generate_id();
 
 			// Add option_id to corresponding option
-			// OptionHashBTreeSet::<T>::insert(option_hash.to_fixed_bytes(), option_id);
-
 			OptionHashToOptionId::<T>::insert(option_hash, option_id);
 			OptionIdToOption::<T>::insert(option_id, option);
 
 			Ok(option_id)
 		}
+
+		// #[transactional]
+		// fn do_create_option_hash_btree(
+		// 	option_config: Validated<
+		// 		OptionConfigOf<T>,
+		// 		(ValidateOptionDoesNotExist<T>, ValidateOptionAssetVaultsExist<T>),
+		// 	>,
+		// ) -> Result<AssetIdOf<T>, DispatchError> {
+		// 	OptionHashBTreeMap::<T>::try_mutate(|btree_map| {
+		// 		// Generate new option_id for the option token
+		// 		let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
+
+		// 		let option = OptionToken::<T> {
+		// 			base_asset_id: option_config.base_asset_id,
+		// 			quote_asset_id: option_config.quote_asset_id,
+		// 			base_asset_strike_price: option_config.base_asset_strike_price,
+		// 			option_type: option_config.option_type,
+		// 			exercise_type: option_config.exercise_type,
+		// 			expiring_date: option_config.expiring_date,
+		// 			base_asset_amount_per_option: option_config.base_asset_amount_per_option,
+		// 			total_issuance_seller: option_config.total_issuance_seller,
+		// 			total_issuance_buyer: option_config.total_issuance_buyer,
+		// 			epoch: option_config.epoch,
+		// 		};
+
+		// 		let option_hash = option.generate_id();
+		// 		let mut new_btree_map = btree_map.clone();
+
+		// 		new_btree_map
+		// 			.insert(option_hash.to_fixed_bytes(), option_id)
+		// 			.ok_or(Error::<T>::UnexpectedError)?;
+
+		// 		Ok(option_id)
+		// 		// OptionHashToOptionId::<T>::insert(option_hash, option_id);
+
+		// 		// OptionIdToOption::<T>::insert(option_id, option);
+		// 	})
+		// }
 
 		#[transactional]
 		fn do_sell_option(

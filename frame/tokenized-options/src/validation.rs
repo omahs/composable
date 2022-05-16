@@ -27,9 +27,9 @@ impl<T: Config> Validate<VaultConfigOf<T>, ValidateVaultDoesNotExist<T>>
 	}
 }
 
-// -----------------------------------------------------------------------------------------------
-//		ValidateOptionDoesNotExist
-// -----------------------------------------------------------------------------------------------
+// // -----------------------------------------------------------------------------------------------
+// //		ValidateOptionDoesNotExist
+// // -----------------------------------------------------------------------------------------------
 
 #[derive(Clone, Copy)]
 pub struct ValidateOptionDoesNotExist<T> {
@@ -67,8 +67,9 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAssetVaultsExist<T>>
 	for ValidateOptionAssetVaultsExist<T>
 {
 	fn validate(input: OptionConfigOf<T>) -> Result<OptionConfigOf<T>, &'static str> {
-		if AssetToVault::<T>::contains_key(input.base_asset_id)
+		if !(AssetToVault::<T>::contains_key(input.base_asset_id)
 			&& AssetToVault::<T>::contains_key(input.quote_asset_id)
+			&& input.base_asset_id != input.quote_asset_id)
 		{
 			return Err("ValidateOptionAssetVaultsExist");
 		}
