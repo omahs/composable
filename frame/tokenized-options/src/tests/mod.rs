@@ -32,8 +32,8 @@ pub mod create_vault;
 struct VaultConfigBuilder {
 	pub asset_id: AssetId,
 	pub manager: AccountId,
-	// pub reserved: Perquintill,
-	// pub strategies: BTreeMap<AccountId, Perquintill>,
+	pub reserved: Perquintill,
+	pub strategies: BTreeMap<AccountId, Perquintill>,
 }
 
 impl Default for VaultConfigBuilder {
@@ -41,8 +41,8 @@ impl Default for VaultConfigBuilder {
 		VaultConfigBuilder {
 			asset_id: BTC::ID,
 			manager: ADMIN,
-			// reserved: Perquintill::one(),
-			// strategies: BTreeMap::new(),
+			reserved: Perquintill::one(),
+			strategies: BTreeMap::new(),
 		}
 	}
 }
@@ -52,18 +52,13 @@ impl VaultConfigBuilder {
 		VaultConfig {
 			asset_id: self.asset_id,
 			manager: self.manager,
-			reserved: Perquintill::one(),
-			strategies: BTreeMap::new(),
+			reserved: self.reserved,
+			strategies: self.strategies,
 		}
 	}
 
 	fn asset_id(mut self, asset: AssetId) -> Self {
 		self.asset_id = asset;
-		self
-	}
-
-	fn manager(mut self, manager: AccountId) -> Self {
-		self.manager = manager;
 		self
 	}
 }
@@ -73,6 +68,8 @@ impl VaultConfigBuilder {
 // ----------------------------------------------------------------------------------------------------
 pub trait VaultInitializer {
 	fn initialize_vaults(self, configs: Vec<VaultConfig<AccountId, AssetId>>) -> Self;
+
+	fn initialize_all_vaults(self) -> Self;
 
 	fn initialize_deposits(self, deposits: Vec<(AssetId, Balance)>) -> Self;
 
@@ -87,6 +84,18 @@ impl VaultInitializer for sp_io::TestExternalities {
 	fn initialize_vaults(mut self, vault_configs: Vec<VaultConfig<AccountId, AssetId>>) -> Self {
 		self.execute_with(|| {
 			vault_configs.iter().for_each(|config| {
+				TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), config.clone()).ok();
+			});
+		});
+
+		self
+	}
+
+	fn initialize_all_vaults(mut self) -> Self {
+		let assets = Vec::from([PICA::ID, BTC::ID, USDC::ID, LAYR::ID, DOT::ID, KSM::ID, ETH::ID]);
+		self.execute_with(|| {
+			assets.iter().for_each(|&asset| {
+				let config = VaultConfigBuilder::default().asset_id(asset).build();
 				TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), config.clone()).ok();
 			});
 		});

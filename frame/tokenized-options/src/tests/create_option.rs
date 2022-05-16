@@ -74,7 +74,7 @@ fn test_create_option_and_emit_event_ext() {
 		// Create option and get option id
 		assert_ok!(TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()));
 
-		// Check option has been created (ID: 3 because first two IDs are used for the vaults lp_tokens)
+		// Check option has been created (ID = 3 because first two IDs are used for the vaults lp_tokens)
 		assert!(OptionIdToOption::<MockRuntime>::contains_key(100000000003u128));
 
 		// Check event is emitted correctly
@@ -85,9 +85,26 @@ fn test_create_option_and_emit_event_ext() {
 	});
 }
 
+#[test]
+fn test_create_option_without_vaults_and_raise_error_ext() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Get default option config
+		let option_config = OptionsConfigBuilder::default().build();
+
+		// Create same option again and check error is raised
+		assert_noop!(
+			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+			Error::<MockRuntime>::OptionAssetVaultsDoNotExist
+		);
+
+		// Check option has not been created
+		assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000001u128));
+	});
+}
+
 /// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not changed
 #[test]
-fn test_create_same_option_and_emit_error() {
+fn test_create_same_option_and_raise_error() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Get BTC and USDC vault config
 		let btc_vault_config = VaultConfigBuilder::default().build();
@@ -129,7 +146,7 @@ fn test_create_same_option_and_emit_error() {
 
 /// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not changed using extrinsic
 #[test]
-fn test_create_same_option_and_emit_error_ext() {
+fn test_create_same_option_and_raise_error_ext() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Get BTC and USDC vault config
 		let btc_vault_config = VaultConfigBuilder::default().build();
@@ -168,49 +185,29 @@ fn test_create_same_option_and_emit_error_ext() {
 	});
 }
 
-/// Create BTC vault, not create USDC vault, create BTC option and check if error is correctly raised
-#[test]
-fn test_create_same_option_and_emit_error_missing_vaults_ext() {
-	ExtBuilder::default().build().execute_with(|| {
-		// Get BTC and USDC vault config
-		let btc_vault_config = VaultConfigBuilder::default().build();
-
-		// Create BTC and USDC vaults
-		assert_ok!(TokenizedOptions::create_asset_vault(
-			Origin::signed(ADMIN),
-			btc_vault_config.clone()
-		));
-
-		// Get default option config
-		let option_config = OptionsConfigBuilder::default().build();
-
-		assert_err!(
-			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
-			Error::<MockRuntime>::OptionAssetVaultsDoNotExist
-		);
-
-		// Check option has been created
-		assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000003u128));
-	});
-}
-
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(50))]
+	#![proptest_config(ProptestConfig::with_cases(10))]
+
 	#[test]
-	fn proptest_create_option(random_attributes in prop_random_option_config_vec()) {
-		ExtBuilder::default().build().execute_with(|| {
-			random_attributes.iter().for_each(|random_attribute|{
+	fn proptest_create_option(random_option_configs in prop_random_option_config_vec()) {
+		ExtBuilder::default().build().initialize_all_vaults().execute_with(|| {
+			random_option_configs.iter().for_each(|option_config|{
 
-				let option_config = OptionsConfigBuilder::default().base_asset_id(random_attribute.0).base_asset_strike_price(random_attribute.1).build();
+				let option_config = OptionsConfigBuilder::default().base_asset_id(option_config.0).base_asset_strike_price(option_config.1).build();
 
-				let option_id = trait_create_option(Origin::signed(ADMIN), option_config.clone()).expect("Error creating option");
+				match trait_create_option(Origin::signed(ADMIN), option_config.clone()) {
+					Ok(option_id) => {
+						assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
 
-				assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
-
-				System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
-					option_id,
-					option_config: option_config.clone(),
-				}));
+						System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
+							option_id,
+							option_config,
+						}));
+					},
+					Err(error) => {
+						assert_eq!(error, DispatchError::from(Error::<MockRuntime>::OptionAssetVaultsDoNotExist));
+					}
+				};
 			})
 		});
 	}

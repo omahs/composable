@@ -446,35 +446,6 @@ pub mod pallet {
 			Ok(asset_vault_id)
 		}
 
-		// #[transactional]
-		// fn do_create_option(
-		// 	option_config: Validated<
-		// 		OptionConfigOf<T>,
-		// 		(ValidateOptionDoesNotExist<T>, ValidateOptionAssetVaultsExist<T>),
-		// 	>,
-		// ) -> Result<AssetIdOf<T>, DispatchError> {
-		// 	// Generate new option_id for the option token
-		// 	let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
-
-		// 	let option = OptionToken {
-		// 		base_asset_id: option_config.base_asset_id,
-		// 		quote_asset_id: option_config.quote_asset_id,
-		// 		base_asset_strike_price: option_config.base_asset_strike_price,
-		// 		option_type: option_config.option_type,
-		// 		exercise_type: option_config.exercise_type,
-		// 		expiring_date: option_config.expiring_date,
-		// 		base_asset_amount_per_option: option_config.base_asset_amount_per_option,
-		// 		total_issuance_seller: option_config.total_issuance_seller,
-		// 		total_issuance_buyer: option_config.total_issuance_buyer,
-		// 		epoch: option_config.epoch,
-		// 	};
-
-		// 	// Add option_id to corresponding option
-		// 	OptionIdToOption::<T>::insert(option_id, option);
-
-		// 	Ok(option_id)
-		// }
-
 		#[transactional]
 		fn do_create_option_hash(
 			option_config: Validated<
