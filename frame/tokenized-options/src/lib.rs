@@ -248,30 +248,25 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		/// At each block we perform timestamp checks to update the Scheduler
-		fn on_idle(_n: T::BlockNumber, _remaining_weight: Weight) -> Weight {
+		fn on_idle(_n: T::BlockNumber, remaining_weight: Weight) -> Weight {
+			let mut used_weight = 0;
 			let now = T::Time::now();
-
-			while let Some((moment_swapped, option_id, option_type)) = <Scheduler<T>>::iter().next()
+			while let Some((moment_swapped, option_id, moment_type)) = <Scheduler<T>>::iter().next()
 			{
+				used_weight = used_weight.saturating_add(T::DbWeight::get().reads(1));
 				let moment = moment_swapped.into_value();
-
 				if now < moment {
-					break
+					break;
 				}
-
 				<Scheduler<T>>::remove(moment_swapped, &option_id);
-
-				match option_type {
-					WindowType::Deposit => Self::option_deposit_start(option_id),
-					WindowType::Purchase => Self::option_purchase_start(option_id),
-					WindowType::Exercise => Self::option_exercise_start(option_id),
-					WindowType::Withdraw => Self::option_withdraw_start(option_id),
-					WindowType::End => Self::option_end(option_id),
+				used_weight = used_weight
+					.saturating_add(T::DbWeight::get().writes(1))
+					.saturating_add(Self::option_state_change(option_id, moment_type));
+				if used_weight >= remaining_weight {
+					break;
 				}
-				.unwrap();
 			}
-
-			10_000
+			used_weight.min(remaining_weight)
 		}
 	}
 
@@ -876,6 +871,36 @@ pub mod pallet {
 
 			let shares_amount = <T::Convert as Convert<u128, T::Balance>>::convert(shares_amount);
 			Ok(shares_amount)
+		}
+
+		fn option_state_change(option_id: AssetIdOf<T>, moment_type: WindowType) -> Weight {
+			match moment_type {
+				WindowType::Deposit => Self::option_deposit_start(option_id),
+				WindowType::Purchase => Self::option_purchase_start(option_id),
+				WindowType::Exercise => Self::option_exercise_start(option_id),
+				WindowType::Withdraw => Self::option_withdraw_start(option_id),
+				WindowType::End => Self::option_end(option_id),
+			}
+		}
+
+		fn option_deposit_start(option_id: AssetIdOf<T>) -> Weight {
+			0
+		}
+
+		fn option_purchase_start(option_id: AssetIdOf<T>) -> Weight {
+			0
+		}
+
+		fn option_exercise_start(option_id: AssetIdOf<T>) -> Weight {
+			0
+		}
+
+		fn option_withdraw_start(option_id: AssetIdOf<T>) -> Weight {
+			0
+		}
+
+		fn option_end(option_id: AssetIdOf<T>) -> Weight {
+			0
 		}
 	}
 }

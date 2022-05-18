@@ -30,24 +30,4 @@ pub trait TokenizedOptions {
 		option_amount: Self::Balance,
 		option: Self::AssetId,
 	) -> Result<(), DispatchError>;
-
-	fn option_deposit_start(option: Self::AssetId) -> Result<(), DispatchError> {
-		Ok(())
-	}
-
-	fn option_purchase_start(option: Self::AssetId) -> Result<(), DispatchError> {
-		Ok(())
-	}
-
-	fn option_exercise_start(option: Self::AssetId) -> Result<(), DispatchError> {
-		Ok(())
-	}
-
-	fn option_withdraw_start(option: Self::AssetId) -> Result<(), DispatchError> {
-		Ok(())
-	}
-
-	fn option_end(option: Self::AssetId) -> Result<(), DispatchError> {
-		Ok(())
-	}
 }
