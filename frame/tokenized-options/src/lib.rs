@@ -149,11 +149,6 @@ pub mod pallet {
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionToken<T>>;
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn options_btree)]
-	// pub type OptionHashBTreeMap<T: Config> =
-	// 	StorageValue<_, BoundedBTreeMap<[u8; 32], AssetIdOf<T>, T::MaxOptionNumber>, ValueQuery>;
-
 	/// Maps option's hash with the option_id. Used to check if option exists and basically
 	/// all the other searching usecases.
 	#[pallet::storage]
@@ -364,7 +359,7 @@ pub mod pallet {
 			option_config: Self::OptionConfig,
 		) -> Result<Self::AssetId, DispatchError> {
 			match Validated::new(option_config) {
-				Ok(validated_option_config) => Self::do_create_option_hash(validated_option_config),
+				Ok(validated_option_config) => Self::do_create_option(validated_option_config),
 				Err(error) => match error {
 					"ValidateOptionDoesNotExist" => {
 						Err(DispatchError::from(Error::<T>::OptionIdAlreadyExists))
@@ -464,7 +459,7 @@ pub mod pallet {
 		}
 
 		#[transactional]
-		fn do_create_option_hash(
+		fn do_create_option(
 			option_config: Validated<
 				OptionConfigOf<T>,
 				(ValidateOptionDoesNotExist<T>, ValidateOptionAssetVaultsExist<T>),
@@ -495,44 +490,6 @@ pub mod pallet {
 			Ok(option_id)
 		}
 
-		// #[transactional]
-		// fn do_create_option_hash_btree(
-		// 	option_config: Validated<
-		// 		OptionConfigOf<T>,
-		// 		(ValidateOptionDoesNotExist<T>, ValidateOptionAssetVaultsExist<T>),
-		// 	>,
-		// ) -> Result<AssetIdOf<T>, DispatchError> {
-		// 	OptionHashBTreeMap::<T>::try_mutate(|btree_map| {
-		// 		// Generate new option_id for the option token
-		// 		let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
-
-		// 		let option = OptionToken::<T> {
-		// 			base_asset_id: option_config.base_asset_id,
-		// 			quote_asset_id: option_config.quote_asset_id,
-		// 			base_asset_strike_price: option_config.base_asset_strike_price,
-		// 			option_type: option_config.option_type,
-		// 			exercise_type: option_config.exercise_type,
-		// 			expiring_date: option_config.expiring_date,
-		// 			base_asset_amount_per_option: option_config.base_asset_amount_per_option,
-		// 			total_issuance_seller: option_config.total_issuance_seller,
-		// 			total_issuance_buyer: option_config.total_issuance_buyer,
-		// 			epoch: option_config.epoch,
-		// 		};
-
-		// 		let option_hash = option.generate_id();
-		// 		let mut new_btree_map = btree_map.clone();
-
-		// 		new_btree_map
-		// 			.insert(option_hash.to_fixed_bytes(), option_id)
-		// 			.ok_or(Error::<T>::UnexpectedError)?;
-
-		// 		Ok(option_id)
-		// 		// OptionHashToOptionId::<T>::insert(option_hash, option_id);
-
-		// 		// OptionIdToOption::<T>::insert(option_id, option);
-		// 	})
-		// }
-
 		#[transactional]
 		fn do_sell_option(
 			from: &AccountIdOf<T>,
@@ -542,11 +499,11 @@ pub mod pallet {
 			let option =
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdDoesNotExists)?;
 
-			// Check if we are in deposit window
-			ensure!(
-				option.epoch.window_type(T::Time::now()).unwrap() == WindowType::Deposit,
-				Error::<T>::NotIntoDepositWindow
-			);
+			// Check if we are in deposit window (not yet implemented)
+			// ensure!(
+			// 	option.epoch.window_type(T::Time::now()).unwrap() == WindowType::Deposit,
+			// 	Error::<T>::NotIntoDepositWindow
+			// );
 
 			// Different behaviors based on Call or Put option
 			let mut asset_id = option.base_asset_id;

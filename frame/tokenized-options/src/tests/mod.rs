@@ -86,10 +86,10 @@ impl VaultInitializer for sp_io::TestExternalities {
 	fn initialize_oracle_prices(mut self) -> Self {
 		let assets_prices: Vec<(AssetId, Balance)> = Vec::from([
 			(USDC::ID, USDC::one()),
-			(BTC::ID, 50_000 * USDC::one()),
-			(DOT::ID, 100 * USDC::one()),
-			(PICA::ID, 1_000 * USDC::one()),
-			(LAYR::ID, 10_000 * USDC::one()),
+			(BTC::ID, 50_000 * BTC::one()),
+			(DOT::ID, 100 * DOT::one()),
+			(PICA::ID, 1_000 * PICA::one()),
+			(LAYR::ID, 10_000 * LAYR::one()),
 		]);
 
 		self.execute_with(|| {
@@ -168,7 +168,7 @@ impl Default for OptionsConfigBuilder {
 		OptionsConfigBuilder {
 			base_asset_id: BTC::ID,
 			quote_asset_id: USDC::ID,
-			base_asset_strike_price: 50000u128,
+			base_asset_strike_price: 50_000u128 * USDC::one(),
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
 			expiring_date: 1u64,
@@ -223,7 +223,7 @@ pub trait OptionInitializer {
 		option_configs: Vec<OptionConfig<AssetId, Balance, Moment>>,
 	) -> Self;
 
-	fn initialize_option_list(self) -> Self;
+	fn initialize_all_options(self) -> Self;
 }
 
 impl OptionInitializer for sp_io::TestExternalities {
@@ -240,29 +240,30 @@ impl OptionInitializer for sp_io::TestExternalities {
 		self
 	}
 
-	fn initialize_option_list(mut self) -> Self {
-		let assets: Vec<AssetId> = Vec::from([BTC::ID, DOT::ID, PICA::ID, LAYR::ID]);
+	fn initialize_all_options(mut self) -> Self {
+		let assets: Vec<(AssetId, u128)> =
+			Vec::from([(BTC::ID, 1u128), (DOT::ID, 1u128), (PICA::ID, 1u128), (LAYR::ID, 1u128)]);
 		assets.iter().for_each(|&asset| {
-			let price = get_oracle_price(asset, USDC::one());
-
-			let config = OptionsConfigBuilder::default()
-				.base_asset_id(asset)
-				.base_asset_strike_price(price)
-				.build();
-
-			let price2 = price.checked_add(price / 10).unwrap();
-			let config2 = OptionsConfigBuilder::default()
-				.base_asset_id(asset)
-				.base_asset_strike_price(price2)
-				.build();
-
-			let price3 = price.checked_sub(price / 10).unwrap();
-			let config3 = OptionsConfigBuilder::default()
-				.base_asset_id(asset)
-				.base_asset_strike_price(price3)
-				.build();
-
 			self.execute_with(|| {
+				let price = get_oracle_price(asset.0, asset.1);
+
+				let config = OptionsConfigBuilder::default()
+					.base_asset_id(asset.0)
+					.base_asset_strike_price(price)
+					.build();
+
+				let price2 = price.checked_add(price / 10).unwrap();
+				let config2 = OptionsConfigBuilder::default()
+					.base_asset_id(asset.0)
+					.base_asset_strike_price(price2)
+					.build();
+
+				let price3 = price.checked_sub(price / 10).unwrap();
+				let config3 = OptionsConfigBuilder::default()
+					.base_asset_id(asset.0)
+					.base_asset_strike_price(price3)
+					.build();
+
 				TokenizedOptions::create_option(Origin::signed(ADMIN), config.clone()).ok();
 				TokenizedOptions::create_option(Origin::signed(ADMIN), config2.clone()).ok();
 				TokenizedOptions::create_option(Origin::signed(ADMIN), config3.clone()).ok();
@@ -287,13 +288,13 @@ pub fn pick_account() -> impl Strategy<Value = AccountId> {
 	prop_oneof![Just(ALICE), Just(BOB), Just(CHARLIE), Just(DAVE), Just(EVEN),]
 }
 
-pub fn get_options_length() -> usize {
+pub fn get_number_of_options() -> usize {
 	OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<AssetId>>().len()
 }
 
 prop_compose! {
 	fn prop_random_option_id()
-		(x in 0..get_options_length()) -> AssetId {
+		(x in 0..get_number_of_options()) -> AssetId {
 			let option_ids: Vec<AssetId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
 			option_ids[x]
 		}
