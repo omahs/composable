@@ -505,6 +505,7 @@ pub mod pallet {
 			// Add option_id to corresponding option
 			OptionHashToOptionId::<T>::insert(option_hash, option_id);
 			OptionIdToOption::<T>::insert(option_id, option);
+			Self::schedule_option(option_config.epoch, option_id);
 
 			Self::deposit_event(Event::CreatedOption {
 				option_id,
@@ -871,6 +872,14 @@ pub mod pallet {
 
 			let shares_amount = <T::Convert as Convert<u128, T::Balance>>::convert(shares_amount);
 			Ok(shares_amount)
+		}
+
+		fn schedule_option(epoch: Epoch<MomentOf<T>>, option_id: AssetIdOf<T>) {
+			<Scheduler<T>>::insert(Swapped::from(epoch.deposit), option_id, WindowType::Deposit);
+			<Scheduler<T>>::insert(Swapped::from(epoch.purchase), option_id, WindowType::Purchase);
+			<Scheduler<T>>::insert(Swapped::from(epoch.exercise), option_id, WindowType::Exercise);
+			<Scheduler<T>>::insert(Swapped::from(epoch.withdraw), option_id, WindowType::Withdraw);
+			<Scheduler<T>>::insert(Swapped::from(epoch.end), option_id, WindowType::End);
 		}
 
 		fn option_state_change(option_id: AssetIdOf<T>, moment_type: WindowType) -> Weight {
