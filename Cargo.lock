@@ -7660,6 +7660,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currency-factory",
  "pallet-governance-registry",
+ "pallet-oracle",
  "pallet-timestamp",
  "pallet-vault",
  "parity-scale-codec",

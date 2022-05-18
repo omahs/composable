@@ -1,8 +1,9 @@
 use crate::mock::currency::defs::*;
 use crate::mock::runtime::{
-	accounts::*, AssetId, Assets, Balance, Moment, Origin, TokenizedOptions, Vault, VaultId,
+	accounts::*, get_oracle_price, set_oracle_price, AssetId, Assets, Balance, MockRuntime, Moment,
+	Origin, TokenizedOptions, Vault, VaultId,
 };
-use crate::pallet::{self, AssetToVault, Error};
+use crate::pallet::{self, AssetToVault, Error, OptionIdToOption};
 use crate::types::*;
 use composable_traits::{
 	tokenized_options::TokenizedOptions as TokenizedOptionsTrait,
@@ -17,14 +18,13 @@ use proptest::{
 	prop_oneof,
 	strategy::{Just, Strategy},
 };
-
 use sp_runtime::DispatchError;
 use sp_runtime::Perquintill;
 use std::collections::BTreeMap;
 
 pub mod create_option;
 pub mod create_vault;
-// pub mod sell_option;
+pub mod sell_option;
 
 // ----------------------------------------------------------------------------------------------------
 //		VaultConfigBuilder
@@ -71,6 +71,8 @@ pub trait VaultInitializer {
 
 	fn initialize_all_vaults(self) -> Self;
 
+	fn initialize_oracle_prices(self) -> Self;
+
 	fn initialize_deposits(self, deposits: Vec<(AssetId, Balance)>) -> Self;
 
 	fn initialize_vaults_with_deposits(
@@ -81,10 +83,18 @@ pub trait VaultInitializer {
 }
 
 impl VaultInitializer for sp_io::TestExternalities {
-	fn initialize_vaults(mut self, vault_configs: Vec<VaultConfig<AccountId, AssetId>>) -> Self {
+	fn initialize_oracle_prices(mut self) -> Self {
+		let assets_prices: Vec<(AssetId, Balance)> = Vec::from([
+			(USDC::ID, USDC::one()),
+			(BTC::ID, 50_000 * USDC::one()),
+			(DOT::ID, 100 * USDC::one()),
+			(PICA::ID, 1_000 * USDC::one()),
+			(LAYR::ID, 10_000 * USDC::one()),
+		]);
+
 		self.execute_with(|| {
-			vault_configs.iter().for_each(|config| {
-				TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), config.clone()).ok();
+			assets_prices.iter().for_each(|&(asset, price)| {
+				set_oracle_price(asset, price);
 			});
 		});
 
@@ -92,10 +102,21 @@ impl VaultInitializer for sp_io::TestExternalities {
 	}
 
 	fn initialize_all_vaults(mut self) -> Self {
-		let assets = Vec::from([PICA::ID, BTC::ID, USDC::ID, LAYR::ID, DOT::ID, KSM::ID, ETH::ID]);
+		let assets = Vec::from([PICA::ID, BTC::ID, USDC::ID, LAYR::ID]);
+
 		self.execute_with(|| {
 			assets.iter().for_each(|&asset| {
 				let config = VaultConfigBuilder::default().asset_id(asset).build();
+				TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), config.clone()).ok();
+			});
+		});
+
+		self
+	}
+
+	fn initialize_vaults(mut self, vault_configs: Vec<VaultConfig<AccountId, AssetId>>) -> Self {
+		self.execute_with(|| {
+			vault_configs.iter().for_each(|config| {
 				TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), config.clone()).ok();
 			});
 		});
@@ -201,6 +222,55 @@ pub trait OptionInitializer {
 		self,
 		option_configs: Vec<OptionConfig<AssetId, Balance, Moment>>,
 	) -> Self;
+
+	fn initialize_option_list(self) -> Self;
+}
+
+impl OptionInitializer for sp_io::TestExternalities {
+	fn initialize_options(
+		mut self,
+		option_configs: Vec<OptionConfig<AssetId, Balance, Moment>>,
+	) -> Self {
+		self.execute_with(|| {
+			option_configs.iter().for_each(|config| {
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config.clone()).ok();
+			});
+		});
+
+		self
+	}
+
+	fn initialize_option_list(mut self) -> Self {
+		let assets: Vec<AssetId> = Vec::from([BTC::ID, DOT::ID, PICA::ID, LAYR::ID]);
+		assets.iter().for_each(|&asset| {
+			let price = get_oracle_price(asset, USDC::one());
+
+			let config = OptionsConfigBuilder::default()
+				.base_asset_id(asset)
+				.base_asset_strike_price(price)
+				.build();
+
+			let price2 = price.checked_add(price / 10).unwrap();
+			let config2 = OptionsConfigBuilder::default()
+				.base_asset_id(asset)
+				.base_asset_strike_price(price2)
+				.build();
+
+			let price3 = price.checked_sub(price / 10).unwrap();
+			let config3 = OptionsConfigBuilder::default()
+				.base_asset_id(asset)
+				.base_asset_strike_price(price3)
+				.build();
+
+			self.execute_with(|| {
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config.clone()).ok();
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config2.clone()).ok();
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config3.clone()).ok();
+			});
+		});
+
+		self
+	}
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -210,18 +280,23 @@ pub trait OptionInitializer {
 pub const VEC_SIZE: usize = 10;
 
 pub fn pick_asset() -> impl Strategy<Value = AssetId> {
-	prop_oneof![
-		Just(PICA::ID),
-		Just(BTC::ID),
-		Just(LAYR::ID),
-		Just(DOT::ID),
-		Just(KSM::ID),
-		Just(ETH::ID),
-	]
+	prop_oneof![Just(PICA::ID), Just(BTC::ID), Just(LAYR::ID), Just(DOT::ID),]
 }
 
 pub fn pick_account() -> impl Strategy<Value = AccountId> {
 	prop_oneof![Just(ALICE), Just(BOB), Just(CHARLIE), Just(DAVE), Just(EVEN),]
+}
+
+pub fn get_options_length() -> usize {
+	OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<AssetId>>().len()
+}
+
+prop_compose! {
+	fn prop_random_option_id()
+		(x in 0..get_options_length()) -> AssetId {
+			let option_ids: Vec<AssetId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
+			option_ids[x]
+		}
 }
 
 prop_compose! {
@@ -256,7 +331,7 @@ prop_compose! {
 prop_compose! {
 	fn prop_random_asset_vec()(
 		assets in prop::collection::vec(pick_asset(), 1..=VEC_SIZE),
-	) -> Vec<AccountId>{
+	) -> Vec<AssetId>{
 		assets
    }
 }
@@ -264,32 +339,8 @@ prop_compose! {
 prop_compose! {
 	fn prop_random_balance_vec()(
 		balances in prop::collection::vec(prop_random_balance(), 1..=VEC_SIZE),
-	) -> Vec<AccountId>{
+	) -> Vec<Balance>{
 		balances
-   }
-}
-
-prop_compose! {
-	fn prop_random_market()(account in prop_random_account(), asset in prop_random_asset(), amount in prop_random_balance(), price in prop_random_balance()) -> (AccountId, AssetId, Balance, Balance){
-		(account, asset, amount, price)
-	}
-}
-
-prop_compose! {
-	fn prop_random_market_vec()(
-		accounts in prop_random_account_vec(),
-		assets in prop_random_asset_vec(),
-		balances in prop_random_balance_vec(),
-		asset_prices in prop_random_balance_vec()
-	) -> Vec<(AccountId, AssetId, Balance, Balance)>{
-		accounts.into_iter()
-			.zip(assets.into_iter())
-			.unique()
-			.zip(balances.into_iter())
-			.unique()
-			.zip(asset_prices.into_iter())
-			.map(|(((account, asset), balance), asset_price)| (account, asset, balance, asset_price))
-			.collect()
    }
 }
 

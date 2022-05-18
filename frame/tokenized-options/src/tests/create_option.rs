@@ -3,7 +3,7 @@ use crate::mock::runtime::{
 	TokenizedOptions,
 };
 use crate::tests::*;
-use crate::{pallet, Error, OptionIdToOption};
+use crate::{pallet, Error, OptionHashToOptionId, OptionIdToOption};
 use frame_support::{assert_err, assert_noop, assert_ok};
 
 use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
@@ -15,7 +15,7 @@ use frame_system::ensure_signed;
 /// Create BTC vault, create BTC option and check if option_id is correctly saved and event emitted
 #[test]
 fn test_create_option_and_emit_event() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
 		// Get BTC and USDC vault config
 		let btc_vault_config = VaultConfigBuilder::default().build();
 		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC::ID).build();
@@ -34,12 +34,22 @@ fn test_create_option_and_emit_event() {
 		// Get BTC option config
 		let option_config = OptionsConfigBuilder::default().build();
 
+		let option_hash = TokenizedOptions::generate_id(
+			option_config.base_asset_id,
+			option_config.base_asset_strike_price,
+			option_config.option_type,
+			option_config.expiring_date,
+		);
+
 		// Create option and get option id
 		let option_id = trait_create_option(Origin::signed(ADMIN), option_config.clone())
 			.expect("Error creating option");
 
 		// Check option has been created
+		assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 		assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
+		let option_id_from_hash = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+		assert_eq!(option_id, option_id_from_hash);
 
 		// Check event is emitted correctly
 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
@@ -52,7 +62,7 @@ fn test_create_option_and_emit_event() {
 /// Create BTC vault, create BTC option and check if vault_id is correctly saved and event emitted using exstrinsic
 #[test]
 fn test_create_option_and_emit_event_ext() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
 		// Get BTC and USDC vault config
 		let btc_vault_config = VaultConfigBuilder::default().build();
 		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC::ID).build();
@@ -87,7 +97,7 @@ fn test_create_option_and_emit_event_ext() {
 
 #[test]
 fn test_create_option_without_vaults_and_raise_error_ext() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
 		// Get default option config
 		let option_config = OptionsConfigBuilder::default().build();
 
@@ -105,7 +115,7 @@ fn test_create_option_without_vaults_and_raise_error_ext() {
 /// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not changed
 #[test]
 fn test_create_same_option_and_raise_error() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
 		// Get BTC and USDC vault config
 		let btc_vault_config = VaultConfigBuilder::default().build();
 		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC::ID).build();
@@ -147,7 +157,7 @@ fn test_create_same_option_and_raise_error() {
 /// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not changed using extrinsic
 #[test]
 fn test_create_same_option_and_raise_error_ext() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
 		// Get BTC and USDC vault config
 		let btc_vault_config = VaultConfigBuilder::default().build();
 		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC::ID).build();
@@ -186,11 +196,11 @@ fn test_create_same_option_and_raise_error_ext() {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(10))]
-
+	#![proptest_config(ProptestConfig::with_cases(20))]
 	#[test]
 	fn proptest_create_option(random_option_configs in prop_random_option_config_vec()) {
-		ExtBuilder::default().build().initialize_all_vaults().execute_with(|| {
+		// Create all the asset vaults before creating options
+		ExtBuilder::default().build().initialize_oracle_prices().initialize_all_vaults().execute_with(|| {
 			random_option_configs.iter().for_each(|option_config|{
 
 				let option_config = OptionsConfigBuilder::default().base_asset_id(option_config.0).base_asset_strike_price(option_config.1).build();

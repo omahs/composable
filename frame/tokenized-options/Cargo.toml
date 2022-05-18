@@ -41,6 +41,8 @@ pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "p
 pallet-currency-factory = { path = "../currency-factory", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
 pallet-vault = { path = "../vault", default-features = false }
+pallet-oracle = { default-features = false,  path = "../oracle" }
+
 proptest = "1.0"
 
 [features]
@@ -55,6 +57,7 @@ std = [
     "sp-core/std",
     "sp-std/std",
     "orml-traits/std",
+    "pallet-oracle/std",
     "codec/std",
     "log/std",
     "scale-info/std",

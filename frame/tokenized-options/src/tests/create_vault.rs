@@ -16,7 +16,7 @@ use frame_support::{assert_err, assert_noop};
 /// Create BTC vault and check if vault_id is correctly saved and event emitted
 #[test]
 fn test_create_vault_and_emit_event() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
 		// Get default vault config
 		let vault_config = VaultConfigBuilder::default().build();
 
@@ -41,7 +41,7 @@ fn test_create_vault_and_emit_event() {
 /// Create BTC vault using extrinsic and check if vault_id is correctly saved and event emitted
 #[test]
 fn test_create_vault_and_emit_event_ext() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
 		let vault_config = VaultConfigBuilder::default().build();
 
 		assert!(!AssetToVault::<MockRuntime>::contains_key(vault_config.asset_id));
@@ -61,7 +61,7 @@ fn test_create_vault_and_emit_event_ext() {
 /// Create BTC vault correctly using exstrinsic and try to create it again, check if error is raised and storage not changed
 #[test]
 fn test_create_same_vault_and_emit_error_ext() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
 		let vault_config = VaultConfigBuilder::default().build();
 
 		assert!(!AssetToVault::<MockRuntime>::contains_key(vault_config.asset_id));
@@ -88,10 +88,10 @@ fn test_create_same_vault_and_emit_error_ext() {
 // TODO: try to create vault with no-admin account and check error raised
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(50))]
+	#![proptest_config(ProptestConfig::with_cases(20))]
 	#[test]
 	fn proptest_create_vault_ext(assets in prop_random_asset_vec()) {
-		ExtBuilder::default().build().execute_with(|| {
+		ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
 			assets.iter().for_each(|&asset| {
 				let vault_config = VaultConfigBuilder::default().asset_id(asset).build();
 

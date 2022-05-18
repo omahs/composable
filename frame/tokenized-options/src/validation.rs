@@ -1,8 +1,10 @@
 use crate::pallet::{
-	AssetToVault, Config, OptionConfigOf, OptionHashToOptionId, Pallet, VaultConfigOf,
+	AssetToVault, Config, OptionConfigOf, OptionHashToOptionId, OracleOf, Pallet, VaultConfigOf,
 };
 
 use composable_support::validation::Validate;
+
+use composable_traits::oracle::Oracle;
 
 use core::marker::PhantomData;
 
@@ -24,6 +26,26 @@ impl<T: Config> Validate<VaultConfigOf<T>, ValidateVaultDoesNotExist<T>>
 		}
 
 		Ok(vault_config)
+	}
+}
+
+// -----------------------------------------------------------------------------------------------
+//		ValidateAssetIsSupported
+// -----------------------------------------------------------------------------------------------
+
+#[derive(Clone, Copy)]
+pub struct ValidateAssetIsSupported<T> {
+	_marker: PhantomData<T>,
+}
+
+impl<T: Config> Validate<VaultConfigOf<T>, ValidateAssetIsSupported<T>>
+	for ValidateAssetIsSupported<T>
+{
+	fn validate(vault_config: VaultConfigOf<T>) -> Result<VaultConfigOf<T>, &'static str> {
+		match OracleOf::<T>::is_supported(vault_config.asset_id) {
+			Ok(_) => Ok(vault_config),
+			Err(_) => return Err("ValidateAssetIsSupported"),
+		}
 	}
 }
 

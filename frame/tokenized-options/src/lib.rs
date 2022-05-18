@@ -31,6 +31,7 @@ pub mod pallet {
 	use composable_traits::{
 		currency::{CurrencyFactory, RangeId},
 		defi::DeFiComposableConfig,
+		oracle::Oracle,
 		swap_bytes::SwapBytes,
 		tokenized_options::*,
 		vault::{CapabilityVault, Deposit as Duration, Vault, VaultConfig},
@@ -86,6 +87,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxOptionNumber: Get<u32>;
 
+		/// Oracle pallet to retrieve prices
+		type Oracle: Oracle<AssetId = Self::MayBeAssetId, Balance = Self::Balance>;
+
 		/// Type of time moment. We use swap_bytes to store this type in big-endian format
 		/// and take advantage of the fact that storage keys are stored in lexical order.
 		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
@@ -125,6 +129,7 @@ pub mod pallet {
 	pub type AssetIdOf<T> = <T as DeFiComposableConfig>::MayBeAssetId;
 	pub type BalanceOf<T> = <T as DeFiComposableConfig>::Balance;
 	pub type MomentOf<T> = <T as Config>::Moment;
+	pub type OracleOf<T> = <T as Config>::Oracle;
 	pub type OptionConfigOf<T> = OptionConfig<AssetIdOf<T>, BalanceOf<T>, MomentOf<T>>;
 	pub type VaultIdOf<T> = <T as Config>::VaultId;
 	pub type VaultOf<T> = <T as Config>::Vault;
@@ -144,10 +149,10 @@ pub mod pallet {
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionToken<T>>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn options_btree)]
-	pub type OptionHashBTreeMap<T: Config> =
-		StorageValue<_, BoundedBTreeMap<[u8; 32], AssetIdOf<T>, T::MaxOptionNumber>, ValueQuery>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn options_btree)]
+	// pub type OptionHashBTreeMap<T: Config> =
+	// 	StorageValue<_, BoundedBTreeMap<[u8; 32], AssetIdOf<T>, T::MaxOptionNumber>, ValueQuery>;
 
 	/// Maps option's hash with the option_id. Used to check if option exists and basically
 	/// all the other searching usecases.
@@ -194,6 +199,7 @@ pub mod pallet {
 		UnexpectedError,
 
 		// Asset vault errors
+		AssetIsNotSupported,
 		AssetVaultDoesNotExists,
 		AssetVaultAlreadyExists,
 
@@ -341,7 +347,15 @@ pub mod pallet {
 		) -> Result<Self::VaultId, DispatchError> {
 			match Validated::new(vault_config) {
 				Ok(validated_vault_config) => Self::do_create_asset_vault(validated_vault_config),
-				Err(_) => Err(DispatchError::from(Error::<T>::AssetVaultAlreadyExists)),
+				Err(error) => match error {
+					"ValidateVaultDoesNotExist" => {
+						Err(DispatchError::from(Error::<T>::AssetVaultAlreadyExists))
+					},
+					"ValidateAssetIsSupported" => {
+						Err(DispatchError::from(Error::<T>::AssetIsNotSupported))
+					},
+					_ => Err(DispatchError::from(Error::<T>::UnexpectedError)),
+				},
 			}
 		}
 
@@ -422,7 +436,10 @@ pub mod pallet {
 
 		#[transactional]
 		fn do_create_asset_vault(
-			config: Validated<VaultConfigOf<T>, ValidateVaultDoesNotExist<T>>,
+			config: Validated<
+				VaultConfigOf<T>,
+				(ValidateVaultDoesNotExist<T>, ValidateAssetIsSupported<T>),
+			>,
 		) -> Result<VaultIdOf<T>, DispatchError> {
 			let asset_id = config.asset_id;
 

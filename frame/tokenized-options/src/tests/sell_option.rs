@@ -1,84 +1,85 @@
-// use crate::mock::runtime::{accounts::*, AssetId, Balance, Origin, TokenizedOptions};
-// use crate::pallet::{self};
-// use crate::tests::*;
+use crate::mock::currency::defs::*;
+use crate::mock::runtime::{
+	accounts::*, AssetId, Balance, Event, ExtBuilder, MockRuntime, Moment, Origin, System,
+	TokenizedOptions,
+};
 
-// use composable_traits::tokenized_options::TokenizedOptions;
-// use frame_system::ensure_signed;
+use crate::pallet::{self, OptionHashToOptionId};
+use crate::tests::*;
 
-// Simulate exstrinsic call `sell_option`, but returning values
-// fn trait_sell_option(_origin: Origin, _amount: Balance, _option_id: AssetId) -> () {
-// 	let account_id = ensure_signed(_origin).unwrap();
-
-// 	// Not yet correctly implemented
-// 	<TokenizedOptions>::sell_option(&account_id, _amount, _option_id).unwrap();
-
-// 	TokenizedOptions::deposit_event(pallet::Event::SellOption {
-// 		seller: account_id,
-// 		option_amount: _amount,
-// 		option_id: _option_id,
-// 	});
-
-// 	()
-// }
+use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
+use frame_system::ensure_signed;
 
 // ----------------------------------------------------------------------------------------------------
 //		Sell/Buy Options Tests
 // ----------------------------------------------------------------------------------------------------
-// #[test]
-// fn test_sell_option_and_emit_event() {
-// 	ExtBuilder::default().build().execute_with(|| {
-// 		let option_btc = OptionsBuilder::default().build();
+#[test]
+fn test_sell_option_and_emit_event() {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
+		// Get BTC and USDC vault config
+		let btc_vault_config = VaultConfigBuilder::default().build();
+		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC::ID).build();
 
-// 		assert_ok!(TokenizedOptions::create_option(Origin::signed(ADMIN), option_btc.clone()));
+		// Create BTC and USDC vaults
+		assert_ok!(TokenizedOptions::create_asset_vault(
+			Origin::signed(ADMIN),
+			btc_vault_config.clone()
+		));
 
-// 		assert!(OptionIdToOption::<MockRuntime>::contains_key(100_000_000_001u128));
+		assert_ok!(TokenizedOptions::create_asset_vault(
+			Origin::signed(ADMIN),
+			usdc_vault_config.clone(),
+		));
 
-// 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
-// 			option_id: 100_000_000_001u128,
-// 			option: option_btc.clone(),
-// 		}));
+		let option_config = OptionsConfigBuilder::default().build();
 
-// 		assert_ok!(TokenizedOptions::sell_option(
-// 			Origin::signed(ADMIN),
-// 			1u128,
-// 			100_000_000_001u128
-// 		));
+		assert_ok!(TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()));
 
-// 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::SellOption {
-// 			option_id: 100_000_000_001u128,
-// 			who: ADMIN,
-// 			amount: 1u128,
-// 		}));
-// 	});
-// }
+		let option_hash = TokenizedOptions::generate_id(
+			option_config.base_asset_id,
+			option_config.base_asset_strike_price,
+			option_config.option_type,
+			option_config.expiring_date,
+		);
+
+		assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+		let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+		assert_ok!(TokenizedOptions::sell_option(Origin::signed(ADMIN), 1u128, option_id));
+
+		System::assert_last_event(Event::TokenizedOptions(pallet::Event::SellOption {
+			seller: ADMIN,
+			option_amount: 1u128,
+			option_id,
+		}));
+	});
+}
 
 // proptest! {
-// 	#![proptest_config(ProptestConfig::with_cases(100))]
+// 	#![proptest_config(ProptestConfig::with_cases(20))]
 // 	#[test]
-// 	fn proptest_sell_option(blockchain_state in generate_blockchain_state()) {
+// 	fn proptest_sell_option(random_option_configs in prop_random_option_config_vec()) {
+// 		// Create all the asset vaults before creating options
+// 		ExtBuilder::default().build().initialize_oracle_prices().initialize_all_vaults().execute_with(|| {
+// 			random_option_configs.iter().for_each(|option_config|{
 
-// 		let balances: Vec<(AccountId, AssetId, Balance)> = blockchain_state.into_iter().map(|(account, asset, balance, price)| (account, asset, balance)).collect();
+// 				let option_config = OptionsConfigBuilder::default().base_asset_id(option_config.0).base_asset_strike_price(option_config.1).build();
 
-// 		ExtBuilder::default().init_balances(balances.clone()).build().execute_with(|| {
+// 				match trait_create_option(Origin::signed(ADMIN), option_config.clone()) {
+// 					Ok(option_id) => {
+// 						assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
 
-// 			// let options: Vec<OptionToken<AssetId, Balance>> = balances.iter().map(|&(_, asset, price)| {
-// 			// 	OptionsBuilder::default().base_asset_id(asset).strike_price(price).build()
-// 			// }).collect();
-
-// 			// options.iter().for_each(|option|{
-// 			// 	assert_ok!(TokenizedOptions::create_option_with_vault(Origin::signed(ADMIN), option.clone()));
-// 			// 	let (option_id, vault_id) =
-// 			// 	trait_create_option_with_vault(Origin::signed(ADMIN), &option);
-
-// 			// 	assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
-// 			// 	assert!(OptionToVault::<MockRuntime>::contains_key(option_id));
-
-// 			// 	System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOptionVault {
-// 			// 		option_id,
-// 			// 		vault_id,
-// 			// 		option: option.clone(),
-// 			// 	}));
-// 			// })
+// 						System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
+// 							option_id,
+// 							option_config,
+// 						}));
+// 					},
+// 					Err(error) => {
+// 						assert_eq!(error, DispatchError::from(Error::<MockRuntime>::OptionAssetVaultsDoNotExist));
+// 					}
+// 				};
+// 			})
 // 		});
 // 	}
 // }
