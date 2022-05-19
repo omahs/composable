@@ -205,6 +205,11 @@ pub mod pallet {
 			option_amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
 		},
+		OptionDepositStart { option_id: AssetIdOf<T> },
+		OptionPurchaseStart { option_id: AssetIdOf<T> },
+		OptionExerciseStart { option_id: AssetIdOf<T> },
+		OptionWithdrawStart { option_id: AssetIdOf<T> },
+		OptionEnd { option_id: AssetIdOf<T> },
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -893,22 +898,27 @@ pub mod pallet {
 		}
 
 		fn option_deposit_start(option_id: AssetIdOf<T>) -> Weight {
+			Self::deposit_event(Event::OptionDepositStart { option_id });
 			0
 		}
 
 		fn option_purchase_start(option_id: AssetIdOf<T>) -> Weight {
+			Self::deposit_event(Event::OptionPurchaseStart { option_id });
 			0
 		}
 
 		fn option_exercise_start(option_id: AssetIdOf<T>) -> Weight {
+			Self::deposit_event(Event::OptionExerciseStart { option_id });
 			0
 		}
 
 		fn option_withdraw_start(option_id: AssetIdOf<T>) -> Weight {
+			Self::deposit_event(Event::OptionWithdrawStart { option_id });
 			0
 		}
 
 		fn option_end(option_id: AssetIdOf<T>) -> Weight {
+			Self::deposit_event(Event::OptionEnd { option_id });
 			0
 		}
 	}
