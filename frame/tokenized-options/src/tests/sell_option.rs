@@ -1,5 +1,6 @@
 use crate::mock::runtime::{
-	Balance, Event, ExtBuilder, MockRuntime, Moment, Origin, System, TokenizedOptions,
+	Assets, Balance, Balances, Event, ExtBuilder, MockRuntime, Moment, Origin, System,
+	TokenizedOptions, Vault,
 };
 
 use crate::mock::accounts::*;
@@ -10,6 +11,7 @@ use crate::tests::*;
 
 use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
 use frame_support::assert_noop;
+use frame_support::traits::fungibles::Inspect;
 use frame_system::ensure_signed;
 
 // ----------------------------------------------------------------------------------------------------
@@ -37,6 +39,7 @@ fn test_sell_option_with_initialization_success() {
 				usdc_vault_config.clone(),
 			));
 
+			// Create default BTC option
 			let option_config = OptionsConfigBuilder::default().build();
 
 			assert_ok!(TokenizedOptions::create_option(
@@ -51,8 +54,10 @@ fn test_sell_option_with_initialization_success() {
 				option_config.expiring_date,
 			);
 
+			// Check creation ended correctly
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
+			// Sell option
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 1u128, option_id));
@@ -62,6 +67,17 @@ fn test_sell_option_with_initialization_success() {
 				option_amount: 1u128,
 				option_id,
 			}));
+
+			// Check user balance after sale is empty
+			assert_eq!(Assets::balance(option_config.base_asset_id, &BOB), 0u128 * 10u128.pow(12));
+
+			// Check vault balance after sale is correct
+			let btc_vault_id = &TokenizedOptions::asset_id_to_vault_id(BTC).unwrap().into();
+
+			assert_eq!(
+				Assets::balance(option_config.base_asset_id, &Vault::account_id(&btc_vault_id)),
+				1u128 * 10u128.pow(12)
+			);
 		});
 }
 
@@ -176,6 +192,18 @@ fn test_sell_option_update_position() {
 
 			assert_eq!(position.option_amount, 4u128);
 			assert_eq!(position.shares_amount, 4u128 * 10u128.pow(12));
+
+			assert_eq!(Balances::free_balance(BOB), 0u128);
+			assert_eq!(
+				Assets::balance(
+					BTC,
+					&Vault::account_id(
+						&TokenizedOptions::asset_id_to_vault_id(BTC).unwrap().into()
+					)
+				),
+				4u128 * 10u128.pow(12)
+			);
+			assert_eq!(Assets::balance(BTC, &BOB), 1u128 * 10u128.pow(12));
 		});
 }
 

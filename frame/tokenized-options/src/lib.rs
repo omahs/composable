@@ -110,6 +110,7 @@ pub mod pallet {
 		type MultiCurrency: Transfer<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
+			+ Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>;
 
 		/// Vault IDs
@@ -401,7 +402,7 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	impl<T: Config> Pallet<T> {
 		/// Protocol account for a particular asset
-		fn account_id(asset: AssetIdOf<T>) -> AccountIdOf<T> {
+		pub fn account_id(asset: AssetIdOf<T>) -> AccountIdOf<T> {
 			T::PalletId::get().into_sub_account(asset)
 		}
 
