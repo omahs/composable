@@ -1,28 +1,30 @@
-use crate::mock::currency::defs::*;
 use crate::mock::runtime::{
-	accounts::*, AssetId, Balance, Event, ExtBuilder, MockRuntime, Moment, Origin, System,
-	TokenizedOptions,
+	Balance, Event, ExtBuilder, MockRuntime, Moment, Origin, System, TokenizedOptions,
 };
 
-use crate::pallet::{self, OptionHashToOptionId};
+use crate::mock::accounts::*;
+use crate::mock::assets::*;
+
+use crate::pallet::{self, OptionHashToOptionId, Sellers};
 use crate::tests::*;
 
 use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
+use frame_support::assert_noop;
 use frame_system::ensure_signed;
 
 // ----------------------------------------------------------------------------------------------------
 //		Sell Options Tests
 // ----------------------------------------------------------------------------------------------------
 #[test]
-fn test_sell_option_and_emit_event() {
+fn test_sell_option_with_initialization_success() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([(ADMIN, BTC::ID, BTC::units(1))]))
+		.initialize_balances(Vec::from([(BOB, BTC, 1 * 10u128.pow(12))]))
 		.build()
 		.initialize_oracle_prices()
 		.execute_with(|| {
 			// Get BTC and USDC vault config
 			let btc_vault_config = VaultConfigBuilder::default().build();
-			let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC::ID).build();
+			let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC).build();
 
 			// Create BTC and USDC vaults
 			assert_ok!(TokenizedOptions::create_asset_vault(
@@ -53,10 +55,10 @@ fn test_sell_option_and_emit_event() {
 
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
-			assert_ok!(TokenizedOptions::sell_option(Origin::signed(ADMIN), 1u128, option_id));
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 1u128, option_id));
 
 			System::assert_last_event(Event::TokenizedOptions(pallet::Event::SellOption {
-				seller: ADMIN,
+				seller: BOB,
 				option_amount: 1u128,
 				option_id,
 			}));
@@ -64,9 +66,9 @@ fn test_sell_option_and_emit_event() {
 }
 
 #[test]
-fn test_sell_option_and_emit_event2() {
+fn test_sell_option_success() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([(ADMIN, BTC::ID, BTC::units(1))]))
+		.initialize_balances(Vec::from([(BOB, BTC, 7 * 10u128.pow(12))]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -85,13 +87,95 @@ fn test_sell_option_and_emit_event2() {
 
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
-			assert_ok!(TokenizedOptions::sell_option(Origin::signed(ADMIN), 1u128, option_id));
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 7u128, option_id));
 
 			System::assert_last_event(Event::TokenizedOptions(pallet::Event::SellOption {
-				seller: ADMIN,
-				option_amount: 1u128,
+				seller: BOB,
+				option_amount: 7u128,
 				option_id,
 			}));
+		});
+}
+
+#[test]
+fn test_sell_option_error_option_not_exists() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([(BOB, BTC, 1 * 10u128.pow(12))]))
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				TokenizedOptions::sell_option(Origin::signed(BOB), 1u128, 10000000000005u128), // Random option_id
+				Error::<MockRuntime>::OptionIdDoesNotExists
+			);
+		});
+}
+
+#[test]
+fn test_sell_option_error_user_has_not_funds() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * 10u128.pow(12))]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_noop!(
+				TokenizedOptions::sell_option(Origin::signed(BOB), 8u128, option_id),
+				Error::<MockRuntime>::UserHasNotEnoughFundsToDeposit
+			);
+		});
+}
+
+#[test]
+fn test_sell_option_update_position() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * 10u128.pow(12))]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 3u128, option_id));
+
+			assert!(Sellers::<MockRuntime>::contains_key(option_id, BOB));
+
+			let position = Sellers::<MockRuntime>::get(option_id, BOB).unwrap();
+
+			assert_eq!(position.option_amount, 3u128);
+			assert_eq!(position.shares_amount, 3u128 * 10u128.pow(12));
+
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 1u128, option_id));
+
+			let position = Sellers::<MockRuntime>::get(option_id, BOB).unwrap();
+
+			assert_eq!(position.option_amount, 4u128);
+			assert_eq!(position.shares_amount, 4u128 * 10u128.pow(12));
 		});
 }
 

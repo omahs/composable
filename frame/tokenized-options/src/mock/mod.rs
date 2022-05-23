@@ -2,4 +2,7 @@
 pub mod runtime;
 
 #[cfg(test)]
-pub mod currency;
+pub mod assets;
+
+#[cfg(test)]
+pub mod accounts;

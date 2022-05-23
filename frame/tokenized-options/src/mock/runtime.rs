@@ -1,6 +1,6 @@
 use crate as pallet_tokenized_options;
-use crate::mock::currency::{defs::*, CurrencyId};
-use accounts::*;
+use crate::mock::accounts::*;
+use crate::mock::assets::*;
 use composable_traits::{defi::DeFiComposableConfig, governance::SignedRawOrigin, oracle::Price};
 use frame_support::traits::GenesisBuild;
 use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId};
@@ -13,43 +13,10 @@ use sp_runtime::{
 };
 
 pub type BlockNumber = u64;
-pub type AssetId = u128;
 pub type Balance = u128;
 pub type VaultId = u64;
 pub type Amount = i128;
 pub type Moment = u64;
-
-pub mod accounts {
-	use hex_literal::hex;
-	use sp_core::sr25519::{Public, Signature};
-	use sp_runtime::traits::{IdentifyAccount, Verify};
-	pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
-	pub static ADMIN: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000000"));
-	pub static ALICE: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000001"));
-	pub static BOB: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000002"));
-	pub static CHARLIE: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000003"));
-	pub static DAVE: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000004"));
-	pub static EVEN: Public =
-		Public(hex!("0000000000000000000000000000000000000000000000000000000000000005"));
-}
-
-// #[allow(dead_code)]
-// pub mod accounts {
-// 	pub type AccountId = u128;
-
-// 	pub static ADMIN: AccountId = 0;
-// 	pub static ALICE: AccountId = 1;
-// 	pub static BOB: AccountId = 2;
-// 	pub static CHARLIE: AccountId = 3;
-// 	pub static DAVE: AccountId = 4;
-// 	pub static EVEN: AccountId = 5;
-// }
 
 // ----------------------------------------------------------------------------------------------------
 //                                             Runtime
@@ -154,7 +121,7 @@ impl pallet_balances::Config for MockRuntime {
 
 impl pallet_currency_factory::Config for MockRuntime {
 	type Event = Event;
-	type AssetId = CurrencyId;
+	type AssetId = AssetId;
 	type AddOrigin = EnsureRoot<AccountId>;
 	type ReserveOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
@@ -165,7 +132,7 @@ impl pallet_currency_factory::Config for MockRuntime {
 // ----------------------------------------------------------------------------------------------------
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		0u128 as Balance
 	};
 }
@@ -174,7 +141,7 @@ impl orml_tokens::Config for MockRuntime {
 	type Event = Event;
 	type Balance = Balance;
 	type Amount = Amount;
-	type CurrencyId = CurrencyId;
+	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
@@ -259,16 +226,14 @@ pub fn get_oracle_price(asset_id: AssetId, amount: Balance) -> Balance {
 // ----------------------------------------------------------------------------------------------------
 
 pub struct GovernanceRegistry;
-impl composable_traits::governance::GovernanceRegistry<CurrencyId, AccountId>
-	for GovernanceRegistry
-{
-	fn set(_k: CurrencyId, _value: composable_traits::governance::SignedRawOrigin<AccountId>) {}
+impl composable_traits::governance::GovernanceRegistry<AssetId, AccountId> for GovernanceRegistry {
+	fn set(_k: AssetId, _value: composable_traits::governance::SignedRawOrigin<AccountId>) {}
 }
 
-impl GetByKey<CurrencyId, Result<SignedRawOrigin<AccountId>, sp_runtime::DispatchError>>
+impl GetByKey<AssetId, Result<SignedRawOrigin<AccountId>, sp_runtime::DispatchError>>
 	for GovernanceRegistry
 {
-	fn get(_k: &CurrencyId) -> Result<SignedRawOrigin<AccountId>, sp_runtime::DispatchError> {
+	fn get(_k: &AssetId) -> Result<SignedRawOrigin<AccountId>, sp_runtime::DispatchError> {
 		Ok(SignedRawOrigin::Root)
 	}
 }
@@ -278,17 +243,17 @@ impl GetByKey<CurrencyId, Result<SignedRawOrigin<AccountId>, sp_runtime::Dispatc
 // ----------------------------------------------------------------------------------------------------
 
 parameter_types! {
-	pub const NativeAssetId: CurrencyId = PICA::ID;
+	pub const NativeAssetId: AssetId = PICA;
 }
 
 ord_parameter_types! {
-	pub const RootAccount: AccountId = accounts::ADMIN;
+	pub const RootAccount: AccountId = ADMIN;
 }
 
 impl pallet_assets::Config for MockRuntime {
 	type NativeAssetId = NativeAssetId;
 	type GenerateCurrencyId = LpTokenFactory;
-	type AssetId = CurrencyId;
+	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeCurrency = Balances;
 	type MultiCurrency = Tokens;
@@ -316,7 +281,7 @@ impl pallet_vault::Config for MockRuntime {
 	type Event = Event;
 	type Balance = Balance;
 	type MaxStrategies = MaxStrategies;
-	type AssetId = CurrencyId;
+	type AssetId = AssetId;
 	type CurrencyFactory = LpTokenFactory;
 	type Convert = ConvertInto;
 	type MinimumDeposit = MinimumDeposit;
@@ -391,7 +356,7 @@ impl ExtBuilder {
 		balances: Vec<(AccountId, AssetId, Balance)>,
 	) -> ExtBuilder {
 		balances.into_iter().for_each(|(account, asset, balance)| {
-			if asset == PICA::ID {
+			if asset == PICA {
 				self.native_balances.push((account, balance));
 			} else {
 				self.balances.push((account, asset, balance));

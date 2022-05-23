@@ -26,6 +26,7 @@ pub mod pallet {
 	use crate::types::*;
 	use crate::validation::*;
 	use crate::weights::*;
+
 	use codec::Codec;
 	use composable_support::validation::Validated;
 	use composable_traits::{
@@ -60,6 +61,7 @@ pub mod pallet {
 		},
 		ArithmeticError, DispatchError, FixedPointNumber, FixedPointOperand, Perquintill,
 	};
+
 	use sp_std::{collections::btree_map::BTreeMap, fmt::Debug};
 
 	// ----------------------------------------------------------------------------------------------------
@@ -111,7 +113,7 @@ pub mod pallet {
 			+ InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>;
 
 		/// Vault IDs
-		type VaultId: Clone + Codec + MaxEncodedLen + Debug + PartialEq + Default + Parameter;
+		type VaultId: Clone + Copy + Codec + MaxEncodedLen + Debug + PartialEq + Default + Parameter;
 
 		/// Vaults to collect collaterals
 		type Vault: CapabilityVault<
@@ -161,9 +163,9 @@ pub mod pallet {
 	pub type Sellers<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		AccountIdOf<T>,
-		Blake2_128Concat,
 		AssetIdOf<T>,
+		Blake2_128Concat,
+		AccountIdOf<T>,
 		SellerPosition<T>,
 		OptionQuery,
 	>;
@@ -266,12 +268,7 @@ pub mod pallet {
 			// Check if it's protocol to call the exstrinsic (TODO)
 			let _from = ensure_signed(origin)?;
 
-			let vault_id = <Self as TokenizedOptions>::create_asset_vault(vault_config.clone())?;
-
-			Self::deposit_event(Event::CreatedAssetVault {
-				vault_id,
-				asset_id: vault_config.asset_id,
-			});
+			<Self as TokenizedOptions>::create_asset_vault(vault_config.clone())?;
 
 			Ok(().into())
 		}
@@ -285,9 +282,7 @@ pub mod pallet {
 			// Check if it's protocol to call the exstrinsic (TODO)
 			let _from = ensure_signed(origin)?;
 
-			let option_id = <Self as TokenizedOptions>::create_option(option_config.clone())?;
-
-			Self::deposit_event(Event::CreatedOption { option_id, option_config });
+			<Self as TokenizedOptions>::create_option(option_config.clone())?;
 
 			Ok(().into())
 		}
@@ -303,8 +298,6 @@ pub mod pallet {
 
 			<Self as TokenizedOptions>::sell_option(&from, option_amount, option_id)?;
 
-			Self::deposit_event(Event::SellOption { seller: from, option_amount, option_id });
-
 			Ok(().into())
 		}
 
@@ -318,8 +311,6 @@ pub mod pallet {
 			let from = ensure_signed(origin)?;
 
 			<Self as TokenizedOptions>::buy_option(&from, option_amount, option_id)?;
-
-			Self::deposit_event(Event::BuyOption { buyer: from, option_amount, option_id });
 
 			Ok(().into())
 		}
@@ -453,7 +444,9 @@ pub mod pallet {
 			)?;
 
 			// Add asset to the corresponding asset vault
-			AssetToVault::<T>::insert(asset_id, &asset_vault_id);
+			AssetToVault::<T>::insert(asset_id, asset_vault_id);
+
+			Self::deposit_event(Event::CreatedAssetVault { vault_id: asset_vault_id, asset_id });
 
 			Ok(asset_vault_id)
 		}
@@ -487,6 +480,11 @@ pub mod pallet {
 			OptionHashToOptionId::<T>::insert(option_hash, option_id);
 			OptionIdToOption::<T>::insert(option_id, option);
 
+			Self::deposit_event(Event::CreatedOption {
+				option_id,
+				option_config: option_config.value(),
+			});
+
 			Ok(option_id)
 		}
 
@@ -507,11 +505,17 @@ pub mod pallet {
 
 			// Different behaviors based on Call or Put option
 			let mut asset_id = option.base_asset_id;
-			let mut asset_amount = option.base_asset_amount_per_option * option_amount;
+			let mut asset_amount = option
+				.base_asset_amount_per_option
+				.checked_mul(&option_amount)
+				.ok_or(ArithmeticError::Overflow)?;
 
 			if option.option_type == OptionType::Put {
 				asset_id = option.quote_asset_id;
-				asset_amount = option.base_asset_strike_price * option_amount;
+				asset_amount = option
+					.base_asset_strike_price
+					.checked_mul(&option_amount)
+					.ok_or(ArithmeticError::Overflow)?;
 			};
 
 			// Get vault_id and protocol account for depositing collateral
@@ -548,14 +552,13 @@ pub mod pallet {
 				asset_amount,
 				true,
 			)?;
+
 			// Protocol account deposits into the vault and keep shares_amount
 			// THIS SHOULD BE DONE AT THE END. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
 			let shares_amount = T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
 
-			Sellers::<T>::try_mutate_exists(
-				from,
-				option_id,
-				|position| -> Result<(), DispatchError> {
+			if Sellers::<T>::contains_key(option_id, from) {
+				Sellers::<T>::try_mutate(option_id, from, |position| -> Result<(), DispatchError> {
 					match position {
 						Some(position) => {
 							// Add option amount to position
@@ -574,17 +577,77 @@ pub mod pallet {
 
 							position.option_amount = new_option_amount;
 							position.shares_amount = new_shares_amount;
+
+							Self::deposit_event(Event::SellOption {
+								seller: from.clone(),
+								option_amount,
+								option_id,
+							});
+
 							Ok(())
 						},
-						None => {
-							let position = SellerPosition { option_amount, shares_amount };
-							Sellers::<T>::insert(from, option_id, position);
-							Ok(())
-						},
+						None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
 					}
-				},
-			)
+				})
+			} else {
+				let position = SellerPosition { option_amount, shares_amount };
+				Sellers::<T>::insert(option_id, from, position);
+
+				Self::deposit_event(Event::SellOption {
+					seller: from.clone(),
+					option_amount,
+					option_id,
+				});
+				Ok(())
+			}
 		}
+
+		// Sellers::<T>::try_mutate_exists(
+		// 	option_id,
+		// 	from,
+		// 	|position| -> Result<(), DispatchError> {
+		// 		match position {
+		// 			Some(position) => {
+		// 				// Add option amount to position
+		// 				// THIS SHOULD BE DONE BEFORE DEPOSIT INTO VAULT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
+		// 				let new_option_amount = position
+		// 					.option_amount
+		// 					.checked_add(&option_amount)
+		// 					.ok_or(ArithmeticError::Overflow)?;
+
+		// 				// Add shares amount to position
+		// 				// THIS SHOULD BE DONE BEFORE DEPOSIT INTO VAULT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
+		// 				let new_shares_amount = position
+		// 					.shares_amount
+		// 					.checked_add(&shares_amount)
+		// 					.ok_or(ArithmeticError::Overflow)?;
+
+		// 				position.option_amount = new_option_amount;
+		// 				position.shares_amount = new_shares_amount;
+
+		// 				Self::deposit_event(Event::SellOption {
+		// 					seller: from.clone(),
+		// 					option_amount,
+		// 					option_id,
+		// 				});
+
+		// 				Ok(())
+		// 			},
+		// 			None => {
+		// 				let position = SellerPosition { option_amount, shares_amount };
+		// 				Sellers::<T>::insert(option_id, from, position);
+
+		// 				Self::deposit_event(Event::SellOption {
+		// 					seller: from.clone(),
+		// 					option_amount,
+		// 					option_id,
+		// 				});
+
+		// 				Ok(())
+		// 			},
+		// 		}
+		// 	},
+		// )
 
 		#[transactional]
 		fn do_buy_option(
@@ -592,6 +655,8 @@ pub mod pallet {
 			option_amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
 		) -> Result<(), DispatchError> {
+			Self::deposit_event(Event::BuyOption { buyer: from.clone(), option_amount, option_id });
+
 			Ok(())
 		}
 	}

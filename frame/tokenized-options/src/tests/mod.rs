@@ -1,7 +1,8 @@
-use crate::mock::currency::defs::*;
+use crate::mock::accounts::*;
+use crate::mock::assets::*;
 use crate::mock::runtime::{
-	accounts::*, get_oracle_price, set_oracle_price, AssetId, Assets, Balance, MockRuntime, Moment,
-	Origin, TokenizedOptions, Vault, VaultId,
+	get_oracle_price, set_oracle_price, Assets, Balance, MockRuntime, Moment, Origin,
+	TokenizedOptions, Vault, VaultId,
 };
 use crate::pallet::{self, AssetToVault, Error, OptionIdToOption};
 use crate::types::*;
@@ -39,7 +40,7 @@ struct VaultConfigBuilder {
 impl Default for VaultConfigBuilder {
 	fn default() -> Self {
 		VaultConfigBuilder {
-			asset_id: BTC::ID,
+			asset_id: BTC,
 			manager: ADMIN,
 			reserved: Perquintill::one(),
 			strategies: BTreeMap::new(),
@@ -84,17 +85,12 @@ pub trait VaultInitializer {
 
 impl VaultInitializer for sp_io::TestExternalities {
 	fn initialize_oracle_prices(mut self) -> Self {
-		let assets_prices: Vec<(AssetId, Balance)> = Vec::from([
-			(USDC::ID, USDC::one()),
-			(BTC::ID, 50_000 * BTC::one()),
-			(DOT::ID, 100 * DOT::one()),
-			(PICA::ID, 1_000 * PICA::one()),
-			(LAYR::ID, 10_000 * LAYR::one()),
-		]);
+		let assets_prices: Vec<(AssetId, Balance)> =
+			Vec::from([(USDC, 1), (BTC, 50_000), (DOT, 100), (PICA, 1_000), (LAYR, 10_000)]);
 
 		self.execute_with(|| {
 			assets_prices.iter().for_each(|&(asset, price)| {
-				set_oracle_price(asset, price);
+				set_oracle_price(asset, price * 10u128.pow(12));
 			});
 		});
 
@@ -102,7 +98,7 @@ impl VaultInitializer for sp_io::TestExternalities {
 	}
 
 	fn initialize_all_vaults(mut self) -> Self {
-		let assets = Vec::from([PICA::ID, BTC::ID, USDC::ID, LAYR::ID]);
+		let assets = Vec::from([PICA, BTC, USDC, LAYR]);
 
 		self.execute_with(|| {
 			assets.iter().for_each(|&asset| {
@@ -166,15 +162,15 @@ struct OptionsConfigBuilder {
 impl Default for OptionsConfigBuilder {
 	fn default() -> Self {
 		OptionsConfigBuilder {
-			base_asset_id: BTC::ID,
-			quote_asset_id: USDC::ID,
-			base_asset_strike_price: 50_000u128 * USDC::one(),
+			base_asset_id: BTC,
+			quote_asset_id: USDC,
+			base_asset_strike_price: 50000u128 * 10u128.pow(12),
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
 			expiring_date: 1u64,
-			base_asset_amount_per_option: 1u128,
-			total_issuance_seller: 10u128,
-			total_issuance_buyer: 10u128,
+			base_asset_amount_per_option: 1u128 * 10u128.pow(12),
+			total_issuance_seller: 0u128,
+			total_issuance_buyer: 0u128,
 			epoch: Epoch {
 				deposit: 1u64,
 				purchase: 1u64,
@@ -211,6 +207,21 @@ impl OptionsConfigBuilder {
 		self.base_asset_strike_price = base_asset_strike_price;
 		self
 	}
+
+	fn option_type(mut self, option_type: OptionType) -> Self {
+		self.option_type = option_type;
+		self
+	}
+
+	fn expiring_date(mut self, expiring_date: Moment) -> Self {
+		self.expiring_date = expiring_date;
+		self
+	}
+
+	fn base_asset_amount_per_option(mut self, base_asset_amount_per_option: Balance) -> Self {
+		self.base_asset_amount_per_option = base_asset_amount_per_option;
+		self
+	}
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -241,26 +252,26 @@ impl OptionInitializer for sp_io::TestExternalities {
 	}
 
 	fn initialize_all_options(mut self) -> Self {
-		let assets: Vec<(AssetId, u128)> =
-			Vec::from([(BTC::ID, 1u128), (DOT::ID, 1u128), (PICA::ID, 1u128), (LAYR::ID, 1u128)]);
+		let assets: Vec<AssetId> = Vec::from([BTC, DOT, PICA, LAYR]);
+
 		assets.iter().for_each(|&asset| {
 			self.execute_with(|| {
-				let price = get_oracle_price(asset.0, asset.1);
+				let price = get_oracle_price(asset, 1);
 
 				let config = OptionsConfigBuilder::default()
-					.base_asset_id(asset.0)
+					.base_asset_id(asset)
 					.base_asset_strike_price(price)
 					.build();
 
 				let price2 = price.checked_add(price / 10).unwrap();
 				let config2 = OptionsConfigBuilder::default()
-					.base_asset_id(asset.0)
+					.base_asset_id(asset)
 					.base_asset_strike_price(price2)
 					.build();
 
 				let price3 = price.checked_sub(price / 10).unwrap();
 				let config3 = OptionsConfigBuilder::default()
-					.base_asset_id(asset.0)
+					.base_asset_id(asset)
 					.base_asset_strike_price(price3)
 					.build();
 
@@ -281,7 +292,7 @@ impl OptionInitializer for sp_io::TestExternalities {
 pub const VEC_SIZE: usize = 10;
 
 pub fn pick_asset() -> impl Strategy<Value = AssetId> {
-	prop_oneof![Just(PICA::ID), Just(BTC::ID), Just(LAYR::ID), Just(DOT::ID),]
+	prop_oneof![Just(PICA), Just(BTC), Just(LAYR), Just(DOT),]
 }
 
 pub fn pick_account() -> impl Strategy<Value = AccountId> {
@@ -376,11 +387,6 @@ pub fn trait_create_asset_vault(
 	let vault_id =
 		<TokenizedOptions as TokenizedOptionsTrait>::create_asset_vault(vault_config.clone())?;
 
-	TokenizedOptions::deposit_event(pallet::Event::CreatedAssetVault {
-		vault_id,
-		asset_id: vault_config.asset_id,
-	});
-
 	Ok(vault_id)
 }
 
@@ -393,8 +399,6 @@ pub fn trait_create_option(
 
 	let option_id =
 		<TokenizedOptions as TokenizedOptionsTrait>::create_option(option_config.clone())?;
-
-	TokenizedOptions::deposit_event(pallet::Event::CreatedOption { option_id, option_config });
 
 	Ok(option_id)
 }
