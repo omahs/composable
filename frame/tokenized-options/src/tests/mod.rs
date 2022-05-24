@@ -30,6 +30,7 @@ pub mod create_option;
 pub mod create_vault;
 pub mod delete_sell_option;
 pub mod sell_option;
+mod time_management;
 
 // ----------------------------------------------------------------------------------------------------
 //		VaultConfigBuilder
@@ -224,6 +225,11 @@ impl OptionsConfigBuilder {
 
 	fn base_asset_amount_per_option(mut self, base_asset_amount_per_option: Balance) -> Self {
 		self.base_asset_amount_per_option = base_asset_amount_per_option;
+		self
+	}
+
+	fn epoch(mut self, epoch: Epoch<Moment>) -> Self {
+		self.epoch = epoch;
 		self
 	}
 }
