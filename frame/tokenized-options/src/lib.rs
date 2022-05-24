@@ -544,33 +544,19 @@ pub mod pallet {
 				Error::<T>::DepositIntoVaultCannotBePerformed
 			);
 
-			// Transfer collateral to protocol account
-			// THIS SHOULD BE DONE AT THE END. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
-			<T as Config>::MultiCurrency::transfer(
-				asset_id,
-				&from,
-				&protocol_account,
-				asset_amount,
-				true,
-			)?;
-
-			// Protocol account deposits into the vault and keep shares_amount
-			// THIS SHOULD BE DONE AT THE END. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
-			let shares_amount = T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
+			let shares_amount = T::Vault::calculate_lp_tokens_to_mint(&vault_id, asset_amount)?;
 
 			if Sellers::<T>::contains_key(option_id, from) {
 				Sellers::<T>::try_mutate(option_id, from, |position| -> Result<(), DispatchError> {
 					match position {
 						Some(position) => {
 							// Add option amount to position
-							// THIS SHOULD BE DONE BEFORE DEPOSIT INTO VAULT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
 							let new_option_amount = position
 								.option_amount
 								.checked_add(&option_amount)
 								.ok_or(ArithmeticError::Overflow)?;
 
 							// Add shares amount to position
-							// THIS SHOULD BE DONE BEFORE DEPOSIT INTO VAULT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
 							let new_shares_amount = position
 								.shares_amount
 								.checked_add(&shares_amount)
@@ -578,6 +564,18 @@ pub mod pallet {
 
 							position.option_amount = new_option_amount;
 							position.shares_amount = new_shares_amount;
+
+							// Transfer collateral to protocol account
+							<T as Config>::MultiCurrency::transfer(
+								asset_id,
+								&from,
+								&protocol_account,
+								asset_amount,
+								true,
+							)?;
+
+							// Protocol account deposits into the vault and receives shares_amount
+							T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
 
 							Self::deposit_event(Event::SellOption {
 								seller: from.clone(),
@@ -593,6 +591,18 @@ pub mod pallet {
 			} else {
 				let position = SellerPosition { option_amount, shares_amount };
 				Sellers::<T>::insert(option_id, from, position);
+
+				// Transfer collateral to protocol account
+				<T as Config>::MultiCurrency::transfer(
+					asset_id,
+					&from,
+					&protocol_account,
+					asset_amount,
+					true,
+				)?;
+
+				// Protocol account deposits into the vault and keep shares_amount
+				T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
 
 				Self::deposit_event(Event::SellOption {
 					seller: from.clone(),
