@@ -29,16 +29,22 @@ fn sell_option_success_checks(
 ) {
 	// Get info before extrinsic for checks
 	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
-	let vault_id = AssetToVault::<MockRuntime>::get(option_config.base_asset_id).unwrap();
+	let mut asset_id = option_config.base_asset_id;
+	let mut asset_amount = option_amount * option_config.base_asset_amount_per_option;
+
+	if option_config.option_type == OptionType::Put {
+		asset_id = option_config.quote_asset_id;
+		asset_amount = option_config.base_asset_strike_price * option_amount;
+	}
+
+	let vault_id = AssetToVault::<MockRuntime>::get(asset_id).unwrap();
 	let lp_token_id = <Vault as VaultTrait>::lp_asset_id(&vault_id).unwrap();
-	let protocol_account = TokenizedOptions::account_id(option_config.base_asset_id);
-	let asset_amount = option_amount * 10u128.pow(12);
+	let protocol_account = TokenizedOptions::account_id(asset_id);
 	let shares_amount =
 		<Vault as VaultTrait>::calculate_lp_tokens_to_mint(&vault_id, asset_amount).unwrap();
 
-	let initial_user_balance = Assets::balance(option_config.base_asset_id, &who);
-	let initial_vault_balance =
-		Assets::balance(option_config.base_asset_id, &Vault::account_id(&vault_id));
+	let initial_user_balance = Assets::balance(asset_id, &who);
+	let initial_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
 	let initial_user_position =
 		Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or(SellerPosition::default());
 
@@ -56,14 +62,11 @@ fn sell_option_success_checks(
 	assert!(Sellers::<MockRuntime>::contains_key(option_id, who));
 
 	// Check seller balance after sale is empty
-	assert_eq!(
-		Assets::balance(option_config.base_asset_id, &who),
-		initial_user_balance - asset_amount
-	);
+	assert_eq!(Assets::balance(asset_id, &who), initial_user_balance - asset_amount);
 
 	// Check vault balance after sale is correct
 	assert_eq!(
-		Assets::balance(option_config.base_asset_id, &Vault::account_id(&vault_id)),
+		Assets::balance(asset_id, &Vault::account_id(&vault_id)),
 		initial_vault_balance + asset_amount
 	);
 
@@ -90,7 +93,10 @@ fn sell_option_success_checks(
 #[test]
 fn test_sell_option_with_initialization_success() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([(BOB, BTC, 1 * 10u128.pow(12))]))
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 1 * 10u128.pow(12)),
+			(BOB, USDC, 50000 * 10u128.pow(12)),
+		]))
 		.build()
 		.initialize_oracle_prices()
 		.execute_with(|| {
@@ -136,7 +142,10 @@ fn test_sell_option_with_initialization_success() {
 #[test]
 fn test_sell_option_success() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([(BOB, BTC, 7 * 10u128.pow(12))]))
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 7 * 10u128.pow(12)),
+			(BOB, USDC, 350000 * 10u128.pow(12)),
+		]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -162,7 +171,10 @@ fn test_sell_option_success() {
 #[test]
 fn test_sell_option_update_position() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([(BOB, BTC, 5 * 10u128.pow(12))]))
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -195,6 +207,8 @@ fn test_sell_option_multiple_users() {
 		.initialize_balances(Vec::from([
 			(ALICE, BTC, 10 * 10u128.pow(12)),
 			(BOB, BTC, 7 * 10u128.pow(12)),
+			(ALICE, USDC, 500000 * 10u128.pow(12)),
+			(BOB, USDC, 350000 * 10u128.pow(12)),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -239,7 +253,10 @@ fn test_sell_option_multiple_users() {
 #[test]
 fn test_sell_option_error_option_not_exists() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([(BOB, BTC, 1 * 10u128.pow(12))]))
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 1 * 10u128.pow(12)),
+			(BOB, USDC, 50000 * 10u128.pow(12)),
+		]))
 		.build()
 		.execute_with(|| {
 			assert_noop!(
@@ -252,7 +269,10 @@ fn test_sell_option_error_option_not_exists() {
 #[test]
 fn test_sell_option_error_user_has_not_enough_funds() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([(BOB, BTC, 5 * 10u128.pow(12))]))
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -278,30 +298,35 @@ fn test_sell_option_error_user_has_not_enough_funds() {
 		});
 }
 
-// proptest! {
-// 	#![proptest_config(ProptestConfig::with_cases(20))]
-// 	#[test]
-// 	fn proptest_sell_option(random_option_configs in prop_random_option_config_vec()) {
-// 		// Create all the asset vaults before creating options
-// 		ExtBuilder::default().build().initialize_oracle_prices().initialize_all_vaults().execute_with(|| {
-// 			random_option_configs.iter().for_each(|option_config|{
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(2))]
+	#[test]
+	fn proptest_sell_option(
+		random_initial_balances in prop_random_initial_balances_vec(),
+		random_seller in prop_random_account_vec(),
+		random_option_amount in prop_random_option_amount_vec(),
+		rng in prop_rng_vec()
+	) {
+		// Create all the asset vaults before creating options
+		ExtBuilder::default()
+		.initialize_balances(random_initial_balances)
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
 
-// 				let option_config = OptionsConfigBuilder::default().base_asset_id(option_config.0).base_asset_strike_price(option_config.1).build();
+			let number_of_options = OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<AssetId>>().len();
+			let option_ids: Vec<AssetId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
 
-// 				match trait_create_option(Origin::signed(ADMIN), option_config.clone()) {
-// 					Ok(option_id) => {
-// 						assert!(OptionIdToOption::<MockRuntime>::contains_key(option_id));
+			(0..VEC_SIZE-1).for_each(|i|{
+				let seller = random_seller[i];
+				let option_amount = random_option_amount[i];
+				let option_id = option_ids[rng[i] % number_of_options];
 
-// 						System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
-// 							option_id,
-// 							option_config,
-// 						}));
-// 					},
-// 					Err(error) => {
-// 						assert_eq!(error, DispatchError::from(Error::<MockRuntime>::OptionAssetVaultsDoNotExist));
-// 					}
-// 				};
-// 			})
-// 		});
-// 	}
-// }
+				println!("option_id: {:?}, seller: {:?}, option_amount: {:?}", option_id, seller, option_amount);
+			})
+
+		});
+	}
+}

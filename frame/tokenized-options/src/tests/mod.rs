@@ -291,24 +291,8 @@ impl OptionInitializer for sp_io::TestExternalities {
 
 pub const VEC_SIZE: usize = 10;
 
-pub fn pick_asset() -> impl Strategy<Value = AssetId> {
-	prop_oneof![Just(PICA), Just(BTC), Just(LAYR), Just(DOT),]
-}
-
 pub fn pick_account() -> impl Strategy<Value = AccountId> {
 	prop_oneof![Just(ALICE), Just(BOB), Just(CHARLIE), Just(DAVE), Just(EVEN),]
-}
-
-pub fn get_number_of_options() -> usize {
-	OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<AssetId>>().len()
-}
-
-prop_compose! {
-	fn prop_random_option_id()
-		(x in 0..get_number_of_options()) -> AssetId {
-			let option_ids: Vec<AssetId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
-			option_ids[x]
-		}
 }
 
 prop_compose! {
@@ -319,10 +303,30 @@ prop_compose! {
 }
 
 prop_compose! {
+	fn prop_random_account_vec()(
+		accounts in prop::collection::vec(pick_account(), VEC_SIZE),
+	) -> Vec<AccountId>{
+		accounts
+   }
+}
+
+pub fn pick_asset() -> impl Strategy<Value = AssetId> {
+	prop_oneof![Just(PICA), Just(BTC), Just(LAYR), Just(DOT),]
+}
+
+prop_compose! {
 	fn prop_random_asset()
 		(x in pick_asset()) -> AssetId {
 			x
 		}
+}
+
+prop_compose! {
+	fn prop_random_asset_vec()(
+		assets in prop::collection::vec(pick_asset(), VEC_SIZE),
+	) -> Vec<AssetId>{
+		assets
+   }
 }
 
 prop_compose! {
@@ -333,26 +337,25 @@ prop_compose! {
 }
 
 prop_compose! {
-	fn prop_random_account_vec()(
-		accounts in prop::collection::vec(pick_account(), 1..=VEC_SIZE),
-	) -> Vec<AccountId>{
-		accounts
-   }
-}
-
-prop_compose! {
-	fn prop_random_asset_vec()(
-		assets in prop::collection::vec(pick_asset(), 1..=VEC_SIZE),
-	) -> Vec<AssetId>{
-		assets
-   }
-}
-
-prop_compose! {
 	fn prop_random_balance_vec()(
-		balances in prop::collection::vec(prop_random_balance(), 1..=VEC_SIZE),
+		balances in prop::collection::vec(prop_random_balance(), VEC_SIZE),
 	) -> Vec<Balance>{
 		balances
+   }
+}
+
+prop_compose! {
+	fn prop_random_initial_balances_vec()(
+		accounts in prop_random_account_vec(),
+		assets in prop_random_asset_vec(),
+		balances in prop_random_balance_vec(),
+	) -> Vec<(AccountId, AssetId, Balance)>{
+		accounts.into_iter()
+			.zip(assets.into_iter())
+			.unique()
+			.zip(balances.into_iter())
+			.map(|((account, asset), balance)| (account, asset, balance))
+			.collect()
    }
 }
 
@@ -370,6 +373,38 @@ prop_compose! {
 			base_asset_ids.into_iter()
 			.zip(base_asset_strike_prices.into_iter())
 			.collect()
+   }
+}
+
+prop_compose! {
+	fn prop_random_option_amount(limit: u128)(
+		s in 1u128..limit
+	) -> u128 {
+		s
+	}
+}
+
+prop_compose! {
+	fn prop_random_option_amount_vec()(
+		amounts in prop::collection::vec(prop_random_option_amount(10u128), VEC_SIZE),
+	) -> Vec<Balance>{
+		amounts
+   }
+}
+
+prop_compose! {
+	fn prop_rng()(
+		rng in any::<usize>()
+	) -> usize {
+		rng
+	}
+}
+
+prop_compose! {
+	fn prop_rng_vec()(
+		rngs in prop::collection::vec(prop_rng(), VEC_SIZE),
+	) -> Vec<usize>{
+		rngs
    }
 }
 

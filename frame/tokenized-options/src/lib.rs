@@ -613,53 +613,6 @@ pub mod pallet {
 			}
 		}
 
-		// Sellers::<T>::try_mutate_exists(
-		// 	option_id,
-		// 	from,
-		// 	|position| -> Result<(), DispatchError> {
-		// 		match position {
-		// 			Some(position) => {
-		// 				// Add option amount to position
-		// 				// THIS SHOULD BE DONE BEFORE DEPOSIT INTO VAULT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
-		// 				let new_option_amount = position
-		// 					.option_amount
-		// 					.checked_add(&option_amount)
-		// 					.ok_or(ArithmeticError::Overflow)?;
-
-		// 				// Add shares amount to position
-		// 				// THIS SHOULD BE DONE BEFORE DEPOSIT INTO VAULT. NOT POSSIBLE RIGHT NOW BUT WILL BE REFACTORED
-		// 				let new_shares_amount = position
-		// 					.shares_amount
-		// 					.checked_add(&shares_amount)
-		// 					.ok_or(ArithmeticError::Overflow)?;
-
-		// 				position.option_amount = new_option_amount;
-		// 				position.shares_amount = new_shares_amount;
-
-		// 				Self::deposit_event(Event::SellOption {
-		// 					seller: from.clone(),
-		// 					option_amount,
-		// 					option_id,
-		// 				});
-
-		// 				Ok(())
-		// 			},
-		// 			None => {
-		// 				let position = SellerPosition { option_amount, shares_amount };
-		// 				Sellers::<T>::insert(option_id, from, position);
-
-		// 				Self::deposit_event(Event::SellOption {
-		// 					seller: from.clone(),
-		// 					option_amount,
-		// 					option_id,
-		// 				});
-
-		// 				Ok(())
-		// 			},
-		// 		}
-		// 	},
-		// )
-
 		#[transactional]
 		fn do_buy_option(
 			from: &AccountIdOf<T>,
