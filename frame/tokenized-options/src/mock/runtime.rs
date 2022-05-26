@@ -312,6 +312,7 @@ impl pallet_tokenized_options::Config for MockRuntime {
 	type WeightInfo = ();
 	type Oracle = Oracle;
 	type Moment = Moment;
+	type Convert = ConvertInto;
 	type Time = Timestamp;
 	type MaxOptionNumber = MaxOptionNumber;
 	type CurrencyFactory = LpTokenFactory;

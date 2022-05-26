@@ -26,6 +26,7 @@ use std::collections::BTreeMap;
 pub mod create_option;
 pub mod create_vault;
 pub mod sell_option;
+pub mod withdraw_deposited_collateral;
 
 // ----------------------------------------------------------------------------------------------------
 //		VaultConfigBuilder
