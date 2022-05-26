@@ -19,6 +19,12 @@ pub trait TokenizedOptions {
 		option_id: Self::AssetId,
 	) -> Result<(), DispatchError>;
 
+	fn withdraw_deposited_collateral(
+		from: &Self::AccountId,
+		option_amount: Self::Balance,
+		option_id: Self::AssetId,
+	) -> Result<(), DispatchError>;
+
 	fn buy_option(
 		from: &Self::AccountId,
 		option_amount: Self::Balance,

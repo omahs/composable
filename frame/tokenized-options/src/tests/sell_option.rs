@@ -298,35 +298,34 @@ fn test_sell_option_error_user_has_not_enough_funds() {
 		});
 }
 
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(2))]
-	#[test]
-	fn proptest_sell_option(
-		random_initial_balances in prop_random_initial_balances_vec(),
-		random_seller in prop_random_account_vec(),
-		random_option_amount in prop_random_option_amount_vec(),
-		rng in prop_rng_vec()
-	) {
-		// Create all the asset vaults before creating options
-		ExtBuilder::default()
-		.initialize_balances(random_initial_balances)
-		.build()
-		.initialize_oracle_prices()
-		.initialize_all_vaults()
-		.initialize_all_options()
-		.execute_with(|| {
+// proptest! {
+// 	#![proptest_config(ProptestConfig::with_cases(2))]
+// 	#[test]
+// 	fn proptest_sell_option(
+// 		random_initial_balances in prop_random_initial_balances_vec(),
+// 		random_seller in prop_random_account_vec(),
+// 		random_option_amount in prop_random_option_amount_vec(),
+// 		rng in prop_rng_vec()
+// 	) {
+// 		ExtBuilder::default()
+// 		.initialize_balances(random_initial_balances)
+// 		.build()
+// 		.initialize_oracle_prices()
+// 		.initialize_all_vaults()
+// 		.initialize_all_options()
+// 		.execute_with(|| {
 
-			let number_of_options = OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<AssetId>>().len();
-			let option_ids: Vec<AssetId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
+// 			let number_of_options = OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<AssetId>>().len();
+// 			let option_ids: Vec<AssetId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
 
-			(0..VEC_SIZE-1).for_each(|i|{
-				let seller = random_seller[i];
-				let option_amount = random_option_amount[i];
-				let option_id = option_ids[rng[i] % number_of_options];
+// 			(0..VEC_SIZE-1).for_each(|i|{
+// 				let seller = random_seller[i];
+// 				let option_amount = random_option_amount[i];
+// 				let option_id = option_ids[rng[i] % number_of_options];
 
-				println!("option_id: {:?}, seller: {:?}, option_amount: {:?}", option_id, seller, option_amount);
-			})
+// 				println!("option_id: {:?}, seller: {:?}, option_amount: {:?}", option_id, seller, option_amount);
+// 			})
 
-		});
-	}
-}
+// 		});
+// 	}
+// }
