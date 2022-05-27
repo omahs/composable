@@ -22,7 +22,7 @@ impl<T: Config> Validate<VaultConfigOf<T>, ValidateVaultDoesNotExist<T>>
 {
 	fn validate(vault_config: VaultConfigOf<T>) -> Result<VaultConfigOf<T>, &'static str> {
 		if AssetToVault::<T>::contains_key(vault_config.asset_id) {
-			return Err("ValidateVaultDoesNotExist");
+			return Err("ValidateVaultDoesNotExist")
 		}
 
 		Ok(vault_config)
@@ -69,7 +69,7 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionDoesNotExist<T>>
 			input.expiring_date,
 		);
 		if OptionHashToOptionId::<T>::contains_key(hash) {
-			return Err("ValidateOptionDoesNotExist");
+			return Err("ValidateOptionDoesNotExist")
 		}
 
 		Ok(input)
@@ -89,11 +89,11 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAssetVaultsExist<T>>
 	for ValidateOptionAssetVaultsExist<T>
 {
 	fn validate(input: OptionConfigOf<T>) -> Result<OptionConfigOf<T>, &'static str> {
-		if !(AssetToVault::<T>::contains_key(input.base_asset_id)
-			&& AssetToVault::<T>::contains_key(input.quote_asset_id)
-			&& input.base_asset_id != input.quote_asset_id)
+		if !(AssetToVault::<T>::contains_key(input.base_asset_id) &&
+			AssetToVault::<T>::contains_key(input.quote_asset_id) &&
+			input.base_asset_id != input.quote_asset_id)
 		{
-			return Err("ValidateOptionAssetVaultsExist");
+			return Err("ValidateOptionAssetVaultsExist")
 		}
 
 		Ok(input)

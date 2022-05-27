@@ -1,10 +1,15 @@
-use crate::mock::accounts::*;
-use crate::mock::assets::*;
-use crate::mock::runtime::{
-	Balance, Event, ExtBuilder, MockRuntime, Moment, Origin, System, TokenizedOptions,
+use crate::{
+	mock::{
+		accounts::*,
+		assets::*,
+		runtime::{
+			Balance, Event, ExtBuilder, MockRuntime, Moment, Origin, System, TokenizedOptions,
+		},
+	},
+	pallet,
+	tests::*,
+	Error, OptionHashToOptionId, OptionIdToOption,
 };
-use crate::tests::*;
-use crate::{pallet, Error, OptionHashToOptionId, OptionIdToOption};
 use frame_support::{assert_err, assert_noop, assert_ok};
 
 use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
@@ -60,7 +65,8 @@ fn test_create_option_success() {
 	});
 }
 
-/// Create BTC vault, create BTC option and check if vault_id is correctly saved and event emitted using exstrinsic
+/// Create BTC vault, create BTC option and check if vault_id is correctly saved and event emitted
+/// using exstrinsic
 #[test]
 fn test_create_option_success_ext() {
 	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
@@ -85,7 +91,8 @@ fn test_create_option_success_ext() {
 		// Create option and get option id
 		assert_ok!(TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()));
 
-		// Check option has been created (ID = 3 because first two IDs are used for the vaults lp_tokens)
+		// Check option has been created (ID = 3 because first two IDs are used for the vaults
+		// lp_tokens)
 		assert!(OptionIdToOption::<MockRuntime>::contains_key(100000000003u128));
 
 		// Check event is emitted correctly
@@ -113,7 +120,8 @@ fn test_create_option_error_vaults_not_exist_ext() {
 	});
 }
 
-/// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not changed
+/// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not
+/// changed
 #[test]
 fn test_create_option_error_option_already_exists() {
 	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
@@ -155,7 +163,8 @@ fn test_create_option_error_option_already_exists() {
 	});
 }
 
-/// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not changed using extrinsic
+/// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not
+/// changed using extrinsic
 #[test]
 fn test_create_option_error_option_already_exists_ext() {
 	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
@@ -199,8 +208,8 @@ fn test_create_option_error_option_already_exists_ext() {
 // TODO: create option with no-admin account and check error raised
 
 // TODO: implement validation of various option attributes and make tests
-//		- base_asset != quote_asset and are both supported by oracle
-//		- timestamps (expiry date, epoch windows, etc) are not in the past (or other useful checks)
+// 		- base_asset != quote_asset and are both supported by oracle
+// 		- timestamps (expiry date, epoch windows, etc) are not in the past (or other useful checks)
 // 		- total issuances for sale and buy are 0 at the start
 
 proptest! {

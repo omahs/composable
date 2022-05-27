@@ -3,17 +3,18 @@ use crate::mock::runtime::{
 	TokenizedOptions, Vault,
 };
 
-use crate::mock::accounts::*;
-use crate::mock::assets::*;
+use crate::mock::{accounts::*, assets::*};
 
-use crate::pallet::{self, OptionHashToOptionId, Sellers};
-use crate::tests::*;
+use crate::{
+	pallet::{self, OptionHashToOptionId, Sellers},
+	tests::*,
+};
 
-use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
-use composable_traits::vault::Vault as VaultTrait;
+use composable_traits::{
+	tokenized_options::TokenizedOptions as TokenizedOptionsTrait, vault::Vault as VaultTrait,
+};
 
-use frame_support::assert_noop;
-use frame_support::traits::fungibles::Inspect;
+use frame_support::{assert_noop, traits::fungibles::Inspect};
 use frame_system::ensure_signed;
 use sp_core::{sr25519::Public, H256};
 
@@ -21,7 +22,7 @@ use sp_core::{sr25519::Public, H256};
 //		Sell Options Tests
 // ----------------------------------------------------------------------------------------------------
 
-fn sell_option_success_checks(
+pub fn sell_option_success_checks(
 	option_hash: H256,
 	option_config: OptionConfig<AssetId, Balance, Moment>,
 	option_amount: Balance,
@@ -43,6 +44,8 @@ fn sell_option_success_checks(
 	let shares_amount =
 		<Vault as VaultTrait>::calculate_lp_tokens_to_mint(&vault_id, asset_amount).unwrap();
 
+	let initial_issuance_seller =
+		OptionIdToOption::<MockRuntime>::get(option_id).unwrap().total_issuance_seller;
 	let initial_user_balance = Assets::balance(asset_id, &who);
 	let initial_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
 	let initial_user_position =
@@ -88,6 +91,13 @@ fn sell_option_success_checks(
 		updated_user_position.shares_amount,
 		initial_user_position.shares_amount + shares_amount,
 	);
+
+	// Check position is updated correctly
+	let updated_issuance_seller = OptionIdToOption::<MockRuntime>::try_get(option_id)
+		.unwrap()
+		.total_issuance_seller;
+
+	assert_eq!(updated_issuance_seller, initial_issuance_seller + option_amount)
 }
 
 #[test]
@@ -315,8 +325,9 @@ fn test_sell_option_error_user_has_not_enough_funds() {
 // 		.initialize_all_options()
 // 		.execute_with(|| {
 
-// 			let number_of_options = OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<AssetId>>().len();
-// 			let option_ids: Vec<AssetId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
+// 			let number_of_options =
+// OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<AssetId>>().len(); 			let option_ids:
+// Vec<AssetId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
 
 // 			(0..VEC_SIZE-1).for_each(|i|{
 // 				let seller = random_seller[i];

@@ -23,9 +23,7 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Imports and Dependencies
 	// ----------------------------------------------------------------------------------------------------
-	use crate::types::*;
-	use crate::validation::*;
-	use crate::weights::*;
+	use crate::{types::*, validation::*, weights::*};
 
 	use codec::Codec;
 	use composable_support::validation::Validated;
@@ -37,12 +35,10 @@ pub mod pallet {
 		tokenized_options::*,
 		vault::{CapabilityVault, Deposit as Duration, Vault, VaultConfig},
 	};
-	use frame_support::pallet_prelude::ValueQuery;
 	use frame_support::{
-		pallet_prelude::*,
+		pallet_prelude::{ValueQuery, *},
 		sp_runtime::traits::Hash,
-		storage::bounded_btree_map::BoundedBTreeMap,
-		storage::bounded_btree_set::BoundedBTreeSet,
+		storage::{bounded_btree_map::BoundedBTreeMap, bounded_btree_set::BoundedBTreeSet},
 		traits::{
 			fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
 			fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
@@ -53,12 +49,11 @@ pub mod pallet {
 
 	use frame_system::{ensure_signed, pallet_prelude::*};
 	use sp_core::H256;
-	use sp_runtime::traits::BlakeTwo256;
 	use sp_runtime::{
 		helpers_128bit::multiply_by_rational,
 		traits::{
-			AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, CheckedDiv,
-			CheckedMul, CheckedSub, Convert, One, Saturating, Zero,
+			AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, BlakeTwo256, CheckedAdd,
+			CheckedDiv, CheckedMul, CheckedSub, Convert, One, Saturating, Zero,
 		},
 		ArithmeticError, DispatchError, FixedPointNumber, FixedPointOperand, Perquintill,
 	};
@@ -199,7 +194,7 @@ pub mod pallet {
 			option_amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
 		},
-		WithdrawDepositedCollateral {
+		DeleteSellOption {
 			seller: AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
@@ -259,7 +254,7 @@ pub mod pallet {
 				let moment = moment.swap_bytes();
 
 				if now < moment {
-					break;
+					break
 				}
 
 				<Scheduler<T>>::remove(&moment, &option_id);
@@ -331,18 +326,14 @@ pub mod pallet {
 
 		/// Withdraw collateral provided when selling an option
 		#[pallet::weight(<T as Config>::WeightInfo::sell_option())]
-		pub fn withdraw_deposited_collateral(
+		pub fn delete_sell_option(
 			origin: OriginFor<T>,
 			option_amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 
-			<Self as TokenizedOptions>::withdraw_deposited_collateral(
-				&from,
-				option_amount,
-				option_id,
-			)?;
+			<Self as TokenizedOptions>::delete_sell_option(&from, option_amount, option_id)?;
 
 			Ok(().into())
 		}
@@ -380,12 +371,10 @@ pub mod pallet {
 			match Validated::new(vault_config) {
 				Ok(validated_vault_config) => Self::do_create_asset_vault(validated_vault_config),
 				Err(error) => match error {
-					"ValidateVaultDoesNotExist" => {
-						Err(DispatchError::from(Error::<T>::AssetVaultAlreadyExists))
-					},
-					"ValidateAssetIsSupported" => {
-						Err(DispatchError::from(Error::<T>::AssetIsNotSupported))
-					},
+					"ValidateVaultDoesNotExist" =>
+						Err(DispatchError::from(Error::<T>::AssetVaultAlreadyExists)),
+					"ValidateAssetIsSupported" =>
+						Err(DispatchError::from(Error::<T>::AssetIsNotSupported)),
 					_ => Err(DispatchError::from(Error::<T>::UnexpectedError)),
 				},
 			}
@@ -398,12 +387,10 @@ pub mod pallet {
 			match Validated::new(option_config) {
 				Ok(validated_option_config) => Self::do_create_option(validated_option_config),
 				Err(error) => match error {
-					"ValidateOptionDoesNotExist" => {
-						Err(DispatchError::from(Error::<T>::OptionIdAlreadyExists))
-					},
-					"ValidateOptionAssetVaultsExist" => {
-						Err(DispatchError::from(Error::<T>::OptionAssetVaultsDoNotExist))
-					},
+					"ValidateOptionDoesNotExist" =>
+						Err(DispatchError::from(Error::<T>::OptionIdAlreadyExists)),
+					"ValidateOptionAssetVaultsExist" =>
+						Err(DispatchError::from(Error::<T>::OptionAssetVaultsDoNotExist)),
 					_ => Err(DispatchError::from(Error::<T>::UnexpectedError)),
 				},
 			}
@@ -426,7 +413,7 @@ pub mod pallet {
 		}
 
 		/// Sell an option providing collateral
-		fn withdraw_deposited_collateral(
+		fn delete_sell_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
 			option_id: Self::AssetId,
@@ -436,7 +423,7 @@ pub mod pallet {
 				Error::<T>::OptionIdDoesNotExists
 			);
 
-			Self::do_withdraw_deposited_collateral(&from, option_amount, option_id)?;
+			Self::do_delete_sell_option(&from, option_amount, option_id)?;
 
 			Ok(())
 		}
@@ -588,47 +575,52 @@ pub mod pallet {
 			let shares_amount = T::Vault::calculate_lp_tokens_to_mint(&vault_id, asset_amount)?;
 
 			if Sellers::<T>::contains_key(option_id, from) {
-				Sellers::<T>::try_mutate(option_id, from, |position| -> Result<(), DispatchError> {
-					match position {
-						Some(position) => {
-							// Add option amount to position
-							let new_option_amount = position
-								.option_amount
-								.checked_add(&option_amount)
-								.ok_or(ArithmeticError::Overflow)?;
+				Sellers::<T>::try_mutate(
+					option_id,
+					from,
+					|position| -> Result<(), DispatchError> {
+						match position {
+							Some(position) => {
+								// Add option amount to position
+								let new_option_amount = position
+									.option_amount
+									.checked_add(&option_amount)
+									.ok_or(ArithmeticError::Overflow)?;
 
-							// Add shares amount to position
-							let new_shares_amount = position
-								.shares_amount
-								.checked_add(&shares_amount)
-								.ok_or(ArithmeticError::Overflow)?;
+								// Add shares amount to position
+								let new_shares_amount = position
+									.shares_amount
+									.checked_add(&shares_amount)
+									.ok_or(ArithmeticError::Overflow)?;
 
-							position.option_amount = new_option_amount;
-							position.shares_amount = new_shares_amount;
+								position.option_amount = new_option_amount;
+								position.shares_amount = new_shares_amount;
 
-							// Transfer collateral to protocol account
-							<T as Config>::MultiCurrency::transfer(
-								asset_id,
-								&from,
-								&protocol_account,
-								asset_amount,
-								true,
-							)?;
+								// Transfer collateral to protocol account
+								<T as Config>::MultiCurrency::transfer(
+									asset_id,
+									&from,
+									&protocol_account,
+									asset_amount,
+									true,
+								)?;
 
-							// Protocol account deposits into the vault and receives shares_amount
-							T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
+								// Protocol account deposits into the vault and receives
+								// shares_amount
+								T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
 
-							Self::deposit_event(Event::SellOption {
-								seller: from.clone(),
-								option_amount,
-								option_id,
-							});
+								Self::deposit_event(Event::SellOption {
+									seller: from.clone(),
+									option_amount,
+									option_id,
+								});
 
-							Ok(())
-						},
-						None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
-					}
-				})
+								Ok(())
+							},
+							None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
+						}
+					},
+				)?;
 			} else {
 				let position = SellerPosition { option_amount, shares_amount };
 				Sellers::<T>::insert(option_id, from, position);
@@ -650,12 +642,28 @@ pub mod pallet {
 					option_amount,
 					option_id,
 				});
-				Ok(())
 			}
+
+			OptionIdToOption::<T>::try_mutate(option_id, |option| {
+				match option {
+					Some(option) => {
+						// Add option amount to position
+						let new_total_issuance_seller = option
+							.total_issuance_seller
+							.checked_add(&option_amount)
+							.ok_or(ArithmeticError::Overflow)?;
+
+						option.total_issuance_seller = new_total_issuance_seller;
+
+						Ok(())
+					},
+					None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
+				}
+			})
 		}
 
 		#[transactional]
-		fn do_withdraw_deposited_collateral(
+		fn do_delete_sell_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
@@ -731,70 +739,90 @@ pub mod pallet {
 			);
 
 			if shares_amount != seller_position.shares_amount {
-				Sellers::<T>::try_mutate(option_id, from, |position| -> Result<(), DispatchError> {
-					match position {
-						Some(position) => {
-							// Add option amount to position
-							let new_option_amount = position
-								.option_amount
-								.checked_sub(&option_amount)
-								.ok_or(ArithmeticError::Overflow)?;
+				Sellers::<T>::try_mutate(
+					option_id,
+					from,
+					|position| -> Result<(), DispatchError> {
+						match position {
+							Some(position) => {
+								// Add option amount to position
+								let new_option_amount = position
+									.option_amount
+									.checked_sub(&option_amount)
+									.ok_or(ArithmeticError::Overflow)?;
 
-							// Add shares amount to position
-							let new_shares_amount = position
-								.shares_amount
-								.checked_sub(&shares_amount)
-								.ok_or(ArithmeticError::Overflow)?;
+								// Add shares amount to position
+								let new_shares_amount = position
+									.shares_amount
+									.checked_sub(&shares_amount)
+									.ok_or(ArithmeticError::Overflow)?;
 
-							position.option_amount = new_option_amount;
-							position.shares_amount = new_shares_amount;
+								position.option_amount = new_option_amount;
+								position.shares_amount = new_shares_amount;
 
-							// Protocol account deposits into the vault and receives shares_amount
-							T::Vault::withdraw(&vault_id, &protocol_account, shares_amount)?;
+								// Protocol account deposits into the vault and receives
+								// shares_amount
+								T::Vault::withdraw(&vault_id, &protocol_account, shares_amount)?;
 
-							// Transfer collateral to protocol account
-							<T as Config>::MultiCurrency::transfer(
-								asset_id,
-								&protocol_account,
-								&from,
-								asset_amount,
-								true,
-							)?;
+								// Transfer collateral to protocol account
+								<T as Config>::MultiCurrency::transfer(
+									asset_id,
+									&protocol_account,
+									&from,
+									asset_amount,
+									true,
+								)?;
 
-							Self::deposit_event(Event::WithdrawDepositedCollateral {
-								seller: from.clone(),
-								option_amount,
-								option_id,
-							});
+								Self::deposit_event(Event::DeleteSellOption {
+									seller: from.clone(),
+									option_amount,
+									option_id,
+								});
 
-							Ok(())
-						},
-						None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
-					}
-				})
+								Ok(())
+							},
+							None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
+						}
+					},
+				)?;
 			} else {
-				let position = SellerPosition { option_amount, shares_amount };
-				Sellers::<T>::insert(option_id, from, position);
+				Sellers::<T>::remove(option_id, from);
+
+				// Protocol account deposits into the vault and receives shares_amount
+				T::Vault::withdraw(&vault_id, &protocol_account, shares_amount)?;
 
 				// Transfer collateral to protocol account
 				<T as Config>::MultiCurrency::transfer(
 					asset_id,
-					&from,
 					&protocol_account,
+					&from,
 					asset_amount,
 					true,
 				)?;
 
-				// Protocol account deposits into the vault and keep shares_amount
-				T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
-
-				Self::deposit_event(Event::SellOption {
+				Self::deposit_event(Event::DeleteSellOption {
 					seller: from.clone(),
 					option_amount,
 					option_id,
 				});
-				Ok(())
 			}
+
+			OptionIdToOption::<T>::try_mutate(option_id, |option| {
+				match option {
+					Some(option) => {
+						// Add option amount to position
+						let new_total_issuance_seller = option
+							.total_issuance_seller
+							.checked_sub(&option_amount)
+							.ok_or(ArithmeticError::Overflow)?;
+
+						option.total_issuance_seller = new_total_issuance_seller;
+
+						Ok(())
+					},
+					None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
+				}
+			})
 		}
 
 		#[transactional]

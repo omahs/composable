@@ -576,7 +576,7 @@ pub mod pallet {
 					<frame_system::Pallet<T>>::block_number(),
 					vault.deposit,
 				) {
-					return Err(Error::<T>::TombstoneDurationNotExceeded.into());
+					return Err(Error::<T>::TombstoneDurationNotExceeded.into())
 				} else {
 					let deletion_reward_account = &Self::deletion_reward_account(dest);
 					let reward =
@@ -842,8 +842,8 @@ pub mod pallet {
 			let lp = Self::do_calculate_lp_tokens_to_mint(&vault_id, &vault, amount)?;
 
 			ensure!(
-				T::Currency::can_deposit(vault.lp_token_id, from, lp)
-					== DepositConsequence::Success,
+				T::Currency::can_deposit(vault.lp_token_id, from, lp) ==
+					DepositConsequence::Success,
 				Error::<T>::MintFailed
 			);
 
@@ -958,9 +958,8 @@ pub mod pallet {
 			config: VaultConfig<Self::AccountId, Self::AssetId>,
 		) -> Result<Self::VaultId, DispatchError> {
 			match Validated::new(config) {
-				Ok(validated_config) => {
-					Self::do_create_vault(deposit, validated_config).map(|(id, _)| id)
-				},
+				Ok(validated_config) =>
+					Self::do_create_vault(deposit, validated_config).map(|(id, _)| id),
 				Err(_) => Err(DispatchError::from(Error::<T>::TooManyStrategies)),
 			}
 		}

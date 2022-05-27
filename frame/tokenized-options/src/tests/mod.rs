@@ -1,11 +1,15 @@
-use crate::mock::accounts::*;
-use crate::mock::assets::*;
-use crate::mock::runtime::{
-	get_oracle_price, set_oracle_price, Assets, Balance, MockRuntime, Moment, Origin,
-	TokenizedOptions, Vault, VaultId,
+use crate::{
+	mock::{
+		accounts::*,
+		assets::*,
+		runtime::{
+			get_oracle_price, set_oracle_price, Assets, Balance, MockRuntime, Moment, Origin,
+			TokenizedOptions, Vault, VaultId,
+		},
+	},
+	pallet::{self, AssetToVault, Error, OptionIdToOption},
+	types::*,
 };
-use crate::pallet::{self, AssetToVault, Error, OptionIdToOption};
-use crate::types::*;
 use composable_traits::{
 	tokenized_options::TokenizedOptions as TokenizedOptionsTrait,
 	vault::{Vault as VaultTrait, VaultConfig},
@@ -19,14 +23,13 @@ use proptest::{
 	prop_oneof,
 	strategy::{Just, Strategy},
 };
-use sp_runtime::DispatchError;
-use sp_runtime::Perquintill;
+use sp_runtime::{DispatchError, Perquintill};
 use std::collections::BTreeMap;
 
 pub mod create_option;
 pub mod create_vault;
+pub mod delete_sell_option;
 pub mod sell_option;
-pub mod withdraw_deposited_collateral;
 
 // ----------------------------------------------------------------------------------------------------
 //		VaultConfigBuilder

@@ -1,9 +1,11 @@
 use crate as pallet_tokenized_options;
-use crate::mock::accounts::*;
-use crate::mock::assets::*;
+use crate::mock::{accounts::*, assets::*};
 use composable_traits::{defi::DeFiComposableConfig, governance::SignedRawOrigin, oracle::Price};
-use frame_support::traits::GenesisBuild;
-use frame_support::{ord_parameter_types, parameter_types, traits::Everything, PalletId};
+use frame_support::{
+	ord_parameter_types, parameter_types,
+	traits::{Everything, GenesisBuild},
+	PalletId,
+};
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use sp_core::{sr25519::Signature, H256};

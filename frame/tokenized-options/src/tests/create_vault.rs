@@ -1,10 +1,12 @@
-use crate::mock::accounts::*;
-use crate::mock::assets::*;
-use crate::mock::runtime::{
-	Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions, VaultId,
+use crate::{
+	mock::{
+		accounts::*,
+		assets::*,
+		runtime::{Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions, VaultId},
+	},
+	pallet::{self, AssetToVault, Error},
+	tests::*,
 };
-use crate::pallet::{self, AssetToVault, Error};
-use crate::tests::*;
 use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
 use frame_system::ensure_signed;
 
@@ -64,7 +66,8 @@ fn test_create_vault_success_ext() {
 	});
 }
 
-/// Create BTC vault using exstrinsic; try to create it again; check if error is raised and storage not changed
+/// Create BTC vault using exstrinsic; try to create it again; check if error is raised and storage
+/// not changed
 #[test]
 fn test_create_vault_error_vault_already_exists_ext() {
 	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {

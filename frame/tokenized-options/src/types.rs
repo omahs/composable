@@ -2,8 +2,7 @@ use crate::Config;
 use frame_support::pallet_prelude::*;
 
 use sp_core::H256;
-use sp_runtime::traits::BlakeTwo256;
-use sp_runtime::traits::Hash;
+use sp_runtime::traits::{BlakeTwo256, Hash};
 use sp_std::fmt::Debug;
 
 // ----------------------------------------------------------------------------------------------------
@@ -65,7 +64,8 @@ impl<Moment: Ord> Epoch<Moment> {
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
 pub struct OptionToken<T: Config> {
-	// Core attributes of an option, used to uniquely identify an option. quote_asset_id and its price will be added
+	// Core attributes of an option, used to uniquely identify an option. quote_asset_id and its
+	// price will be added
 	pub base_asset_id: T::MayBeAssetId,
 	pub base_asset_strike_price: T::Balance,
 	pub option_type: OptionType,
@@ -78,8 +78,9 @@ pub struct OptionToken<T: Config> {
 	pub total_issuance_seller: T::Balance,
 	pub total_issuance_buyer: T::Balance,
 	pub epoch: Epoch<T::Moment>,
-	// pub quote_asset_amount_per_option: Balance, // Assume stablecoin as quote asset right now, so always 1
-	// pub quote_asset_strike_price: Balance, // Assume stablecoin as quote asset right now, so always 1
+	// pub quote_asset_amount_per_option: Balance, // Assume stablecoin as quote asset right now,
+	// so always 1 pub quote_asset_strike_price: Balance, // Assume stablecoin as quote asset right
+	// now, so always 1
 }
 
 impl<T: Config> OptionToken<T> {
