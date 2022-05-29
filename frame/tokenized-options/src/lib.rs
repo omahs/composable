@@ -205,11 +205,21 @@ pub mod pallet {
 			option_amount: BalanceOf<T>,
 			option_id: AssetIdOf<T>,
 		},
-		OptionDepositStart { option_id: AssetIdOf<T> },
-		OptionPurchaseStart { option_id: AssetIdOf<T> },
-		OptionExerciseStart { option_id: AssetIdOf<T> },
-		OptionWithdrawStart { option_id: AssetIdOf<T> },
-		OptionEnd { option_id: AssetIdOf<T> },
+		OptionDepositStart {
+			option_id: AssetIdOf<T>,
+		},
+		OptionPurchaseStart {
+			option_id: AssetIdOf<T>,
+		},
+		OptionExerciseStart {
+			option_id: AssetIdOf<T>,
+		},
+		OptionWithdrawStart {
+			option_id: AssetIdOf<T>,
+		},
+		OptionEnd {
+			option_id: AssetIdOf<T>,
+		},
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -373,10 +383,12 @@ pub mod pallet {
 			match Validated::new(vault_config) {
 				Ok(validated_vault_config) => Self::do_create_asset_vault(validated_vault_config),
 				Err(error) => match error {
-					"ValidateVaultDoesNotExist" =>
-						Err(DispatchError::from(Error::<T>::AssetVaultAlreadyExists)),
-					"ValidateAssetIsSupported" =>
-						Err(DispatchError::from(Error::<T>::AssetIsNotSupported)),
+					"ValidateVaultDoesNotExist" => {
+						Err(DispatchError::from(Error::<T>::AssetVaultAlreadyExists))
+					},
+					"ValidateAssetIsSupported" => {
+						Err(DispatchError::from(Error::<T>::AssetIsNotSupported))
+					},
 					_ => Err(DispatchError::from(Error::<T>::UnexpectedError)),
 				},
 			}
@@ -389,10 +401,12 @@ pub mod pallet {
 			match Validated::new(option_config) {
 				Ok(validated_option_config) => Self::do_create_option(validated_option_config),
 				Err(error) => match error {
-					"ValidateOptionDoesNotExist" =>
-						Err(DispatchError::from(Error::<T>::OptionIdAlreadyExists)),
-					"ValidateOptionAssetVaultsExist" =>
-						Err(DispatchError::from(Error::<T>::OptionAssetVaultsDoNotExist)),
+					"ValidateOptionDoesNotExist" => {
+						Err(DispatchError::from(Error::<T>::OptionIdAlreadyExists))
+					},
+					"ValidateOptionAssetVaultsExist" => {
+						Err(DispatchError::from(Error::<T>::OptionAssetVaultsDoNotExist))
+					},
 					_ => Err(DispatchError::from(Error::<T>::UnexpectedError)),
 				},
 			}
