@@ -6,8 +6,8 @@ const WEIGHT: i32 = 0;
 pub trait WeightInfo {
 	fn create_asset_vault() -> Weight;
 	fn create_option() -> Weight;
-	fn create_option_with_vault() -> Weight;
 	fn sell_option() -> Weight;
+	fn delete_sell_option() -> Weight;
 	fn buy_option() -> Weight;
 }
 
@@ -22,11 +22,11 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		WEIGHT as Weight
 	}
 
-	fn create_option_with_vault() -> Weight {
+	fn sell_option() -> Weight {
 		WEIGHT as Weight
 	}
 
-	fn sell_option() -> Weight {
+	fn delete_sell_option() -> Weight {
 		WEIGHT as Weight
 	}
 
@@ -45,11 +45,11 @@ impl WeightInfo for () {
 		WEIGHT as Weight
 	}
 
-	fn create_option_with_vault() -> Weight {
+	fn sell_option() -> Weight {
 		WEIGHT as Weight
 	}
 
-	fn sell_option() -> Weight {
+	fn delete_sell_option() -> Weight {
 		WEIGHT as Weight
 	}
 

@@ -42,9 +42,12 @@ fn test_create_option_success() {
 
 		let option_hash = TokenizedOptions::generate_id(
 			option_config.base_asset_id,
+			option_config.quote_asset_id,
 			option_config.base_asset_strike_price,
+			option_config.quote_asset_strike_price,
 			option_config.option_type,
 			option_config.expiring_date,
+			option_config.exercise_type,
 		);
 
 		// Create option and get option id
@@ -118,6 +121,30 @@ fn test_create_option_error_vaults_not_exist_ext() {
 		// Check option has not been created
 		assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000001u128));
 	});
+}
+
+#[test]
+fn test_create_option_error_invalid_epoch_ext() {
+	ExtBuilder::default()
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.execute_with(|| {
+			let epoch =
+				Epoch { deposit: 1u64, purchase: 2u64, exercise: 3u64, withdraw: 4u64, end: 4u64 };
+
+			// Get default option config
+			let option_config = OptionsConfigBuilder::default().epoch(epoch).build();
+
+			// Create same option again and check error is raised
+			assert_noop!(
+				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+				Error::<MockRuntime>::OptionAttributesAreInvalid
+			);
+
+			// Check option has not been created
+			assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000001u128));
+		});
 }
 
 /// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not

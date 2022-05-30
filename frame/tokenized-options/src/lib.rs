@@ -105,7 +105,7 @@ pub mod pallet {
 		type NativeCurrency: NativeTransfer<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ NativeInspect<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
-		/// Options and other assets management
+		/// Option tokens and other assets management
 		type MultiCurrency: Transfer<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
@@ -238,6 +238,7 @@ pub mod pallet {
 		OptionIdDoesNotExists,
 		OptionIdAlreadyExists,
 		OptionAssetVaultsDoNotExist,
+		OptionAttributesAreInvalid,
 
 		// Sell option errors
 		UserHasNotEnoughFundsToDeposit,
@@ -266,17 +267,22 @@ pub mod pallet {
 		fn on_idle(_n: T::BlockNumber, remaining_weight: Weight) -> Weight {
 			let mut used_weight = 0;
 			let now = T::Time::now();
+
 			while let Some((moment_swapped, option_id, moment_type)) = <Scheduler<T>>::iter().next()
 			{
 				used_weight = used_weight.saturating_add(T::DbWeight::get().reads(1));
 				let moment = moment_swapped.into_value();
+
 				if now < moment {
 					break;
 				}
+
 				<Scheduler<T>>::remove(moment_swapped, &option_id);
+
 				used_weight = used_weight
 					.saturating_add(T::DbWeight::get().writes(1))
 					.saturating_add(Self::option_state_change(option_id, moment_type));
+
 				if used_weight >= remaining_weight {
 					break;
 				}
@@ -337,7 +343,7 @@ pub mod pallet {
 		}
 
 		/// Withdraw collateral provided when selling an option
-		#[pallet::weight(<T as Config>::WeightInfo::sell_option())]
+		#[pallet::weight(<T as Config>::WeightInfo::delete_sell_option())]
 		pub fn delete_sell_option(
 			origin: OriginFor<T>,
 			option_amount: BalanceOf<T>,
@@ -407,6 +413,9 @@ pub mod pallet {
 					"ValidateOptionAssetVaultsExist" => {
 						Err(DispatchError::from(Error::<T>::OptionAssetVaultsDoNotExist))
 					},
+					"ValidateOptionAttributes" => {
+						Err(DispatchError::from(Error::<T>::OptionAttributesAreInvalid))
+					},
 					_ => Err(DispatchError::from(Error::<T>::UnexpectedError)),
 				},
 			}
@@ -472,26 +481,27 @@ pub mod pallet {
 				(ValidateVaultDoesNotExist<T>, ValidateAssetIsSupported<T>),
 			>,
 		) -> Result<VaultIdOf<T>, DispatchError> {
-			let asset_id = config.asset_id;
-
 			// Get pallet account for the asset
-			let account_id = Self::account_id(asset_id);
+			let account_id = Self::account_id(config.asset_id);
 
 			// Create new vault for the asset
 			let asset_vault_id: T::VaultId = T::Vault::create(
 				Duration::Existential,
 				VaultConfig {
-					asset_id,
+					asset_id: config.asset_id,
 					manager: account_id,
-					reserved: Perquintill::one(),
-					strategies: BTreeMap::new(),
+					reserved: config.reserved,
+					strategies: config.strategies.clone(),
 				},
 			)?;
 
 			// Add asset to the corresponding asset vault
-			AssetToVault::<T>::insert(asset_id, asset_vault_id);
+			AssetToVault::<T>::insert(config.asset_id, asset_vault_id);
 
-			Self::deposit_event(Event::CreatedAssetVault { vault_id: asset_vault_id, asset_id });
+			Self::deposit_event(Event::CreatedAssetVault {
+				vault_id: asset_vault_id,
+				asset_id: config.asset_id,
+			});
 
 			Ok(asset_vault_id)
 		}
@@ -500,7 +510,11 @@ pub mod pallet {
 		fn do_create_option(
 			option_config: Validated<
 				OptionConfigOf<T>,
-				(ValidateOptionDoesNotExist<T>, ValidateOptionAssetVaultsExist<T>),
+				(
+					ValidateOptionDoesNotExist<T>,
+					ValidateOptionAssetVaultsExist<T>,
+					ValidateOptionAttributes<T>,
+				),
 			>,
 		) -> Result<AssetIdOf<T>, DispatchError> {
 			// Generate new option_id for the option token
@@ -510,10 +524,12 @@ pub mod pallet {
 				base_asset_id: option_config.base_asset_id,
 				quote_asset_id: option_config.quote_asset_id,
 				base_asset_strike_price: option_config.base_asset_strike_price,
+				quote_asset_strike_price: option_config.quote_asset_strike_price,
 				option_type: option_config.option_type,
 				exercise_type: option_config.exercise_type,
 				expiring_date: option_config.expiring_date,
 				base_asset_amount_per_option: option_config.base_asset_amount_per_option,
+				quote_asset_amount_per_option: option_config.quote_asset_amount_per_option,
 				total_issuance_seller: option_config.total_issuance_seller,
 				total_issuance_buyer: option_config.total_issuance_buyer,
 				epoch: option_config.epoch,
@@ -864,15 +880,21 @@ pub mod pallet {
 		/// Calculate the hash of an option providing the required attributes
 		pub fn generate_id(
 			base_asset_id: AssetIdOf<T>,
+			quote_asset_id: AssetIdOf<T>,
 			base_asset_strike_price: BalanceOf<T>,
+			quote_asset_strike_price: BalanceOf<T>,
 			option_type: OptionType,
 			expiring_date: MomentOf<T>,
+			exercise_type: ExerciseType,
 		) -> H256 {
 			BlakeTwo256::hash_of(&(
 				base_asset_id,
+				quote_asset_id,
 				base_asset_strike_price,
+				quote_asset_strike_price,
 				option_type,
 				expiring_date,
+				exercise_type,
 			))
 		}
 

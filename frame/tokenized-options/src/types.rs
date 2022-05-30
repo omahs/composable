@@ -64,32 +64,33 @@ impl<Moment: Ord> Epoch<Moment> {
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
 pub struct OptionToken<T: Config> {
-	// Core attributes of an option, used to uniquely identify an option. quote_asset_id and its
-	// price will be added
+	// Core attributes of an option, used to uniquely identify an option
 	pub base_asset_id: T::MayBeAssetId,
+	pub quote_asset_id: T::MayBeAssetId,
 	pub base_asset_strike_price: T::Balance,
+	pub quote_asset_strike_price: T::Balance,
 	pub option_type: OptionType,
 	pub expiring_date: T::Moment,
+	pub exercise_type: ExerciseType,
 
 	// Helper attributes
-	pub exercise_type: ExerciseType, // Add to core contributes when American is implemented
 	pub base_asset_amount_per_option: T::Balance,
-	pub quote_asset_id: T::MayBeAssetId,
+	pub quote_asset_amount_per_option: T::Balance,
 	pub total_issuance_seller: T::Balance,
 	pub total_issuance_buyer: T::Balance,
 	pub epoch: Epoch<T::Moment>,
-	// pub quote_asset_amount_per_option: Balance, // Assume stablecoin as quote asset right now,
-	// so always 1 pub quote_asset_strike_price: Balance, // Assume stablecoin as quote asset right
-	// now, so always 1
 }
 
 impl<T: Config> OptionToken<T> {
 	pub fn generate_id(&self) -> H256 {
 		BlakeTwo256::hash_of(&(
 			self.base_asset_id,
+			self.quote_asset_id,
 			self.base_asset_strike_price,
+			self.quote_asset_strike_price,
 			self.option_type,
 			self.expiring_date,
+			self.exercise_type,
 		))
 	}
 }
@@ -97,12 +98,14 @@ impl<T: Config> OptionToken<T> {
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, Debug)]
 pub struct OptionConfig<AssetId, Balance, Moment> {
 	pub base_asset_id: AssetId,
+	pub quote_asset_id: AssetId,
 	pub base_asset_strike_price: Balance,
+	pub quote_asset_strike_price: Balance,
 	pub option_type: OptionType,
 	pub expiring_date: Moment,
-	pub quote_asset_id: AssetId,
 	pub exercise_type: ExerciseType,
 	pub base_asset_amount_per_option: Balance,
+	pub quote_asset_amount_per_option: Balance,
 	pub total_issuance_seller: Balance,
 	pub total_issuance_buyer: Balance,
 	pub epoch: Epoch<Moment>,

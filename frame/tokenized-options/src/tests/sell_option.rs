@@ -135,9 +135,12 @@ fn test_sell_option_with_initialization_success() {
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
+				option_config.quote_asset_id,
 				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
 				option_config.option_type,
 				option_config.expiring_date,
+				option_config.exercise_type,
 			);
 
 			// Check creation ended correctly
@@ -165,9 +168,12 @@ fn test_sell_option_success() {
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
+				option_config.quote_asset_id,
 				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
 				option_config.option_type,
 				option_config.expiring_date,
+				option_config.exercise_type,
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
@@ -194,9 +200,12 @@ fn test_sell_option_update_position() {
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
+				option_config.quote_asset_id,
 				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
 				option_config.option_type,
 				option_config.expiring_date,
+				option_config.exercise_type,
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
@@ -229,11 +238,13 @@ fn test_sell_option_multiple_users() {
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
+				option_config.quote_asset_id,
 				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
 				option_config.option_type,
 				option_config.expiring_date,
+				option_config.exercise_type,
 			);
-
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
 			let alice_option_amount = 7u128;
@@ -292,9 +303,12 @@ fn test_sell_option_error_user_has_not_enough_funds() {
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
+				option_config.quote_asset_id,
 				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
 				option_config.option_type,
 				option_config.expiring_date,
+				option_config.exercise_type,
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));

@@ -120,9 +120,12 @@ fn test_delete_sell_option_success() {
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
+				option_config.quote_asset_id,
 				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
 				option_config.option_type,
 				option_config.expiring_date,
+				option_config.exercise_type,
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
@@ -162,9 +165,12 @@ fn test_delete_sell_option_update_position() {
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
+				option_config.quote_asset_id,
 				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
 				option_config.option_type,
 				option_config.expiring_date,
+				option_config.exercise_type,
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
@@ -224,9 +230,12 @@ fn test_delete_sell_option_multiple_users() {
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
+				option_config.quote_asset_id,
 				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
 				option_config.option_type,
 				option_config.expiring_date,
+				option_config.exercise_type,
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
@@ -312,9 +321,12 @@ fn test_delete_sell_option_error_user_has_not_enough_funds_to_withdraw() {
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
+				option_config.quote_asset_id,
 				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
 				option_config.option_type,
 				option_config.expiring_date,
+				option_config.exercise_type,
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));

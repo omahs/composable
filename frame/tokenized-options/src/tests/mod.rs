@@ -155,10 +155,12 @@ struct OptionsConfigBuilder {
 	pub base_asset_id: AssetId,
 	pub quote_asset_id: AssetId,
 	pub base_asset_strike_price: Balance,
+	pub quote_asset_strike_price: Balance,
 	pub option_type: OptionType,
 	pub exercise_type: ExerciseType,
 	pub expiring_date: Moment,
 	pub base_asset_amount_per_option: Balance,
+	pub quote_asset_amount_per_option: Balance,
 	pub total_issuance_seller: Balance,
 	pub total_issuance_buyer: Balance,
 	pub epoch: Epoch<Moment>,
@@ -170,18 +172,20 @@ impl Default for OptionsConfigBuilder {
 			base_asset_id: BTC,
 			quote_asset_id: USDC,
 			base_asset_strike_price: 50000u128 * 10u128.pow(12),
+			quote_asset_strike_price: 1u128 * 10u128.pow(12),
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
-			expiring_date: 1u64,
+			expiring_date: 3u64,
 			base_asset_amount_per_option: 1u128 * 10u128.pow(12),
+			quote_asset_amount_per_option: 1u128 * 10u128.pow(12),
 			total_issuance_seller: 0u128,
 			total_issuance_buyer: 0u128,
 			epoch: Epoch {
 				deposit: 1u64,
-				purchase: 1u64,
-				exercise: 1u64,
-				withdraw: 1u64,
-				end: 1u64,
+				purchase: 2u64,
+				exercise: 3u64,
+				withdraw: 4u64,
+				end: 5u64,
 			},
 		}
 	}
@@ -193,10 +197,12 @@ impl OptionsConfigBuilder {
 			base_asset_id: self.base_asset_id,
 			quote_asset_id: self.quote_asset_id,
 			base_asset_strike_price: self.base_asset_strike_price,
+			quote_asset_strike_price: self.quote_asset_strike_price,
 			option_type: self.option_type,
 			exercise_type: self.exercise_type,
 			expiring_date: self.expiring_date,
 			base_asset_amount_per_option: self.base_asset_amount_per_option,
+			quote_asset_amount_per_option: self.quote_asset_amount_per_option,
 			total_issuance_seller: self.total_issuance_seller,
 			total_issuance_buyer: self.total_issuance_buyer,
 			epoch: self.epoch,
@@ -208,8 +214,18 @@ impl OptionsConfigBuilder {
 		self
 	}
 
+	fn quote_asset_id(mut self, quote_asset_id: AssetId) -> Self {
+		self.quote_asset_id = quote_asset_id;
+		self
+	}
+
 	fn base_asset_strike_price(mut self, base_asset_strike_price: Balance) -> Self {
 		self.base_asset_strike_price = base_asset_strike_price;
+		self
+	}
+
+	fn quote_asset_strike_price(mut self, quote_asset_strike_price: Balance) -> Self {
+		self.quote_asset_strike_price = quote_asset_strike_price;
 		self
 	}
 
@@ -223,8 +239,18 @@ impl OptionsConfigBuilder {
 		self
 	}
 
-	fn base_asset_amount_per_option(mut self, base_asset_amount_per_option: Balance) -> Self {
-		self.base_asset_amount_per_option = base_asset_amount_per_option;
+	fn exercise_type(mut self, exercise_type: ExerciseType) -> Self {
+		self.exercise_type = exercise_type;
+		self
+	}
+
+	fn total_issuance_seller(mut self, total_issuance_seller: Balance) -> Self {
+		self.total_issuance_seller = total_issuance_seller;
+		self
+	}
+
+	fn total_issuance_buyer(mut self, total_issuance_buyer: Balance) -> Self {
+		self.total_issuance_buyer = total_issuance_buyer;
 		self
 	}
 
