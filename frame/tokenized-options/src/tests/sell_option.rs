@@ -340,8 +340,8 @@ fn test_sell_option_error_user_has_not_enough_funds() {
 // 		.execute_with(|| {
 
 // 			let number_of_options =
-// OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<AssetId>>().len(); 			let option_ids:
-// Vec<AssetId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
+// OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<OptionId>>().len(); 			let option_ids:
+// Vec<OptionId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
 
 // 			(0..VEC_SIZE-1).for_each(|i|{
 // 				let seller = random_seller[i];

@@ -4,30 +4,30 @@ use frame_support::pallet_prelude::*;
 pub trait TokenizedOptions {
 	type AccountId;
 	type Balance;
-	type AssetId;
+	type OptionId;
 	type VaultId;
 	type OptionConfig;
 	type VaultConfig;
 
 	fn create_asset_vault(config: Self::VaultConfig) -> Result<Self::VaultId, DispatchError>;
 
-	fn create_option(option_config: Self::OptionConfig) -> Result<Self::AssetId, DispatchError>;
+	fn create_option(option_config: Self::OptionConfig) -> Result<Self::OptionId, DispatchError>;
 
 	fn sell_option(
 		from: &Self::AccountId,
 		option_amount: Self::Balance,
-		option_id: Self::AssetId,
+		option_id: Self::OptionId,
 	) -> Result<(), DispatchError>;
 
 	fn delete_sell_option(
 		from: &Self::AccountId,
 		option_amount: Self::Balance,
-		option_id: Self::AssetId,
+		option_id: Self::OptionId,
 	) -> Result<(), DispatchError>;
 
 	fn buy_option(
 		from: &Self::AccountId,
 		option_amount: Self::Balance,
-		option: Self::AssetId,
+		option: Self::OptionId,
 	) -> Result<(), DispatchError>;
 }

@@ -19,6 +19,7 @@ pub type Balance = u128;
 pub type VaultId = u64;
 pub type Amount = i128;
 pub type Moment = u64;
+pub type OptionId = AssetId;
 
 // ----------------------------------------------------------------------------------------------------
 //                                             Runtime

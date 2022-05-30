@@ -99,7 +99,7 @@ pub mod pallet {
 		type Convert: Convert<BalanceOf<Self>, u128> + Convert<u128, BalanceOf<Self>>;
 
 		/// Option IDs generator
-		type CurrencyFactory: CurrencyFactory<AssetIdOf<Self>>;
+		type CurrencyFactory: CurrencyFactory<OptionIdOf<Self>>;
 
 		/// PICA management
 		type NativeCurrency: NativeTransfer<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -133,6 +133,7 @@ pub mod pallet {
 	pub type MomentOf<T> = <T as Config>::Moment;
 	pub type OracleOf<T> = <T as Config>::Oracle;
 	pub type OptionConfigOf<T> = OptionConfig<AssetIdOf<T>, BalanceOf<T>, MomentOf<T>>;
+	pub type OptionIdOf<T> = AssetIdOf<T>;
 	pub type VaultIdOf<T> = <T as Config>::VaultId;
 	pub type VaultOf<T> = <T as Config>::Vault;
 	pub type VaultConfigOf<T> = VaultConfig<AccountIdOf<T>, AssetIdOf<T>>;
@@ -149,13 +150,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn option_id_to_option)]
 	pub type OptionIdToOption<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, OptionToken<T>>;
+		StorageMap<_, Blake2_128Concat, OptionIdOf<T>, OptionToken<T>>;
 
 	/// Maps option's hash with the option_id. Used to check if option exists and basically
 	/// all the other searching usecases.
 	#[pallet::storage]
 	#[pallet::getter(fn options_hash)]
-	pub type OptionHashToOptionId<T: Config> = StorageMap<_, Blake2_128Concat, H256, AssetIdOf<T>>;
+	pub type OptionHashToOptionId<T: Config> = StorageMap<_, Blake2_128Concat, H256, OptionIdOf<T>>;
 
 	/// Maps account_id and option_id to the user's provided collateral
 	#[pallet::storage]
@@ -163,7 +164,7 @@ pub mod pallet {
 	pub type Sellers<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		AssetIdOf<T>,
+		OptionIdOf<T>,
 		Blake2_128Concat,
 		AccountIdOf<T>,
 		SellerPosition<T>,
@@ -174,7 +175,7 @@ pub mod pallet {
 	/// Scheduler is a timestamp-ordered list
 	#[pallet::storage]
 	pub(crate) type Scheduler<T: Config> =
-		StorageDoubleMap<_, Identity, Swapped<MomentOf<T>>, Identity, AssetIdOf<T>, WindowType>;
+		StorageDoubleMap<_, Identity, Swapped<MomentOf<T>>, Identity, OptionIdOf<T>, WindowType>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Events
@@ -187,38 +188,38 @@ pub mod pallet {
 			asset_id: AssetIdOf<T>,
 		},
 		CreatedOption {
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 			option_config: OptionConfigOf<T>,
 		},
 		SellOption {
 			seller: AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		},
 		DeleteSellOption {
 			seller: AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		},
 		BuyOption {
 			buyer: AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		},
 		OptionDepositStart {
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		},
 		OptionPurchaseStart {
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		},
 		OptionExerciseStart {
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		},
 		OptionWithdrawStart {
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		},
 		OptionEnd {
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		},
 	}
 
@@ -333,7 +334,7 @@ pub mod pallet {
 		pub fn sell_option(
 			origin: OriginFor<T>,
 			option_amount: BalanceOf<T>,
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 
@@ -347,7 +348,7 @@ pub mod pallet {
 		pub fn delete_sell_option(
 			origin: OriginFor<T>,
 			option_amount: BalanceOf<T>,
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 
@@ -361,7 +362,7 @@ pub mod pallet {
 		pub fn buy_option(
 			origin: OriginFor<T>,
 			option_amount: BalanceOf<T>,
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 
@@ -376,7 +377,7 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	impl<T: Config> TokenizedOptions for Pallet<T> {
 		type AccountId = AccountIdOf<T>;
-		type AssetId = AssetIdOf<T>;
+		type OptionId = OptionIdOf<T>;
 		type Balance = BalanceOf<T>;
 		type VaultId = VaultIdOf<T>;
 		type OptionConfig = OptionConfigOf<T>;
@@ -403,7 +404,7 @@ pub mod pallet {
 		/// Create an option to be listed for sale
 		fn create_option(
 			option_config: Self::OptionConfig,
-		) -> Result<Self::AssetId, DispatchError> {
+		) -> Result<Self::OptionId, DispatchError> {
 			match Validated::new(option_config) {
 				Ok(validated_option_config) => Self::do_create_option(validated_option_config),
 				Err(error) => match error {
@@ -425,7 +426,7 @@ pub mod pallet {
 		fn sell_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
-			option_id: Self::AssetId,
+			option_id: Self::OptionId,
 		) -> Result<(), DispatchError> {
 			ensure!(
 				OptionIdToOption::<T>::contains_key(option_id),
@@ -441,7 +442,7 @@ pub mod pallet {
 		fn delete_sell_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
-			option_id: Self::AssetId,
+			option_id: Self::OptionId,
 		) -> Result<(), DispatchError> {
 			ensure!(
 				OptionIdToOption::<T>::contains_key(option_id),
@@ -457,7 +458,7 @@ pub mod pallet {
 		fn buy_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
-			option_id: Self::AssetId,
+			option_id: Self::OptionId,
 		) -> Result<(), DispatchError> {
 			ensure!(
 				OptionIdToOption::<T>::contains_key(option_id),
@@ -516,7 +517,7 @@ pub mod pallet {
 					ValidateOptionAttributes<T>,
 				),
 			>,
-		) -> Result<AssetIdOf<T>, DispatchError> {
+		) -> Result<OptionIdOf<T>, DispatchError> {
 			// Generate new option_id for the option token
 			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
 
@@ -554,7 +555,7 @@ pub mod pallet {
 		fn do_sell_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		) -> Result<(), DispatchError> {
 			let option =
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdDoesNotExists)?;
@@ -699,7 +700,7 @@ pub mod pallet {
 		fn do_delete_sell_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		) -> Result<(), DispatchError> {
 			let option =
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdDoesNotExists)?;
@@ -862,7 +863,7 @@ pub mod pallet {
 		fn do_buy_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
-			option_id: AssetIdOf<T>,
+			option_id: OptionIdOf<T>,
 		) -> Result<(), DispatchError> {
 			Self::deposit_event(Event::BuyOption { buyer: from.clone(), option_amount, option_id });
 
@@ -915,7 +916,7 @@ pub mod pallet {
 			Ok(shares_amount)
 		}
 
-		fn schedule_option(epoch: Epoch<MomentOf<T>>, option_id: AssetIdOf<T>) {
+		fn schedule_option(epoch: Epoch<MomentOf<T>>, option_id: OptionIdOf<T>) {
 			<Scheduler<T>>::insert(Swapped::from(epoch.deposit), option_id, WindowType::Deposit);
 			<Scheduler<T>>::insert(Swapped::from(epoch.purchase), option_id, WindowType::Purchase);
 			<Scheduler<T>>::insert(Swapped::from(epoch.exercise), option_id, WindowType::Exercise);
@@ -923,7 +924,7 @@ pub mod pallet {
 			<Scheduler<T>>::insert(Swapped::from(epoch.end), option_id, WindowType::End);
 		}
 
-		fn option_state_change(option_id: AssetIdOf<T>, moment_type: WindowType) -> Weight {
+		fn option_state_change(option_id: OptionIdOf<T>, moment_type: WindowType) -> Weight {
 			match moment_type {
 				WindowType::Deposit => Self::option_deposit_start(option_id),
 				WindowType::Purchase => Self::option_purchase_start(option_id),
@@ -933,27 +934,27 @@ pub mod pallet {
 			}
 		}
 
-		fn option_deposit_start(option_id: AssetIdOf<T>) -> Weight {
+		fn option_deposit_start(option_id: OptionIdOf<T>) -> Weight {
 			Self::deposit_event(Event::OptionDepositStart { option_id });
 			0
 		}
 
-		fn option_purchase_start(option_id: AssetIdOf<T>) -> Weight {
+		fn option_purchase_start(option_id: OptionIdOf<T>) -> Weight {
 			Self::deposit_event(Event::OptionPurchaseStart { option_id });
 			0
 		}
 
-		fn option_exercise_start(option_id: AssetIdOf<T>) -> Weight {
+		fn option_exercise_start(option_id: OptionIdOf<T>) -> Weight {
 			Self::deposit_event(Event::OptionExerciseStart { option_id });
 			0
 		}
 
-		fn option_withdraw_start(option_id: AssetIdOf<T>) -> Weight {
+		fn option_withdraw_start(option_id: OptionIdOf<T>) -> Weight {
 			Self::deposit_event(Event::OptionWithdrawStart { option_id });
 			0
 		}
 
-		fn option_end(option_id: AssetIdOf<T>) -> Weight {
+		fn option_end(option_id: OptionIdOf<T>) -> Weight {
 			Self::deposit_event(Event::OptionEnd { option_id });
 			0
 		}

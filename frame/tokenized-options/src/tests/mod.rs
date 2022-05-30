@@ -3,8 +3,8 @@ use crate::{
 		accounts::*,
 		assets::*,
 		runtime::{
-			get_oracle_price, set_oracle_price, Assets, Balance, MockRuntime, Moment, Origin,
-			TokenizedOptions, Vault, VaultId,
+			get_oracle_price, set_oracle_price, Assets, Balance, MockRuntime, Moment, OptionId,
+			Origin, TokenizedOptions, Vault, VaultId,
 		},
 	},
 	pallet::{self, AssetToVault, Error, OptionIdToOption},
@@ -465,7 +465,7 @@ pub fn trait_create_asset_vault(
 pub fn trait_create_option(
 	origin: Origin,
 	option_config: OptionConfig<AssetId, Balance, Moment>,
-) -> Result<AssetId, DispatchError> {
+) -> Result<OptionId, DispatchError> {
 	let _account_id = ensure_signed(origin).unwrap();
 
 	let option_id =

@@ -2,10 +2,9 @@ use super::{OptionsConfigBuilder, VaultConfigBuilder, VaultInitializer};
 use crate::{
 	mock::{
 		accounts::ADMIN,
-		assets::AssetId,
 		runtime::{
-			BlockNumber, Event, ExtBuilder, MockRuntime, Moment, Origin, System, Timestamp,
-			TokenizedOptions,
+			BlockNumber, Event, ExtBuilder, MockRuntime, Moment, OptionId, Origin, System,
+			Timestamp, TokenizedOptions,
 		},
 	},
 	types::Epoch,
@@ -72,7 +71,7 @@ fn do_test_time_management(mut epochs: Vec<Epoch<Moment>>, durations: Vec<Moment
 	tester.final_test();
 }
 
-fn initialize_options(epochs: Vec<Epoch<Moment>>) -> HashMap<AssetId, Epoch<Moment>> {
+fn initialize_options(epochs: Vec<Epoch<Moment>>) -> HashMap<OptionId, Epoch<Moment>> {
 	let mut hash_map = HashMap::with_capacity(epochs.len());
 	for (i, epoch) in epochs.into_iter().enumerate() {
 		let option_config = OptionsConfigBuilder::default()
@@ -93,13 +92,13 @@ fn initialize_options(epochs: Vec<Epoch<Moment>>) -> HashMap<AssetId, Epoch<Mome
 
 #[derive(Debug, Default)]
 struct Tester {
-	options: HashMap<AssetId, Epoch<Moment>>,
+	options: HashMap<OptionId, Epoch<Moment>>,
 	counters: [usize; 5],
 	event_moment: Moment,
 }
 
 impl Tester {
-	fn set_options(&mut self, options: HashMap<AssetId, Epoch<Moment>>) {
+	fn set_options(&mut self, options: HashMap<OptionId, Epoch<Moment>>) {
 		self.options = options;
 	}
 	fn block_test(&mut self) {
