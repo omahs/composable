@@ -570,19 +570,12 @@ pub mod pallet {
 			);
 
 			// Different behaviors based on Call or Put option
-			let mut asset_id = option.base_asset_id;
-			let mut asset_amount = option
-				.base_asset_amount_per_option
-				.checked_mul(&option_amount)
-				.ok_or(ArithmeticError::Overflow)?;
-
-			if option.option_type == OptionType::Put {
-				asset_id = option.quote_asset_id;
-				asset_amount = option
-					.base_asset_strike_price
-					.checked_mul(&option_amount)
-					.ok_or(ArithmeticError::Overflow)?;
+			let (asset_id, asset_amount) = match option.option_type {
+				OptionType::Call => (option.base_asset_id, option.base_asset_amount_per_option),
+				OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
 			};
+			let asset_amount =
+				asset_amount.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
 
 			// Get vault_id and protocol account for depositing collateral
 			let vault_id =
@@ -710,19 +703,12 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::UserDoesNotHaveSellerPosition)?;
 
 			// Different behaviors based on Call or Put option
-			let mut asset_id = option.base_asset_id;
-			let mut asset_amount = option
-				.base_asset_amount_per_option
-				.checked_mul(&option_amount)
-				.ok_or(ArithmeticError::Overflow)?;
-
-			if option.option_type == OptionType::Put {
-				asset_id = option.quote_asset_id;
-				asset_amount = option
-					.base_asset_strike_price
-					.checked_mul(&option_amount)
-					.ok_or(ArithmeticError::Overflow)?;
+			let (asset_id, asset_amount) = match option.option_type {
+				OptionType::Call => (option.base_asset_id, option.base_asset_amount_per_option),
+				OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
 			};
+			let asset_amount =
+				asset_amount.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
 
 			// Get vault_id for withdrawing collateral and make checks
 			let protocol_account = Self::account_id(asset_id);
