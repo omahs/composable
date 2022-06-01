@@ -510,8 +510,14 @@ fn test_delete_sell_option_error_withdrawals_not_allowed() {
 
 			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 5u128, option_id));
 
-			let vault_id =
-				TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap();
+			let vault_id = match option_config.option_type {
+				OptionType::Call => {
+					TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap()
+				},
+				OptionType::Put => {
+					TokenizedOptions::asset_id_to_vault_id(option_config.quote_asset_id).unwrap()
+				},
+			};
 
 			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id.into()));
 
@@ -554,8 +560,14 @@ fn test_delete_sell_option_error_withdrawals_not_allowed_update_position() {
 
 			assert_ok!(TokenizedOptions::delete_sell_option(Origin::signed(BOB), 2u128, option_id));
 
-			let vault_id =
-				TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap();
+			let vault_id = match option_config.option_type {
+				OptionType::Call => {
+					TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap()
+				},
+				OptionType::Put => {
+					TokenizedOptions::asset_id_to_vault_id(option_config.quote_asset_id).unwrap()
+				},
+			};
 
 			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id.into()));
 
@@ -565,3 +577,5 @@ fn test_delete_sell_option_error_withdrawals_not_allowed_update_position() {
 			);
 		});
 }
+
+// TODO: test for overflows and other math-precision checks

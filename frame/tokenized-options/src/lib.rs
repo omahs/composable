@@ -1,4 +1,67 @@
-//! # Options Pallet
+//! # Tokenized Options Pallet
+//!
+//! ## Overview
+//! This pallet provides an implementation for creating, selling, buying and exercise options as tokens.
+//!
+//! ### Terminology
+//! - **Base asset**: the asset the user wants to buy/sell in future.
+//! - **Quote asset**: the asset traded against the base asset (usually a stablecoin).
+//! - **Option**: a financial instrument that gives you the right to buy/sell a base asset at a fixed price (denominated in quote asset)
+//!  in the future. You can either buy (or long) an option (obtaining the right to buy/sell the base asset) or sell (or short) an option
+//! (give another user the right to buy/sell the base asset you provide as collateral).
+//! - **Call / Put**: option type, used to choose if you want to buy (Call) the base asset in the future or sell it (Put).
+//! - **Strike price**: the price at which the user has the right to buy/sell the base asset in the future denominated in quote asset.
+//! - **Spot price**: the current price of the base asset denominated in quote asset.
+//! - **Expiration date**: the date of maturity of the option, after which the user can exercise it if the option is in profit.
+//! - **Premium**: the cost the user has to pay denominated in quote asset to buy the option from the seller.
+//! - **Collateral**: base/quote asset backing the seller's position, used to pay the buyer if the option ends in profit.
+//! For selling `Call` options, the user needs to provide the right amount of base asset as collateral; for selling `Put` options,
+//! the user needs to provide the right amount of quote asset as collateral.
+//! - **Epoch**: the full lifecycle of an option. It's composed by the deposit phase, the purchase phase, the exercise phase and the
+//! withdraw phase.
+//!
+//! ### Goals
+//!
+//! ### Actors
+//! - Sellers: users that provide collateral for selling options and collect the corresponding premium.
+//! - Buyers: users that pay the premium for buying (and later exercise if in profit) the options.
+//!
+//! ### Implementations
+//! The Tokenized Option pallet provides implementations for the following traits:
+//! - [`TokenizedOptions`](composable_traits::tokenized_options::TokenizedOptions)
+//!
+//! ## Interface
+//!
+//! ### Extrinsics
+//! - [`create_asset_vault`](Pallet::create_asset_vault): creates a vault that is responsible for collecting the
+//!   specified asset and apply a particular strategy.
+//!
+//! - [`create_option`](Pallet::create_option): creates an option that can be sold or bought from users.
+//!
+//! - [`sell_option`](Pallet::sell_option): deposit collateral used for selling an option.
+//!
+//! - [`delete_sell_option`](Pallet::delete_sell_option): withdraw the deposited collateral used for selling an option.
+//!
+//! - [`buy_option`](Pallet::buy_option): pay the premium for minting the selected option token into the user's account.
+//!
+//! ### Runtime Storage Objects
+//! - [`AssetToVault`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its vault.
+//! - [`OptionIdToOption`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its option informations.
+//! - [`OptionHashToOptionId`]: maps a [`H256`] to its optionId. The hash is obtained from option's attributes.
+//! - [`Sellers`]: maps an OptionId [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) and an [`AccountId`](Config::AccountId) to
+//! its position as a seller.
+//! - [`Scheduler`]: maps a [`Moment`](Config::Moment) to an OptionId [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) identifying the timestamp
+//! of the next phase of the epoch for the option.
+//!
+//! ## Usage
+//!
+//! ### Example
+//!
+//! ## Related Modules
+//! - [`Vault Pallet`](../pallet_vault/index.html)
+//! - [`Oracle Pallet`](../oracle/index.html)
+//! <!-- Original author: @nickkuk and @scoda95 -->
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[allow(unused_imports)]
@@ -77,15 +140,16 @@ pub mod pallet {
 
 		type WeightInfo: WeightInfo;
 
-		/// tokenized_options PalletId
+		/// The id used as `AccountId` for the pallet.
+		/// This should be unique across all pallets to avoid name collisions.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// Maximum number of options that can be created
+		/// Maximum number of options that can be created.
 		#[pallet::constant]
 		type MaxOptionNumber: Get<u32>;
 
-		/// Oracle pallet to retrieve prices
+		/// Oracle pallet to retrieve prices expressed in USDT.
 		type Oracle: Oracle<AssetId = AssetIdOf<Self>, Balance = BalanceOf<Self>>;
 
 		/// Type of time moment. We use [`SwapBytes`] trait to store this type in
@@ -93,26 +157,28 @@ pub mod pallet {
 		/// stored in lexical order.
 		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
 
-		/// The time provider
+		/// The Unixtime provider
 		type Time: Time<Moment = MomentOf<Self>>;
 
+		/// Trait used to convert from this pallet `Balance` type to `u128`.
 		type Convert: Convert<BalanceOf<Self>, u128> + Convert<u128, BalanceOf<Self>>;
 
 		/// Option IDs generator
 		type CurrencyFactory: CurrencyFactory<OptionIdOf<Self>>;
 
-		/// PICA management
+		/// Used for PICA management.
 		type NativeCurrency: NativeTransfer<AccountIdOf<Self>, Balance = BalanceOf<Self>>
 			+ NativeInspect<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
 
-		/// Option tokens and other assets management
+		/// Used for option tokens and other assets management.
 		type MultiCurrency: Transfer<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>;
 
-		/// Vault IDs
+		/// The [`VaultId`](Config::VaultId) used by the pallet. Corresponds to the id used by the
+		/// Vault pallet.
 		type VaultId: Clone + Copy + Codec + MaxEncodedLen + Debug + PartialEq + Default + Parameter;
 
 		/// Vaults to collect collaterals
@@ -141,24 +207,25 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
 	// ----------------------------------------------------------------------------------------------------
-	/// Maps asset_id to its vault_id
+	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [`VaultId`](Config::VaultId)
 	#[pallet::storage]
 	#[pallet::getter(fn asset_id_to_vault_id)]
 	pub type AssetToVault<T: Config> = StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
 
-	/// Maps option_id to the option struct
+	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [OptionToken](OptionToken) struct
 	#[pallet::storage]
 	#[pallet::getter(fn option_id_to_option)]
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, OptionIdOf<T>, OptionToken<T>>;
 
-	/// Maps option's hash with the option_id. Used to check if option exists and basically
-	/// all the other searching usecases.
+	/// Maps option's hash [H256](H256) with the option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId).
+	/// Used to quickly check if option exists and for all the other searching use cases.
 	#[pallet::storage]
 	#[pallet::getter(fn options_hash)]
 	pub type OptionHashToOptionId<T: Config> = StorageMap<_, Blake2_128Concat, H256, OptionIdOf<T>>;
 
-	/// Maps account_id and option_id to the user's provided collateral
+	/// Maps [`AccountId`](Config::AccountId) and option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId)
+	/// to the user's [SellerPosition](SellerPosition).
 	#[pallet::storage]
 	#[pallet::getter(fn sellers)]
 	pub type Sellers<T: Config> = StorageDoubleMap<
@@ -171,8 +238,8 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	/// Maps timestamp and option_id to its currently active window_type.
-	/// Scheduler is a timestamp-ordered list
+	/// Maps a timestamp [Moment](Config::Moment) and option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId)
+	/// to its currently active window type [WindowType](WindowType). Scheduler is a timestamp-ordered list
 	#[pallet::storage]
 	pub(crate) type Scheduler<T: Config> =
 		StorageDoubleMap<_, Identity, Swapped<MomentOf<T>>, Identity, OptionIdOf<T>, WindowType>;
