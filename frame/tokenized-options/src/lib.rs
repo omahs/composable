@@ -243,8 +243,7 @@ pub mod pallet {
 
 		// Sell option errors
 		UserHasNotEnoughFundsToDeposit,
-		DepositIntoVaultCannotBePerformed,
-		TransferFailed,
+		VaultDepositNotAllowed,
 
 		// Withdraw deposited collateral errors
 		UserDoesNotHaveSellerPosition,
@@ -560,11 +559,15 @@ pub mod pallet {
 			let option =
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdDoesNotExists)?;
 
-			// Check if we are in deposit window (not yet implemented)
-			// ensure!(
-			// 	option.epoch.window_type(T::Time::now()).unwrap() == WindowType::Deposit,
-			// 	Error::<T>::NotIntoDepositWindow
-			// );
+			// Check if we are in deposit window
+			ensure!(
+				option
+					.epoch
+					.window_type(T::Time::now())
+					.ok_or(Error::<T>::NotIntoDepositWindow)?
+					== WindowType::Deposit,
+				Error::<T>::NotIntoDepositWindow
+			);
 
 			// Different behaviors based on Call or Put option
 			let mut asset_id = option.base_asset_id;
@@ -587,27 +590,10 @@ pub mod pallet {
 
 			let protocol_account = Self::account_id(asset_id);
 
-			// Check if user has funds for collateral and can deposit
-			ensure!(
-				<T as Config>::MultiCurrency::can_withdraw(asset_id, &from, asset_amount)
-					.into_result()
-					.is_ok(),
-				Error::<T>::UserHasNotEnoughFundsToDeposit
-			);
-
-			ensure!(
-				<T as Config>::MultiCurrency::can_deposit(
-					asset_id,
-					&protocol_account,
-					asset_amount
-				)
-				.into_result()
-				.is_ok(),
-				Error::<T>::DepositIntoVaultCannotBePerformed
-			);
-
+			// Calculate the amount of shares the user should get and make checks
 			let shares_amount = T::Vault::calculate_lp_tokens_to_mint(&vault_id, asset_amount)?;
 
+			// Update position or create position
 			if Sellers::<T>::contains_key(option_id, from) {
 				Sellers::<T>::try_mutate(
 					option_id,
@@ -637,11 +623,13 @@ pub mod pallet {
 									&protocol_account,
 									asset_amount,
 									true,
-								)?;
+								)
+								.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
 
 								// Protocol account deposits into the vault and receives
 								// shares_amount
-								T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
+								T::Vault::deposit(&vault_id, &protocol_account, asset_amount)
+									.map_err(|_| Error::<T>::VaultDepositNotAllowed)?;
 
 								Self::deposit_event(Event::SellOption {
 									seller: from.clone(),
@@ -666,10 +654,12 @@ pub mod pallet {
 					&protocol_account,
 					asset_amount,
 					true,
-				)?;
+				)
+				.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
 
 				// Protocol account deposits into the vault and keep shares_amount
-				T::Vault::deposit(&vault_id, &protocol_account, asset_amount)?;
+				T::Vault::deposit(&vault_id, &protocol_account, asset_amount)
+					.map_err(|_| Error::<T>::VaultDepositNotAllowed)?;
 
 				Self::deposit_event(Event::SellOption {
 					seller: from.clone(),
@@ -681,7 +671,7 @@ pub mod pallet {
 			OptionIdToOption::<T>::try_mutate(option_id, |option| {
 				match option {
 					Some(option) => {
-						// Add option amount to position
+						// Add option amount to total issuance
 						let new_total_issuance_seller = option
 							.total_issuance_seller
 							.checked_add(&option_amount)
@@ -705,20 +695,19 @@ pub mod pallet {
 			let option =
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdDoesNotExists)?;
 
-			// Check if we are in deposit window (not yet implemented)
-			// ensure!(
-			// 	option.epoch.window_type(T::Time::now()).unwrap() == WindowType::Deposit,
-			// 	Error::<T>::NotIntoDepositWindow
-			// );
-
-			// Check if user has deposited any collateral before and retrieve position
+			// Check if we are in deposit window
 			ensure!(
-				Sellers::<T>::contains_key(option_id, from),
-				Error::<T>::UserDoesNotHaveSellerPosition
+				option
+					.epoch
+					.window_type(T::Time::now())
+					.ok_or(Error::<T>::NotIntoDepositWindow)?
+					== WindowType::Deposit,
+				Error::<T>::NotIntoDepositWindow
 			);
 
-			let seller_position =
-				Sellers::<T>::try_get(option_id, from).map_err(|_| Error::<T>::UnexpectedError)?;
+			// Check if user has deposited any collateral before and retrieve position
+			let seller_position = Sellers::<T>::try_get(option_id, from)
+				.map_err(|_| Error::<T>::UserDoesNotHaveSellerPosition)?;
 
 			// Different behaviors based on Call or Put option
 			let mut asset_id = option.base_asset_id;
@@ -737,41 +726,22 @@ pub mod pallet {
 
 			// Get vault_id for withdrawing collateral and make checks
 			let protocol_account = Self::account_id(asset_id);
+
 			let vault_id =
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
 			let shares_amount = Self::calculate_shares_to_burn(option_amount, &seller_position)?;
 
-			let max_asset_amount =
-				T::Vault::lp_share_value(&vault_id, seller_position.shares_amount)?;
-
+			// Correct logic checks
 			ensure!(
-				asset_amount <= max_asset_amount,
+				asset_amount == T::Vault::lp_share_value(&vault_id, shares_amount)?
+					&& asset_amount
+						<= T::Vault::lp_share_value(&vault_id, seller_position.shares_amount)?
+					&& option_amount <= seller_position.option_amount,
 				Error::<T>::UserDoesNotHaveEnoughCollateralDeposited
 			);
 
-			ensure!(
-				option_amount <= seller_position.option_amount,
-				Error::<T>::UserDoesNotHaveEnoughCollateralDeposited
-			);
-
-			let collateral_to_transfer = T::Vault::lp_share_value(&vault_id, shares_amount)?;
-
-			ensure!(collateral_to_transfer == asset_amount, Error::<T>::UnexpectedError);
-
-			// Check if vault withdrawals are allowed
-			ensure!(
-				T::Vault::withdrawals_allowed(&vault_id).unwrap(),
-				Error::<T>::VaultWithdrawNotAllowed
-			);
-
-			ensure!(
-				<T as Config>::MultiCurrency::can_deposit(asset_id, &from, asset_amount)
-					.into_result()
-					.is_ok(),
-				Error::<T>::UnexpectedError
-			);
-
+			// Update position or delete position
 			if shares_amount != seller_position.shares_amount {
 				Sellers::<T>::try_mutate(
 					option_id,
@@ -779,13 +749,13 @@ pub mod pallet {
 					|position| -> Result<(), DispatchError> {
 						match position {
 							Some(position) => {
-								// Add option amount to position
+								// Subtract option amount to position
 								let new_option_amount = position
 									.option_amount
 									.checked_sub(&option_amount)
 									.ok_or(ArithmeticError::Overflow)?;
 
-								// Add shares amount to position
+								// Subtract shares amount to position
 								let new_shares_amount = position
 									.shares_amount
 									.checked_sub(&shares_amount)
@@ -794,11 +764,12 @@ pub mod pallet {
 								position.option_amount = new_option_amount;
 								position.shares_amount = new_shares_amount;
 
-								// Protocol account deposits into the vault and receives
+								// Protocol account withdraw from the vault and burn
 								// shares_amount
-								T::Vault::withdraw(&vault_id, &protocol_account, shares_amount)?;
+								T::Vault::withdraw(&vault_id, &protocol_account, shares_amount)
+									.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
 
-								// Transfer collateral to protocol account
+								// Transfer collateral to user account
 								<T as Config>::MultiCurrency::transfer(
 									asset_id,
 									&protocol_account,
@@ -822,10 +793,11 @@ pub mod pallet {
 			} else {
 				Sellers::<T>::remove(option_id, from);
 
-				// Protocol account deposits into the vault and receives shares_amount
-				T::Vault::withdraw(&vault_id, &protocol_account, shares_amount)?;
+				// Protocol account withdraw from the vault and burn shares_amount
+				T::Vault::withdraw(&vault_id, &protocol_account, shares_amount)
+					.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
 
-				// Transfer collateral to protocol account
+				// Transfer collateral to user account
 				<T as Config>::MultiCurrency::transfer(
 					asset_id,
 					&protocol_account,
@@ -844,7 +816,7 @@ pub mod pallet {
 			OptionIdToOption::<T>::try_mutate(option_id, |option| {
 				match option {
 					Some(option) => {
-						// Add option amount to position
+						// Subtract option amount to total issuance
 						let new_total_issuance_seller = option
 							.total_issuance_seller
 							.checked_sub(&option_amount)
@@ -910,7 +882,7 @@ pub mod pallet {
 				<T::Convert as Convert<BalanceOf<T>, u128>>::convert(seller_position.option_amount);
 
 			let shares_amount =
-				multiply_by_rational(a, b, c).map_err(|_| Error::<T>::UnexpectedError)?;
+				multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
 
 			let shares_amount = <T::Convert as Convert<u128, T::Balance>>::convert(shares_amount);
 			Ok(shares_amount)

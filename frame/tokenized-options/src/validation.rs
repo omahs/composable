@@ -96,8 +96,7 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAssetVaultsExist<T>>
 {
 	fn validate(input: OptionConfigOf<T>) -> Result<OptionConfigOf<T>, &'static str> {
 		if !(AssetToVault::<T>::contains_key(input.base_asset_id)
-			&& AssetToVault::<T>::contains_key(input.quote_asset_id)
-			&& input.base_asset_id != input.quote_asset_id)
+			&& AssetToVault::<T>::contains_key(input.quote_asset_id))
 		{
 			return Err("ValidateOptionAssetVaultsExist");
 		}
@@ -122,6 +121,10 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAttributes<T>>
 		if input.total_issuance_seller != BalanceOf::<T>::zero()
 			|| input.total_issuance_buyer != BalanceOf::<T>::zero()
 		{
+			return Err("ValidateOptionAttributes");
+		}
+
+		if input.base_asset_id == input.quote_asset_id {
 			return Err("ValidateOptionAttributes");
 		}
 

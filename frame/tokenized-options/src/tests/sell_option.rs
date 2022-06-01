@@ -10,11 +10,12 @@ use crate::{
 	tests::*,
 };
 
+use composable_traits::vault::CapabilityVault;
 use composable_traits::{
 	tokenized_options::TokenizedOptions as TokenizedOptionsTrait, vault::Vault as VaultTrait,
 };
+use frame_support::{assert_err, assert_noop, assert_ok, traits::fungibles::Inspect};
 
-use frame_support::{assert_noop, traits::fungibles::Inspect};
 use frame_system::ensure_signed;
 use sp_core::{sr25519::Public, H256};
 
@@ -281,8 +282,48 @@ fn test_sell_option_error_option_not_exists() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				TokenizedOptions::sell_option(Origin::signed(BOB), 1u128, 10000000000005u128), // Not-existent option_id
+				// 10000000000005u128 it's a meaningless number
+				TokenizedOptions::sell_option(Origin::signed(BOB), 1u128, 10000000000005u128),
 				Error::<MockRuntime>::OptionIdDoesNotExists
+			);
+		});
+}
+
+#[test]
+fn test_sell_option_error_not_into_deposit_window() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			// Default config deposit window is between timestamp 0 <= x < 3000.
+			// Each block takes 1 second, so on block 3 should already be out of window
+			run_to_block(3);
+
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_noop!(
+				TokenizedOptions::sell_option(Origin::signed(BOB), 8u128, option_id),
+				Error::<MockRuntime>::NotIntoDepositWindow
 			);
 		});
 }
@@ -322,35 +363,121 @@ fn test_sell_option_error_user_has_not_enough_funds() {
 		});
 }
 
-// proptest! {
-// 	#![proptest_config(ProptestConfig::with_cases(2))]
-// 	#[test]
-// 	fn proptest_sell_option(
-// 		random_initial_balances in prop_random_initial_balances_vec(),
-// 		random_seller in prop_random_account_vec(),
-// 		random_option_amount in prop_random_option_amount_vec(),
-// 		rng in prop_rng_vec()
-// 	) {
-// 		ExtBuilder::default()
-// 		.initialize_balances(random_initial_balances)
-// 		.build()
-// 		.initialize_oracle_prices()
-// 		.initialize_all_vaults()
-// 		.initialize_all_options()
-// 		.execute_with(|| {
+#[test]
+fn test_sell_option_error_user_has_not_enough_funds_update_position() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
 
-// 			let number_of_options =
-// OptionIdToOption::<MockRuntime>::iter_keys().collect::<Vec<OptionId>>().len(); 			let option_ids:
-// Vec<OptionId> = OptionIdToOption::<MockRuntime>::iter_keys().collect();
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
 
-// 			(0..VEC_SIZE-1).for_each(|i|{
-// 				let seller = random_seller[i];
-// 				let option_amount = random_option_amount[i];
-// 				let option_id = option_ids[rng[i] % number_of_options];
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
-// 				println!("option_id: {:?}, seller: {:?}, option_amount: {:?}", option_id, seller, option_amount);
-// 			})
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
-// 		});
-// 	}
-// }
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 3u128, option_id));
+
+			assert_noop!(
+				TokenizedOptions::sell_option(Origin::signed(BOB), 3u128, option_id),
+				Error::<MockRuntime>::UserHasNotEnoughFundsToDeposit
+			);
+		});
+}
+
+#[test]
+fn test_sell_option_error_deposits_not_allowed() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			let vault_id =
+				TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap();
+
+			assert_ok!(<Vault as CapabilityVault>::stop_deposits(&vault_id.into()));
+
+			assert_noop!(
+				TokenizedOptions::sell_option(Origin::signed(BOB), 5u128, option_id),
+				Error::<MockRuntime>::VaultDepositNotAllowed
+			);
+		});
+}
+
+#[test]
+fn test_sell_option_error_deposits_not_allowed_update_position() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 3u128, option_id));
+
+			let vault_id =
+				TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap();
+
+			assert_ok!(<Vault as CapabilityVault>::stop_deposits(&vault_id.into()));
+
+			assert_noop!(
+				TokenizedOptions::sell_option(Origin::signed(BOB), 2u128, option_id),
+				Error::<MockRuntime>::VaultDepositNotAllowed
+			);
+		});
+}

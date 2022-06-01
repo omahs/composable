@@ -10,6 +10,8 @@ use crate::{
 	tests::{sell_option::sell_option_success_checks, *},
 };
 
+use composable_traits::vault::CapabilityVault;
+
 use composable_traits::{
 	tokenized_options::TokenizedOptions as TokenizedOptionsTrait, vault::Vault as VaultTrait,
 };
@@ -306,7 +308,69 @@ fn test_delete_sell_option_multiple_users() {
 }
 
 #[test]
-fn test_delete_sell_option_error_user_has_not_enough_funds_to_withdraw() {
+fn test_delete_sell_option_error_option_not_exists() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 1 * 10u128.pow(12)),
+			(BOB, USDC, 50000 * 10u128.pow(12)),
+		]))
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				// 10000000000005u128 it's a meaningless number
+				TokenizedOptions::delete_sell_option(
+					Origin::signed(BOB),
+					1u128,
+					10000000000005u128
+				),
+				Error::<MockRuntime>::OptionIdDoesNotExists
+			);
+		});
+}
+
+#[test]
+fn test_delete_sell_option_error_not_into_deposit_window() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 5u128, option_id));
+
+			// Default config deposit window is between timestamp 0 <= x < 3000.
+			// Each block takes 1 second, so on block 3 should already be out of window
+			run_to_block(3);
+
+			assert_noop!(
+				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 4u128, option_id),
+				Error::<MockRuntime>::NotIntoDepositWindow
+			);
+		});
+}
+
+#[test]
+fn test_delete_sell_option_error_user_has_not_enough_collateral_to_withdraw() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
 			(BOB, BTC, 5 * 10u128.pow(12)),
@@ -338,6 +402,166 @@ fn test_delete_sell_option_error_user_has_not_enough_funds_to_withdraw() {
 			assert_noop!(
 				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 6u128, option_id),
 				Error::<MockRuntime>::UserDoesNotHaveEnoughCollateralDeposited
+			);
+		});
+}
+
+#[test]
+fn test_delete_sell_option_error_user_has_not_enough_collateral_to_withdraw_update_position() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 5u128, option_id));
+
+			assert_ok!(TokenizedOptions::delete_sell_option(Origin::signed(BOB), 3u128, option_id));
+
+			assert_noop!(
+				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 3u128, option_id),
+				Error::<MockRuntime>::UserDoesNotHaveEnoughCollateralDeposited
+			);
+		});
+}
+
+#[test]
+fn test_delete_sell_option_error_user_does_not_have_position() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_noop!(
+				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 5u128, option_id),
+				Error::<MockRuntime>::UserDoesNotHaveSellerPosition
+			);
+		});
+}
+
+#[test]
+fn test_delete_sell_option_error_withdrawals_not_allowed() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 5u128, option_id));
+
+			let vault_id =
+				TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap();
+
+			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id.into()));
+
+			assert_noop!(
+				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 5u128, option_id),
+				Error::<MockRuntime>::VaultWithdrawNotAllowed
+			);
+		});
+}
+
+#[test]
+fn test_delete_sell_option_error_withdrawals_not_allowed_update_position() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 5u128, option_id));
+
+			assert_ok!(TokenizedOptions::delete_sell_option(Origin::signed(BOB), 2u128, option_id));
+
+			let vault_id =
+				TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap();
+
+			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id.into()));
+
+			assert_noop!(
+				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 2u128, option_id),
+				Error::<MockRuntime>::VaultWithdrawNotAllowed
 			);
 		});
 }

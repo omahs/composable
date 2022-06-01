@@ -34,7 +34,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
-		Timestamp: pallet_timestamp,
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage},
 		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 		Oracle: pallet_oracle::{Pallet, Storage, Event<T>, Call},
@@ -82,14 +82,6 @@ impl frame_system::Config for MockRuntime {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-impl pallet_timestamp::Config for MockRuntime {
-	type Moment = Moment;
-	type OnTimestampSet = ();
-	// One second.
-	type MinimumPeriod = frame_support::traits::ConstU64<1000>;
-	type WeightInfo = ();
-}
-
 // ----------------------------------------------------------------------------------------------------
 //		Composable Config
 // ----------------------------------------------------------------------------------------------------
@@ -116,6 +108,18 @@ impl pallet_balances::Config for MockRuntime {
 	type MaxLocks = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
+}
+
+// ----------------------------------------------------------------------------------------------------
+//		Timestamp
+// ----------------------------------------------------------------------------------------------------
+
+impl pallet_timestamp::Config for MockRuntime {
+	type Moment = Moment;
+	type OnTimestampSet = ();
+	// One second.
+	type MinimumPeriod = frame_support::traits::ConstU64<1000>;
+	type WeightInfo = ();
 }
 
 // ----------------------------------------------------------------------------------------------------

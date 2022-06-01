@@ -4,7 +4,7 @@ use crate::{
 		assets::*,
 		runtime::{
 			get_oracle_price, set_oracle_price, Assets, Balance, MockRuntime, Moment, OptionId,
-			Origin, TokenizedOptions, Vault, VaultId,
+			Origin, System, Timestamp, TokenizedOptions, Vault, VaultId,
 		},
 	},
 	pallet::{self, AssetToVault, Error, OptionIdToOption},
@@ -16,7 +16,10 @@ use composable_traits::{
 };
 use frame_system::ensure_signed;
 
-use frame_support::{assert_ok, traits::fungibles::Mutate};
+use frame_support::{
+	assert_ok,
+	traits::{fungibles::Mutate, Hooks},
+};
 use itertools::Itertools;
 use proptest::{
 	prelude::*,
@@ -175,17 +178,17 @@ impl Default for OptionsConfigBuilder {
 			quote_asset_strike_price: 1u128 * 10u128.pow(12),
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
-			expiring_date: 3u64,
+			expiring_date: 6000u64,
 			base_asset_amount_per_option: 1u128 * 10u128.pow(12),
 			quote_asset_amount_per_option: 1u128 * 10u128.pow(12),
 			total_issuance_seller: 0u128,
 			total_issuance_buyer: 0u128,
 			epoch: Epoch {
-				deposit: 1u64,
-				purchase: 2u64,
-				exercise: 3u64,
-				withdraw: 4u64,
-				end: 5u64,
+				deposit: 0u64,
+				purchase: 3000u64,
+				exercise: 6000u64,
+				withdraw: 9000u64,
+				end: 12000u64,
 			},
 		}
 	}
@@ -445,8 +448,34 @@ prop_compose! {
 }
 
 // ----------------------------------------------------------------------------------------------------
-//		Extrinsic function simulators
+//		Helper functions
 // ----------------------------------------------------------------------------------------------------
+// Move the block number to `n` calling the desired hooks
+pub fn run_to_block(n: u64) {
+	while System::block_number() < n {
+		if System::block_number() > 1 {
+			Timestamp::on_finalize(System::block_number());
+			System::on_finalize(System::block_number());
+		}
+		System::set_block_number(System::block_number() + 1);
+		// Assuming millisecond timestamps, one second for each block
+		let _ = Timestamp::set(Origin::none(), System::block_number() * 1000);
+		System::on_initialize(System::block_number());
+		Timestamp::on_initialize(System::block_number());
+	}
+}
+
+// Move the block number by 1 and the timestamp by `n` seconds
+pub fn run_for_seconds(n: u64) {
+	if System::block_number() > 1 {
+		Timestamp::on_finalize(System::block_number());
+		System::on_finalize(System::block_number());
+	}
+	System::set_block_number(System::block_number() + 1);
+	let _ = Timestamp::set(Origin::none(), n * 1000);
+	System::on_initialize(System::block_number());
+	Timestamp::on_initialize(System::block_number());
+}
 
 // Simulate exstrinsic call `create_asset_vault`, but returning values
 pub fn trait_create_asset_vault(

@@ -147,6 +147,58 @@ fn test_create_option_error_invalid_epoch_ext() {
 		});
 }
 
+#[test]
+fn test_create_option_error_base_quote_equal_ext() {
+	ExtBuilder::default()
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.execute_with(|| {
+			// Get default option config
+			let option_config = OptionsConfigBuilder::default().quote_asset_id(BTC).build();
+
+			// Create option with same base and quote asset and check error is raised
+			assert_noop!(
+				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+				Error::<MockRuntime>::OptionAttributesAreInvalid
+			);
+
+			// Check option has not been created
+			assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000001u128));
+		});
+}
+
+#[test]
+fn test_create_option_error_initial_issuance_not_zero_ext() {
+	ExtBuilder::default()
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.execute_with(|| {
+			// Get default option config
+			let option_config =
+				OptionsConfigBuilder::default().total_issuance_seller(1u128).build();
+
+			// Create option with initial issuance seller not zero and check error is raised
+			assert_noop!(
+				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+				Error::<MockRuntime>::OptionAttributesAreInvalid
+			);
+
+			// Get default option config
+			let option_config = OptionsConfigBuilder::default().total_issuance_buyer(1u128).build();
+
+			// Create option with initial issuance buyer not zero and check error is raised
+			assert_noop!(
+				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+				Error::<MockRuntime>::OptionAttributesAreInvalid
+			);
+
+			// Check option has not been created
+			assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000001u128));
+		});
+}
+
 /// Create BTC vault, create BTC option twice and check if error is correctly raised and storage not
 /// changed
 #[test]
@@ -233,11 +285,6 @@ fn test_create_option_error_option_already_exists_ext() {
 }
 
 // TODO: create option with no-admin account and check error raised
-
-// TODO: implement validation of various option attributes and make tests
-// 		- base_asset != quote_asset and are both supported by oracle
-// 		- timestamps (expiry date, epoch windows, etc) are not in the past (or other useful checks)
-// 		- total issuances for sale and buy are 0 at the start
 
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(20))]
