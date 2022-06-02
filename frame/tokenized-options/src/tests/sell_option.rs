@@ -284,7 +284,7 @@ fn test_sell_option_error_option_not_exists() {
 			assert_noop!(
 				// 10000000000005u128 it's a meaningless number
 				TokenizedOptions::sell_option(Origin::signed(BOB), 1u128, 10000000000005u128),
-				Error::<MockRuntime>::OptionIdDoesNotExists
+				Error::<MockRuntime>::OptionDoesNotExists
 			);
 		});
 }

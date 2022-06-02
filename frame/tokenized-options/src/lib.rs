@@ -250,44 +250,39 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		CreatedAssetVault {
-			vault_id: VaultIdOf<T>,
-			asset_id: AssetIdOf<T>,
-		},
-		CreatedOption {
-			option_id: OptionIdOf<T>,
-			option_config: OptionConfigOf<T>,
-		},
-		SellOption {
-			seller: AccountIdOf<T>,
-			option_amount: BalanceOf<T>,
-			option_id: OptionIdOf<T>,
-		},
+		/// Emitted after a successful call to the [`create_asset_vault`](Pallet::create_asset_vault) extrinsic.
+		CreatedAssetVault { vault_id: VaultIdOf<T>, asset_id: AssetIdOf<T> },
+
+		/// Emitted after a successful call to the [`create_option`](Pallet::create_option) extrinsic.
+		CreatedOption { option_id: OptionIdOf<T>, option_config: OptionConfigOf<T> },
+
+		/// Emitted after a successful call to the [`sell_option`](Pallet::sell_option) extrinsic.
+		SellOption { seller: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
+
+		/// Emitted after a successful call to the [`delete_sell_option`](Pallet::delete_sell_option) extrinsic.
 		DeleteSellOption {
 			seller: AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: OptionIdOf<T>,
 		},
-		BuyOption {
-			buyer: AccountIdOf<T>,
-			option_amount: BalanceOf<T>,
-			option_id: OptionIdOf<T>,
-		},
-		OptionDepositStart {
-			option_id: OptionIdOf<T>,
-		},
-		OptionPurchaseStart {
-			option_id: OptionIdOf<T>,
-		},
-		OptionExerciseStart {
-			option_id: OptionIdOf<T>,
-		},
-		OptionWithdrawStart {
-			option_id: OptionIdOf<T>,
-		},
-		OptionEnd {
-			option_id: OptionIdOf<T>,
-		},
+
+		/// Emitted after a successful call to the [`buy_option`](Pallet::buy_option) extrinsic.
+		BuyOption { buyer: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
+
+		/// Emitted when the deposit phase for the reported option starts
+		OptionDepositStart { option_id: OptionIdOf<T> },
+
+		/// Emitted when the purchase phase for the reported option starts
+		OptionPurchaseStart { option_id: OptionIdOf<T> },
+
+		/// Emitted when the exercise phase for the reported option starts
+		OptionExerciseStart { option_id: OptionIdOf<T> },
+
+		/// Emitted when the withdraw phase for the reported option starts
+		OptionWithdrawStart { option_id: OptionIdOf<T> },
+
+		/// Emitted when the reported option epoch ends
+		OptionEnd { option_id: OptionIdOf<T> },
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -297,30 +292,59 @@ pub mod pallet {
 	pub enum Error<T> {
 		UnexpectedError,
 
-		// Asset vault errors
+		/// Raised when trying to create a new vault, but the asset is not supported by the Oracle.
 		AssetIsNotSupported,
+
+		/// Raised when trying to retrieve the vault associated to an asset, but it does not exist.
 		AssetVaultDoesNotExists,
+
+		/// Raised when trying to create a new vault, but it already exists.
 		AssetVaultAlreadyExists,
 
-		// Create option errors
-		OptionIdDoesNotExists,
-		OptionIdAlreadyExists,
+		/// Raised when trying to retrieve the option corresponding to the given option id,
+		/// but it does not exist.
+		OptionDoesNotExists,
+
+		/// Raised when trying to create a new option, but it already exists.
+		OptionAlreadyExists,
+
+		/// Raised when trying to create a new option, but at least one between base asset
+		/// and quote asset vaults do not exist.
 		OptionAssetVaultsDoNotExist,
+
+		/// raised when trying to create a new option, but at least one of the option's attributes
+		/// has an invalid value.
 		OptionAttributesAreInvalid,
 
-		// Sell option errors
+		/// Raised when trying to sell an option, but the user does not own enough collateral to complete
+		/// the operation.
 		UserHasNotEnoughFundsToDeposit,
+
+		/// Raised when trying to sell an option, but deposits into vaults are disabled.
 		VaultDepositNotAllowed,
 
-		// Withdraw deposited collateral errors
+		/// Raised when trying to delete the sale of an option, but the user had never sold the option
+		/// before.
 		UserDoesNotHaveSellerPosition,
+
+		/// Raised when trying to delete the sale of an option, but the user is trying to withdraw more
+		/// collateral than provided.
 		UserDoesNotHaveEnoughCollateralDeposited,
+
+		/// Raised when trying to delete the sale of an option, but withdrawals from vaults are disabled.
 		VaultWithdrawNotAllowed,
 
-		// Epoch errors
+		/// Raised when trying to sell an option, but it is not deposit phase for that option.
 		NotIntoDepositWindow,
+
+		/// Raised when trying to buy an option, but it is not purchase phase for that option.
 		NotIntoPurchaseWindow,
+
+		/// Raised when trying to exercise an option, but it is not exercise phase for that option.
 		NotIntoExerciseWindow,
+
+		/// Raised when trying to withdraw collateral after the option expired, but it is not withdraw phase
+		/// for that option.
 		NotIntoWithdrawWindow,
 	}
 
@@ -359,15 +383,43 @@ pub mod pallet {
 	}
 
 	// ----------------------------------------------------------------------------------------------------
-	//		Genesis Config
-	// ----------------------------------------------------------------------------------------------------
-
-	// ----------------------------------------------------------------------------------------------------
 	//		Extrinsics
 	// ----------------------------------------------------------------------------------------------------
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create vault for a particular asset to deposit collateral
+		/// Create a new vault for the given asset and save the vault id on storage.
+		///
+		/// # Overview
+		///
+		/// ## Parameters
+		/// - `origin`: type representing the origin of this dispatch.
+		/// - `vault_config`: the configuration of the vault to create.
+		///
+		/// ## Requirements
+		///
+		/// 1. The call must have been signed by the protocol account.
+		/// 2. The vault should not already exist.
+		/// 3. The asset should be supported by the Oracle.
+		///
+		/// ## Emits
+		///
+		/// - [`Event::CreatedAssetVault`]
+		///
+		/// ## State Changes
+		///
+		/// - Updates the [`AssetToVault`] storage mapping the asset id with the new created vault id.
+		///
+		/// ## Errors
+		///
+		/// - [`AssetIsNotSupported`](Error::AssetIsNotSupported): raised when trying to create a new vault,
+		///  but the asset is not supported by the Oracle.
+		/// - [`AssetVaultAlreadyExists`](Error::AssetVaultAlreadyExists): raised when trying to create a new vault,
+		/// but it already exists.
+		/// # Examples
+		///
+		/// # Weight: O(TBD)
+
 		#[pallet::weight(<T as Config>::WeightInfo::create_asset_vault())]
 		pub fn create_asset_vault(
 			origin: OriginFor<T>,
@@ -381,7 +433,6 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Create an option to be listed for sale
 		#[pallet::weight(<T as Config>::WeightInfo::create_option())]
 		pub fn create_option(
 			origin: OriginFor<T>,
@@ -475,7 +526,7 @@ pub mod pallet {
 				Ok(validated_option_config) => Self::do_create_option(validated_option_config),
 				Err(error) => match error {
 					"ValidateOptionDoesNotExist" => {
-						Err(DispatchError::from(Error::<T>::OptionIdAlreadyExists))
+						Err(DispatchError::from(Error::<T>::OptionAlreadyExists))
 					},
 					"ValidateOptionAssetVaultsExist" => {
 						Err(DispatchError::from(Error::<T>::OptionAssetVaultsDoNotExist))
@@ -496,7 +547,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			ensure!(
 				OptionIdToOption::<T>::contains_key(option_id),
-				Error::<T>::OptionIdDoesNotExists
+				Error::<T>::OptionDoesNotExists
 			);
 
 			Self::do_sell_option(&from, option_amount, option_id)?;
@@ -512,7 +563,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			ensure!(
 				OptionIdToOption::<T>::contains_key(option_id),
-				Error::<T>::OptionIdDoesNotExists
+				Error::<T>::OptionDoesNotExists
 			);
 
 			Self::do_delete_sell_option(&from, option_amount, option_id)?;
@@ -528,7 +579,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			ensure!(
 				OptionIdToOption::<T>::contains_key(option_id),
-				Error::<T>::OptionIdDoesNotExists
+				Error::<T>::OptionDoesNotExists
 			);
 
 			Self::do_buy_option(&from, option_amount, option_id)?;
@@ -624,7 +675,7 @@ pub mod pallet {
 			option_id: OptionIdOf<T>,
 		) -> Result<(), DispatchError> {
 			let option =
-				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdDoesNotExists)?;
+				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionDoesNotExists)?;
 
 			// Check if we are in deposit window
 			ensure!(
@@ -753,7 +804,7 @@ pub mod pallet {
 			option_id: OptionIdOf<T>,
 		) -> Result<(), DispatchError> {
 			let option =
-				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionIdDoesNotExists)?;
+				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionDoesNotExists)?;
 
 			// Check if we are in deposit window
 			ensure!(

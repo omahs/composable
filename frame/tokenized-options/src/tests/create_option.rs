@@ -237,7 +237,7 @@ fn test_create_option_error_option_already_exists() {
 		// Create same option again and check error is raised
 		assert_noop!(
 			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
-			Error::<MockRuntime>::OptionIdAlreadyExists
+			Error::<MockRuntime>::OptionAlreadyExists
 		);
 	});
 }
@@ -279,7 +279,7 @@ fn test_create_option_error_option_already_exists_ext() {
 		// Create same option again and check error is raised
 		assert_noop!(
 			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
-			Error::<MockRuntime>::OptionIdAlreadyExists
+			Error::<MockRuntime>::OptionAlreadyExists
 		);
 	});
 }
