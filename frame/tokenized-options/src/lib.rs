@@ -475,6 +475,42 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Sell the indicated option and save the seller's position.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `origin`: type representing the origin of this dispatch.
+		/// - `option_config`: the configuration of the option to create.
+		///
+		/// ## Requirements
+		/// 1. The call must have been signed by the user.
+		/// 2. The option should exist.
+		/// 3. The option should be in deposit phase.
+		///
+		/// ## Emits
+		/// - [`Event::SellOption`]
+		///
+		/// ## State Changes
+		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with his position.
+		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to sell to the total amount
+		/// already for sale.
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
+		/// but it already exists.
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): Raised when trying to retrieve the vault
+		/// associated to an asset, but it does not exist.
+		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
+		/// but it is not deposit phase for that option.
+		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to sell an option,
+		/// but the user does not own enough collateral to complete the operation
+		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
+		/// but deposits into vaults are disabled.
+		///
+		/// # Examples
+		///
+		/// # Weight: O(TBD)
+
 		#[pallet::weight(<T as Config>::WeightInfo::sell_option())]
 		pub fn sell_option(
 			origin: OriginFor<T>,
@@ -618,7 +654,38 @@ pub mod pallet {
 			}
 		}
 
-		/// Sell an option providing collateral
+		/// Sell the indicated option and save the seller's position.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `option_config`: the configuration of the option to create.
+		///
+		/// ## Requirements
+		/// 1. The option should exist.
+		/// 2. The option should be in deposit phase.
+		///
+		/// ## Emits
+		/// - [`Event::SellOption`]
+		///
+		/// ## State Changes
+		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with his position.
+		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to sell to the total amount
+		/// already for sale.
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
+		/// but it already exists.
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): Raised when trying to retrieve the vault
+		/// associated to an asset, but it does not exist.
+		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
+		/// but it is not deposit phase for that option.
+		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to sell an option,
+		/// but the user does not own enough collateral to complete the operation
+		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
+		/// but deposits into vaults are disabled.
+		///
+		/// # Weight: O(TBD)
+
 		fn sell_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
