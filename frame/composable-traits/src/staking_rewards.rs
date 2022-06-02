@@ -14,19 +14,6 @@ use sp_runtime::{
 	DispatchError, Perbill,
 };
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
-pub enum PositionState {
-	/// The position is not being rewarded yet
-	/// and waiting for the next epoch to be included in `LockedRewarding` state.
-	Pending,
-	/// The position is currently locked and being rewarded.
-	/// If locked period ends, it goes to `LockedRewarding`.
-	/// Can be moved out of posistion with possible penalty.
-	LockedRewarding,
-	/// The position expired but still being rewarded.
-	/// Can be moved from position without penalty or extended.
-	Expired,
-}
 
 /// The outcome of a penalty applied/notapplied to an amount.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
@@ -99,8 +86,6 @@ impl<AccountId: Clone> Penalty<AccountId> {
 pub struct StakingConfig<AccountId, DurationPresets, RewardAssets> {
 	/// The possible locking duration.
 	pub duration_presets: DurationPresets,
-	/// The assets we can reward stakers with.
-	pub reward_assets: RewardAssets,
 	/// The penalty applied if a staker unstake before the end date.
 	pub early_unstake_penalty: Penalty<AccountId>,
 }
@@ -108,12 +93,8 @@ pub struct StakingConfig<AccountId, DurationPresets, RewardAssets> {
 /// staking typed fNFT, usually can be mapped to raw fNFT storage type
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
 pub struct StakingNFT<AccountId, AssetId, Balance, Epoch, Rewards> {
-	/// The staked asset.
-	pub asset: AssetId,
 	/// The original stake this NFT was minted for or updated NFT with increased stake amount.
-	pub stake: Balance,
-	/// The reward epoch at which this NFT will start yielding rewards.
-	pub reward_epoch_start: Epoch,
+	pub original_stake: Balance,
 	/// List of reward asset/pending rewards.
 	pub pending_rewards: Rewards,
 	/// The date at which this NFT was minted or to wich lock was extended too.

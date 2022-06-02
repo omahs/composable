@@ -24,7 +24,7 @@ pub fn honest_locked_stake_increase(
 
 #[cfg(test)]
 mod tests {
-	use sp_runtime::Perbill;
+	use sp_runtime::{Perbill, ArithmeticError};
 
 	use crate::math::honest_locked_stake_increase;
 
@@ -45,6 +45,18 @@ mod tests {
 		.expect("valid parameters");
 		assert_eq!(remaining, 1000, "does not allows to reduce duration doing staking");
 	}
+
+	fn honest_lock_extensions(
+		now: u64,
+		lock_date: u64,
+		new_lock: u64,
+		previous_lock: u64,
+	) -> Result<u64, ArithmeticError> {
+		let passed_time = now - lock_date;
+		let rolling = passed_time.min(new_lock.safe_sub(&previous_lock)?);
+		Ok(rolling)
+	}
+
 
 	#[test]
 	fn with_some_time_passed_rounds_to_bigger() {
