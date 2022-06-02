@@ -129,8 +129,8 @@ impl pallet_timestamp::Config for MockRuntime {
 impl pallet_currency_factory::Config for MockRuntime {
 	type Event = Event;
 	type AssetId = AssetId;
+	type Balance = Balance;
 	type AddOrigin = EnsureRoot<AccountId>;
-	type ReserveOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
 }
 
@@ -153,6 +153,8 @@ impl orml_tokens::Config for MockRuntime {
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
 	type MaxLocks = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 	type DustRemovalWhitelist = Everything;
 }
 
@@ -199,6 +201,10 @@ where
 	}
 }
 
+parameter_types! {
+	pub const TreasuryAccountId : AccountId = sp_core::sr25519::Public([10u8; 32]);
+}
+
 impl pallet_oracle::Config for MockRuntime {
 	type Event = Event;
 	type AuthorityId = pallet_oracle::crypto::BathurstStId;
@@ -211,6 +217,7 @@ impl pallet_oracle::Config for MockRuntime {
 	type AddOracle = EnsureSignedBy<RootAccount, sp_core::sr25519::Public>;
 	type MaxAnswerBound = MaxAnswerBound;
 	type MaxAssetsCount = MaxAssetsCount;
+	type TreasuryAccount = TreasuryAccountId;
 	type MaxHistory = MaxHistory;
 	type MaxPrePrices = MaxPrePrices;
 	type WeightInfo = ();

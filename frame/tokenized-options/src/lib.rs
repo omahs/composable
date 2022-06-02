@@ -164,7 +164,7 @@ pub mod pallet {
 		type Convert: Convert<BalanceOf<Self>, u128> + Convert<u128, BalanceOf<Self>>;
 
 		/// Option IDs generator
-		type CurrencyFactory: CurrencyFactory<OptionIdOf<Self>>;
+		type CurrencyFactory: CurrencyFactory<OptionIdOf<Self>, BalanceOf<Self>>;
 
 		/// Used for PICA management.
 		type NativeCurrency: NativeTransfer<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -585,7 +585,7 @@ pub mod pallet {
 			>,
 		) -> Result<OptionIdOf<T>, DispatchError> {
 			// Generate new option_id for the option token
-			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS)?;
+			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS, T::Balance::default())?;
 
 			let option = OptionToken {
 				base_asset_id: option_config.base_asset_id,
