@@ -14,7 +14,8 @@ use sp_std::cmp::max;
 // -----------------------------------------------------------------------------------------------
 //		ValidateVaultDoesNotExist
 // -----------------------------------------------------------------------------------------------
-
+/// Validate that the vault linked to the asset specified by `input`
+/// does not exist before creating it.
 #[derive(Clone, Copy)]
 pub struct ValidateVaultDoesNotExist<T> {
 	_marker: PhantomData<T>,
@@ -35,7 +36,7 @@ impl<T: Config> Validate<VaultConfigOf<T>, ValidateVaultDoesNotExist<T>>
 // -----------------------------------------------------------------------------------------------
 //		ValidateAssetIsSupported
 // -----------------------------------------------------------------------------------------------
-
+/// Validate that the asset specified by `input` is supported by the Oracle.
 #[derive(Clone, Copy)]
 pub struct ValidateAssetIsSupported<T> {
 	_marker: PhantomData<T>,
@@ -55,7 +56,7 @@ impl<T: Config> Validate<VaultConfigOf<T>, ValidateAssetIsSupported<T>>
 // // -----------------------------------------------------------------------------------------------
 // //		ValidateOptionDoesNotExist
 // // -----------------------------------------------------------------------------------------------
-
+/// Validate that the option specified by `input` does not exist before creating it
 #[derive(Clone, Copy)]
 pub struct ValidateOptionDoesNotExist<T> {
 	_marker: PhantomData<T>,
@@ -85,7 +86,7 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionDoesNotExist<T>>
 // -----------------------------------------------------------------------------------------------
 //		ValidateOptionAssetVaultsExist
 // -----------------------------------------------------------------------------------------------
-
+/// Validate that both the vaults linked to the assets specified by `input` exist.
 #[derive(Clone, Copy)]
 pub struct ValidateOptionAssetVaultsExist<T> {
 	_marker: PhantomData<T>,
@@ -108,7 +109,7 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAssetVaultsExist<T>>
 // -----------------------------------------------------------------------------------------------
 //		ValidateOptionAttributes
 // -----------------------------------------------------------------------------------------------
-
+/// Validate that the attributes of the option specified by `input` respect the assumptions.
 #[derive(Clone, Copy)]
 pub struct ValidateOptionAttributes<T> {
 	_marker: PhantomData<T>,

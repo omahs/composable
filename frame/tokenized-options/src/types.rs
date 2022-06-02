@@ -8,18 +8,21 @@ use sp_std::fmt::Debug;
 // ----------------------------------------------------------------------------------------------------
 //		Enums
 // ----------------------------------------------------------------------------------------------------
+/// Indicates the type of option: `Call` or `Put`
 #[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum OptionType {
 	Call,
 	Put,
 }
 
+/// Indicates the type of exercise of the option: `European` or `American`
 #[derive(Copy, Clone, Encode, Decode, Debug, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum ExerciseType {
 	European,
 	American,
 }
 
+/// Indicates the type of phases of the option.
 #[derive(Clone, Copy, Encode, Decode, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum WindowType {
 	Deposit,
@@ -33,6 +36,8 @@ pub enum WindowType {
 //		Structs and implementations
 // ----------------------------------------------------------------------------------------------------
 
+/// Stores the timestamps of an epoch.
+/// An Epoch is divided into 4 phases: deposit, purchase, exercise, withdraw.
 #[derive(Clone, Copy, Encode, Decode, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct Epoch<Moment> {
 	pub deposit: Moment,
@@ -60,6 +65,7 @@ impl<Moment: Ord> Epoch<Moment> {
 	}
 }
 
+/// Represent the option with the attributes to be configured
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, Debug)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
@@ -95,6 +101,7 @@ impl<T: Config> OptionToken<T> {
 	}
 }
 
+/// Configuration for creating an option
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, Debug)]
 pub struct OptionConfig<AssetId, Balance, Moment> {
 	pub base_asset_id: AssetId,
