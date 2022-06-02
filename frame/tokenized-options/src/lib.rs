@@ -323,8 +323,8 @@ pub mod pallet {
 		/// Raised when trying to sell an option, but deposits into vaults are disabled.
 		VaultDepositNotAllowed,
 
-		/// Raised when trying to delete the sale of an option, but the user had never sold the option
-		/// before.
+		/// Raised when trying to delete the sale of an option, but the user had never sold the
+		/// indicated option before.
 		UserDoesNotHaveSellerPosition,
 
 		/// Raised when trying to delete the sale of an option, but the user is trying to withdraw more
@@ -415,7 +415,6 @@ pub mod pallet {
 		/// # Examples
 		///
 		/// # Weight: O(TBD)
-
 		#[pallet::weight(<T as Config>::WeightInfo::create_asset_vault())]
 		pub fn create_asset_vault(
 			origin: OriginFor<T>,
@@ -461,7 +460,6 @@ pub mod pallet {
 		/// # Examples
 		///
 		/// # Weight: O(TBD)
-
 		#[pallet::weight(<T as Config>::WeightInfo::create_option())]
 		pub fn create_option(
 			origin: OriginFor<T>,
@@ -480,7 +478,8 @@ pub mod pallet {
 		/// # Overview
 		/// ## Parameters
 		/// - `origin`: type representing the origin of this dispatch.
-		/// - `option_config`: the configuration of the option to create.
+		/// - `option_amount`: the amount of option the user wants to sell.
+		/// - `option_id`: the option id.
 		///
 		/// ## Requirements
 		/// 1. The call must have been signed by the user.
@@ -498,7 +497,7 @@ pub mod pallet {
 		/// ## Errors
 		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
 		/// but it already exists.
-		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): Raised when trying to retrieve the vault
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
 		/// associated to an asset, but it does not exist.
 		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
 		/// but it is not deposit phase for that option.
@@ -510,7 +509,6 @@ pub mod pallet {
 		/// # Examples
 		///
 		/// # Weight: O(TBD)
-
 		#[pallet::weight(<T as Config>::WeightInfo::sell_option())]
 		pub fn sell_option(
 			origin: OriginFor<T>,
@@ -524,7 +522,45 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Withdraw collateral provided when selling an option
+		/// Delete the selling of the indicated option and update the seller's position.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `origin`: type representing the origin of this dispatch.
+		/// - `option_amount`: the amount of option the user wants to delete the sale of.
+		/// - `option_id`: the option id.
+		///
+		/// ## Requirements
+		/// 1. The call must have been signed by the user.
+		/// 2. The option should exist.
+		/// 3. The option should be in deposit phase.
+		/// 4. The user should already have a seller position for the chosen option.
+		///
+		/// ## Emits
+		/// - [`Event::DeleteSellOption`]
+		///
+		/// ## State Changes
+		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with his position.
+		/// - Updates the [`OptionIdToOption`] storage subtracting the amount of option to delete the sale of from the total amount
+		/// already for sale.
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
+		/// but it already exists.
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
+		/// associated to an asset, but it does not exist.
+		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
+		/// but it is not deposit phase for that option.
+		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to delete the sale of an option,
+		/// but the user had never sold the indicated option
+		/// - [`UserDoesNotHaveEnoughCollateralDeposited`](Error::UserDoesNotHaveEnoughCollateralDeposited): raised when trying
+		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
+		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
+		/// but withdrawals from vaults are disabled.
+		///
+		/// # Examples
+		///
+		/// # Weight: O(TBD)
 		#[pallet::weight(<T as Config>::WeightInfo::delete_sell_option())]
 		pub fn delete_sell_option(
 			origin: OriginFor<T>,
@@ -587,7 +623,6 @@ pub mod pallet {
 		/// but it already exists.
 		///
 		/// # Weight: O(TBD)
-
 		fn create_asset_vault(
 			vault_config: Self::VaultConfig,
 		) -> Result<Self::VaultId, DispatchError> {
@@ -633,7 +668,6 @@ pub mod pallet {
 		/// but at least one of the option's attributes has an invalid value.
 		///
 		/// # Weight: O(TBD)
-
 		fn create_option(
 			option_config: Self::OptionConfig,
 		) -> Result<Self::OptionId, DispatchError> {
@@ -658,7 +692,9 @@ pub mod pallet {
 		///
 		/// # Overview
 		/// ## Parameters
-		/// - `option_config`: the configuration of the option to create.
+		/// - `from`: the user's account id
+		/// - `option_amount`: the amount of option the user wants to sell.
+		/// - `option_id`: the option id.
 		///
 		/// ## Requirements
 		/// 1. The option should exist.
@@ -675,7 +711,7 @@ pub mod pallet {
 		/// ## Errors
 		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
 		/// but it already exists.
-		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): Raised when trying to retrieve the vault
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
 		/// associated to an asset, but it does not exist.
 		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
 		/// but it is not deposit phase for that option.
@@ -685,7 +721,6 @@ pub mod pallet {
 		/// but deposits into vaults are disabled.
 		///
 		/// # Weight: O(TBD)
-
 		fn sell_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
@@ -701,7 +736,42 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Sell an option providing collateral
+		/// Delete the selling of the indicated option and update the seller's position.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `from`: the user's account id.
+		/// - `option_amount`: the amount of option the user wants to delete the sale of.
+		/// - `option_id`: the option id.
+		///
+		/// ## Requirements
+		/// 1. The option should exist.
+		/// 2. The option should be in deposit phase.
+		/// 3. The user should already have a seller position for the chosen option.
+		///
+		/// ## Emits
+		/// - [`Event::DeleteSellOption`]
+		///
+		/// ## State Changes
+		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with his position.
+		/// - Updates the [`OptionIdToOption`] storage subtracting the amount of option to delete the sale of from the total amount
+		/// already for sale.
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
+		/// but it already exists.
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
+		/// associated to an asset, but it does not exist.
+		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
+		/// but it is not deposit phase for that option.
+		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to delete the sale of an option,
+		/// but the user had never sold the indicated option
+		/// - [`UserDoesNotHaveEnoughCollateralDeposited`](Error::UserDoesNotHaveEnoughCollateralDeposited): raised when trying
+		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
+		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
+		/// but withdrawals from vaults are disabled.
+		///
+		/// # Weight: O(TBD)
 		fn delete_sell_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
