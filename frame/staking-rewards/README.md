@@ -76,18 +76,6 @@ Meaning that if a user trade a NFT including pending rewards, the new owner will
 Any protocol is able to rewards the stakers by calling the
 `StakingRewards::transfer_reward` implementation of this pallet.
 
-### Epoches
-
-Rewards accumulated in epochs.
-
-User may stake amount and get fNFT, but it will not start earn until next epoch start.
-
-After each epoch end, there is short period of time it takes to collect rewards and put new fNFTs into rewarding state.
-
-During epoch users are protected from dilution made by other users who stake.
-
-During rewarding state amid epochs, rewards got to fNFTs, not to the owner of fNFTs.
-
 ### Positions operations
 
 #### Split positions

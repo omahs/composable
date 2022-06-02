@@ -52,10 +52,6 @@ pub mod pallet {
 	};
 	use composable_traits::{
 		financial_nft::{FinancialNftProtocol, NftClass, NftVersion},
-		staking::{
-			Penalty, PenaltyOutcome, PositionState, Shares, Staking, StakingConfig, StakingNFT,
-			StakingReward,
-		},
 		time::{DurationSeconds, Timestamp},
 	};
 	use frame_support::{
@@ -78,68 +74,45 @@ pub mod pallet {
 	};
 	use sp_std::collections::btree_map::BTreeMap;
 
-	type ShareAmount = u128;
-	pub(crate) type EpochId = u128;
+	// type ShareAmount = u128;
 	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub(crate) type AssetIdOf<T> = <T as Config>::AssetId;
 	pub(crate) type BalanceOf<T> = <T as Config>::Balance;
-	pub(crate) type InstanceIdOf<T> = <T as FinancialNftProtocol<AccountIdOf<T>>>::InstanceId;
-	pub(crate) type MaxRewardAssetsOf<T> = <T as Config>::MaxRewardAssets;
-	pub(crate) type MaxStakingPresetsOf<T> = <T as Config>::MaxStakingPresets;
-	pub(crate) type RewardAssetsOf<T> = BoundedBTreeSet<AssetIdOf<T>, MaxRewardAssetsOf<T>>;
-	pub(crate) type DurationPresetsOf<T> =
-		BoundedBTreeMap<DurationSeconds, Perbill, MaxStakingPresetsOf<T>>;
-	pub(crate) type RewardsOf<T> =
-		BoundedBTreeMap<AssetIdOf<T>, BalanceOf<T>, MaxRewardAssetsOf<T>>;
-	pub(crate) type StakingNFTOf<T> =
-		StakingNFT<AccountIdOf<T>, AssetIdOf<T>, BalanceOf<T>, EpochId, RewardsOf<T>>;
-	pub(crate) type StakingConfigOf<T> =
-		StakingConfig<AccountIdOf<T>, DurationPresetsOf<T>, RewardAssetsOf<T>>;
-	pub(crate) type EpochDurationOf<T> = <T as Config>::EpochDuration;
-	#[allow(dead_code)]
-	pub(crate) type PenaltyOf<T> = Penalty<AccountIdOf<T>>;
-
-	// NOTE:
-	// some state processed by batched brain, as these just merged into main collections
-	// some states are processed by fold, because updates happens in place
-	// fold can be made drain if to use A/B storages and drain one and fill other depending on epoch
-	// index mod 2
-	#[derive(Debug, PartialEq, Eq, Clone, Encode, Decode, TypeInfo)]
-	pub enum State {
-		/// epoch runs, cannot modify active positions, only append modification queues
-		Running,
-		/// stakes positions rewarded`
-		/// Processed by `fold` as updates are done in place
-		Distributing,
-		// TODO: decide what is better the first duration or
-		/// amount is added regardless of position state
-		PendingAmounts,
-		/// time extended regardless of position state
-		PendingDurations,
-		/// working with pending operations, registering new stakers and asset total increases
-		PendingStakers,
-		PendingShares,
-	}
+	// pub(crate) type InstanceIdOf<T> = <T as FinancialNftProtocol<AccountIdOf<T>>>::InstanceId;
+	// pub(crate) type MaxRewardAssetsOf<T> = <T as Config>::MaxRewardAssets;
+	// pub(crate) type MaxStakingPresetsOf<T> = <T as Config>::MaxStakingPresets;
+	// pub(crate) type RewardAssetsOf<T> = BoundedBTreeSet<AssetIdOf<T>, MaxRewardAssetsOf<T>>;
+	// pub(crate) type DurationPresetsOf<T> =
+	// 	BoundedBTreeMap<DurationSeconds, Perbill, MaxStakingPresetsOf<T>>;
+	// pub(crate) type RewardsOf<T> =
+	// 	BoundedBTreeMap<AssetIdOf<T>, BalanceOf<T>, MaxRewardAssetsOf<T>>;
+	// pub(crate) type StakingNFTOf<T> =
+	// 	StakingNFT<AccountIdOf<T>, AssetIdOf<T>, BalanceOf<T>, EpochId, RewardsOf<T>>;
+	// pub(crate) type StakingConfigOf<T> =
+	// 	StakingConfig<AccountIdOf<T>, DurationPresetsOf<T>, RewardAssetsOf<T>>;
+	// pub(crate) type EpochDurationOf<T> = <T as Config>::EpochDuration;
+	// #[allow(dead_code)]
+	// pub(crate) type PenaltyOf<T> = Penalty<AccountIdOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// An asset has been configured for staking.
-		Configured { asset: AssetIdOf<T>, configuration: StakingConfigOf<T> },
-		/// A user staked his protocol asset. Yield a NFT represeting his position.
-		Staked { who: AccountIdOf<T>, stake: BalanceOf<T>, nft: InstanceIdOf<T> },
-		/// A user unstaked his protocol asset.
-		Unstaked {
-			to: AccountIdOf<T>,
-			stake: BalanceOf<T>,
-			penalty: BalanceOf<T>,
-			nft: InstanceIdOf<T>,
-		},
-		/// A new reward has been submitted, rewarding `rewarded_asset` with an `amount` of
-		/// `reward_asset`.
-		NewReward { rewarded_asset: AssetIdOf<T>, reward_asset: AssetIdOf<T>, amount: BalanceOf<T> },
-		/// A new reward epoch started.
-		NewEpoch { id: EpochId },
+		// /// An asset has been configured for staking.
+		// Configured { asset: AssetIdOf<T>, configuration: StakingConfigOf<T> },
+		// /// A user staked his protocol asset. Yield a NFT represeting his position.
+		// Staked { who: AccountIdOf<T>, stake: BalanceOf<T>, nft: InstanceIdOf<T> },
+		// /// A user unstaked his protocol asset.
+		// Unstaked {
+		// 	to: AccountIdOf<T>,
+		// 	stake: BalanceOf<T>,
+		// 	penalty: BalanceOf<T>,
+		// 	nft: InstanceIdOf<T>,
+		// },
+		// /// A new reward has been submitted, rewarding `rewarded_asset` with an `amount` of
+		// /// `reward_asset`.
+		// NewReward { rewarded_asset: AssetIdOf<T>, reward_asset: AssetIdOf<T>, amount: BalanceOf<T> },
+		// /// A new reward epoch started.
+		// NewEpoch { id: EpochId },
 	}
 
 	#[pallet::error]
@@ -162,7 +135,6 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config:
 		frame_system::Config
-		+ FinancialNftProtocol<AccountIdOf<Self>, ClassId = NftClass, Version = NftVersion>
 	{
 		#[allow(missing_docs)]
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -197,112 +169,76 @@ pub mod pallet {
 		/// The maximum number of reward assets protocol asset can handle.
 		#[pallet::constant]
 		type MaxRewardAssets: Get<u32>;
-
-		/// The duration of an epoch
-		#[pallet::constant]
-		type EpochDuration: Get<DurationSeconds>;
-
-		#[pallet::constant]
-		type ElementToProcessPerBlock: Get<u32>;
 	}
 
-	#[pallet::type_value]
-	pub fn StateOnEmpty<T: Config>() -> State {
-		State::Running
-	}
 
-	#[pallet::storage]
-	#[pallet::getter(fn current_state)]
-	pub type CurrentState<T: Config> = StorageValue<_, State, ValueQuery, StateOnEmpty<T>>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn fold_over_stakers)]
-	pub type StakersFoldState<T: Config> =
-		StorageValue<_, BlockFold<(), InstanceIdOf<T>>, OptionQuery>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn current_epoch_start)]
-	pub type EpochStart<T: Config> = StorageValue<_, Timestamp, OptionQuery>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn epoch_rewards)]
+	// pub type EpochRewards<T: Config> = StorageDoubleMap<
+	// 	_,
+	// 	Twox64Concat,
+	// 	(EpochId, AssetIdOf<T>),
+	// 	Twox64Concat,
+	// 	AssetIdOf<T>,
+	// 	BalanceOf<T>,
+	// 	ValueQuery,
+	// 	EpochRewardOnEmpty<T>,
+	// >;
 
-	#[pallet::type_value]
-	pub fn EpochOnEmpty<T: Config>() -> u128 {
-		u128::zero()
-	}
+	// #[pallet::type_value]
+	// pub fn SharesOnEmpty<T: Config>() -> ShareAmount {
+	// 	ShareAmount::zero()
+	// }
 
-	#[pallet::storage]
-	#[pallet::getter(fn current_epoch)]
-	pub type CurrentEpoch<T: Config> = StorageValue<_, EpochId, ValueQuery, EpochOnEmpty<T>>;
+	// //// active running total shares
+	// #[pallet::storage]
+	// #[pallet::getter(fn running_total_shares)]
+	// pub type RunningTotalShares<T: Config> =
+	// 	StorageMap<_, Twox64Concat, AssetIdOf<T>, ShareAmount, ValueQuery, SharesOnEmpty<T>>;
 
-	#[pallet::type_value]
-	pub fn EpochRewardOnEmpty<T: Config>() -> BalanceOf<T> {
-		BalanceOf::<T>::zero()
-	}
+	// /// pending total shares to be applied on next run
+	// #[pallet::storage]
+	// #[pallet::getter(fn pending_total_shares)]
+	// pub type PendingTotalShares<T: Config> =
+	// 	StorageMap<_, Twox64Concat, AssetIdOf<T>, ShareAmount, ValueQuery, SharesOnEmpty<T>>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn epoch_rewards)]
-	pub type EpochRewards<T: Config> = StorageDoubleMap<
-		_,
-		Twox64Concat,
-		(EpochId, AssetIdOf<T>),
-		Twox64Concat,
-		AssetIdOf<T>,
-		BalanceOf<T>,
-		ValueQuery,
-		EpochRewardOnEmpty<T>,
-	>;
+	// #[pallet::type_value]
+	// pub fn RewardStateOnEmpty<T: Config>() -> (EpochId, Timestamp) {
+	// 	(0, 0)
+	// }
 
-	#[pallet::type_value]
-	pub fn SharesOnEmpty<T: Config>() -> ShareAmount {
-		ShareAmount::zero()
-	}
+	// #[pallet::storage]
+	// #[pallet::getter(fn reward_state)]
+	// pub type EndEpochSnapshot<T: Config> =
+	// 	StorageValue<_, (EpochId, Timestamp), ValueQuery, RewardStateOnEmpty<T>>;
 
-	//// active running total shares
-	#[pallet::storage]
-	#[pallet::getter(fn running_total_shares)]
-	pub type RunningTotalShares<T: Config> =
-		StorageMap<_, Twox64Concat, AssetIdOf<T>, ShareAmount, ValueQuery, SharesOnEmpty<T>>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn stakers)]
+	// pub type Stakers<T: Config> = StorageMap<_, Twox64Concat, InstanceIdOf<T>, (), OptionQuery>;
 
-	/// pending total shares to be applied on next run
-	#[pallet::storage]
-	#[pallet::getter(fn pending_total_shares)]
-	pub type PendingTotalShares<T: Config> =
-		StorageMap<_, Twox64Concat, AssetIdOf<T>, ShareAmount, ValueQuery, SharesOnEmpty<T>>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn pending_stakers)]
+	// pub type PendingStakers<T: Config> =
+	// 	StorageMap<_, Twox64Concat, InstanceIdOf<T>, (), OptionQuery>;
 
-	#[pallet::type_value]
-	pub fn RewardStateOnEmpty<T: Config>() -> (EpochId, Timestamp) {
-		(0, 0)
-	}
+	// /// amount of assets which will be added to position on next epoch
+	// #[pallet::storage]
+	// #[pallet::getter(fn pending_amount_extensions)]
+	// pub type PendingAmountExtensions<T: Config> =
+	// 	StorageMap<_, Twox64Concat, InstanceIdOf<T>, T::Balance, OptionQuery>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn reward_state)]
-	pub type EndEpochSnapshot<T: Config> =
-		StorageValue<_, (EpochId, Timestamp), ValueQuery, RewardStateOnEmpty<T>>;
+	// /// time to extend position with
+	// #[pallet::storage]
+	// #[pallet::getter(fn pending_duration_extensions)]
+	// pub type PendingDurationExtensions<T: Config> =
+	// 	StorageMap<_, Twox64Concat, InstanceIdOf<T>, DurationSeconds, OptionQuery>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn stakers)]
-	pub type Stakers<T: Config> = StorageMap<_, Twox64Concat, InstanceIdOf<T>, (), OptionQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn pending_stakers)]
-	pub type PendingStakers<T: Config> =
-		StorageMap<_, Twox64Concat, InstanceIdOf<T>, (), OptionQuery>;
-
-	/// amount of assets which will be added to position on next epoch
-	#[pallet::storage]
-	#[pallet::getter(fn pending_amount_extensions)]
-	pub type PendingAmountExtensions<T: Config> =
-		StorageMap<_, Twox64Concat, InstanceIdOf<T>, T::Balance, OptionQuery>;
-
-	/// time to extend position with
-	#[pallet::storage]
-	#[pallet::getter(fn pending_duration_extensions)]
-	pub type PendingDurationExtensions<T: Config> =
-		StorageMap<_, Twox64Concat, InstanceIdOf<T>, DurationSeconds, OptionQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn staking_configurations)]
-	pub type StakingConfigurations<T: Config> =
-		StorageMap<_, Twox64Concat, AssetIdOf<T>, StakingConfigOf<T>, OptionQuery>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn staking_configurations)]
+	// pub type StakingConfigurations<T: Config> =
+	// 	StorageMap<_, Twox64Concat, AssetIdOf<T>, StakingConfigOf<T>, OptionQuery>;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -311,179 +247,179 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Enable a protocol staking configuration.
-		///
-		/// Minimal staking duration must be larger or equal to epoch.
-		///
-		/// Arguments
-		///
-		/// * `origin` the origin that signed this extrinsic, must be `T::GovernanceOrigin`.
-		/// * `staking_configuration` the staking configuration for the given protocol `asset`.
-		#[pallet::weight(10_000)]
-		pub fn configure(
-			origin: OriginFor<T>,
-			asset: AssetIdOf<T>,
-			configuration: StakingConfigOf<T>,
-		) -> DispatchResultWithPostInfo {
-			// let _ = T::GovernanceOrigin::ensure_origin(origin)?;
-			// StakingConfigurations::<T>::insert(asset, configuration.clone());
-			// Self::deposit_event(Event::<T>::Configured { asset, configuration });
-			// Ok(().into())
-			panic!();
-		}
+		// /// Enable a protocol staking configuration.
+		// ///
+		// /// Minimal staking duration must be larger or equal to epoch.
+		// ///
+		// /// Arguments
+		// ///
+		// /// * `origin` the origin that signed this extrinsic, must be `T::GovernanceOrigin`.
+		// /// * `staking_configuration` the staking configuration for the given protocol `asset`.
+		// // #[pallet::weight(10_000)]
+		// // pub fn configure(
+		// // 	origin: OriginFor<T>,
+		// // 	asset: AssetIdOf<T>,
+		// // 	configuration: StakingConfigOf<T>,
+		// // ) -> DispatchResultWithPostInfo {
+		// // 	// let _ = T::GovernanceOrigin::ensure_origin(origin)?;
+		// // 	// StakingConfigurations::<T>::insert(asset, configuration.clone());
+		// // 	// Self::deposit_event(Event::<T>::Configured { asset, configuration });
+		// // 	// Ok(().into())
+		// // 	panic!();
+		// // }
 
-		/// Stake an amount of protocol asset tokens. Generating an NFT for the staked position.
-		///
-		/// Arguments
-		///
-		/// * `origin` the origin that signed this extrinsic. Will be the owner of the  fNFT
-		///   targeted by `instance_id`.
-		/// * `amount` the amount of tokens to stake.
-		/// * `duration` the duration for which the tokens will be staked.
-		/// * `keep_alive` whether to keep the caller account alive or not.
-		#[pallet::weight(10_000)]
-		#[transactional]
-		pub fn stake(
-			origin: OriginFor<T>,
-			asset: AssetIdOf<T>,
-			amount: BalanceOf<T>,
-			duration: Timestamp,
-			keep_alive: bool,
-		) -> DispatchResultWithPostInfo {
-			let from = ensure_signed(origin)?;
-			// <Self as Staking>::stake(&asset, &from, amount, duration, keep_alive)?;
-			// Ok(().into())
-			panic!();
-		}
+		// /// Stake an amount of protocol asset tokens. Generating an NFT for the staked position.
+		// ///
+		// /// Arguments
+		// ///
+		// /// * `origin` the origin that signed this extrinsic. Will be the owner of the  fNFT
+		// ///   targeted by `instance_id`.
+		// /// * `amount` the amount of tokens to stake.
+		// /// * `duration` the duration for which the tokens will be staked.
+		// /// * `keep_alive` whether to keep the caller account alive or not.
+		// // #[pallet::weight(10_000)]
+		// // #[transactional]
+		// // pub fn stake(
+		// // 	origin: OriginFor<T>,
+		// // 	asset: AssetIdOf<T>,
+		// // 	amount: BalanceOf<T>,
+		// // 	duration: Timestamp,
+		// // 	keep_alive: bool,
+		// // ) -> DispatchResultWithPostInfo {
+		// // 	let from = ensure_signed(origin)?;
+		// // 	// <Self as Staking>::stake(&asset, &from, amount, duration, keep_alive)?;
+		// // 	// Ok(().into())
+		// // 	panic!();
+		// // }
 
-		/// Unstake an amount of protocol asset tokens.
-		///
-		/// Arguments
-		///
-		/// * `origin` the origin that signed this extrinsic. Must be the owner of the NFT targeted
-		///   by `instance_id`.
-		/// * `instance_id` the ID of the NFT that represent our staked position.
-		/// * `to` the account in which the rewards will be transferred before unstaking.
-		#[pallet::weight(10_000)]
-		#[transactional]
-		pub fn unstake(
-			origin: OriginFor<T>,
-			instance_id: InstanceIdOf<T>,
-			to: AccountIdOf<T>,
-		) -> DispatchResultWithPostInfo {
-			// let owner = ensure_signed(origin)?;
-			// T::ensure_protocol_nft_owner::<StakingNFTOf<T>>(&owner, &instance_id)?;
-			// <Self as Staking>::unstake(&instance_id, &to)?;
-			// Ok(().into())
-			panic!();
-		}
+		// /// Unstake an amount of protocol asset tokens.
+		// ///
+		// /// Arguments
+		// ///
+		// /// * `origin` the origin that signed this extrinsic. Must be the owner of the NFT targeted
+		// ///   by `instance_id`.
+		// /// * `instance_id` the ID of the NFT that represent our staked position.
+		// /// * `to` the account in which the rewards will be transferred before unstaking.
+		// // #[pallet::weight(10_000)]
+		// // #[transactional]
+		// // pub fn unstake(
+		// // 	origin: OriginFor<T>,
+		// // 	instance_id: InstanceIdOf<T>,
+		// // 	to: AccountIdOf<T>,
+		// // ) -> DispatchResultWithPostInfo {
+		// // 	// let owner = ensure_signed(origin)?;
+		// // 	// T::ensure_protocol_nft_owner::<StakingNFTOf<T>>(&owner, &instance_id)?;
+		// // 	// <Self as Staking>::unstake(&instance_id, &to)?;
+		// // 	// Ok(().into())
+		// // 	panic!();
+		// // }
 
-		/// Claim the current available rewards.
-		///
-		/// Arguments
-		///
-		/// * `origin` the origin that signed this extrinsic. Can be anyone.
-		/// * `instance_id` the ID of the NFT that represent our staked position.
-		/// * `to` the account in which the rewards will be transferred.
-		#[pallet::weight(10_000)]
-		#[transactional]
-		pub fn claim(
-			origin: OriginFor<T>,
-			instance_id: InstanceIdOf<T>,
-			to: AccountIdOf<T>,
-		) -> DispatchResultWithPostInfo {
-			// let who = ensure_signed(origin)?;
-			// // Only the owner is able to select an arbitrary `to` account.
-			// let (asset, compound) = <Self as Staking>::claim(&instance_id, &to)?;
-			// let nft_owner = T::get_protocol_nft_owner::<StakingNFTOf<T>>(&instance_id)?;
-			// ensure!(nft_owner == who, Error::<T>::OnlyPositionOwnerCanClaim,);
+		// /// Claim the current available rewards.
+		// ///
+		// /// Arguments
+		// ///
+		// /// * `origin` the origin that signed this extrinsic. Can be anyone.
+		// /// * `instance_id` the ID of the NFT that represent our staked position.
+		// /// * `to` the account in which the rewards will be transferred.
+		// // #[pallet::weight(10_000)]
+		// // #[transactional]
+		// // pub fn claim(
+		// // 	origin: OriginFor<T>,
+		// // 	instance_id: InstanceIdOf<T>,
+		// // 	to: AccountIdOf<T>,
+		// // ) -> DispatchResultWithPostInfo {
+		// // 	// let who = ensure_signed(origin)?;
+		// // 	// // Only the owner is able to select an arbitrary `to` account.
+		// // 	// let (asset, compound) = <Self as Staking>::claim(&instance_id, &to)?;
+		// // 	// let nft_owner = T::get_protocol_nft_owner::<StakingNFTOf<T>>(&instance_id)?;
+		// // 	// ensure!(nft_owner == who, Error::<T>::OnlyPositionOwnerCanClaim,);
 
-			// if compound > T::Balance::zero() {
-			// 	RunningTotalShares::<T>::try_mutate(asset, |total_shares| -> DispatchResult {
-			// 		*total_shares = total_shares.safe_sub(&compound.into())?;
-			// 		Ok(())
-			// 	})?;
-			// }
+		// // 	// if compound > T::Balance::zero() {
+		// // 	// 	RunningTotalShares::<T>::try_mutate(asset, |total_shares| -> DispatchResult {
+		// // 	// 		*total_shares = total_shares.safe_sub(&compound.into())?;
+		// // 	// 		Ok(())
+		// // 	// 	})?;
+		// // 	// }
 
-			// Ok(().into())
-			panic!();
-		}
+		// // 	// Ok(().into())
+		// // 	panic!();
+		// // }
 
-		/// Splits fNFT position into several chunks with various amounts, but with same exposure.
-		/// fNFT splitted earns reward in current epoch proportional to split.
-		/// Can split only at  `State::WaitingForEpochEnd` state.
-		///
-		/// `origin` - owner of fNFT
-		/// `amounts` - amount of in each fNFT, sum must equal to current stake.
-		///
-		///  raises event of NFT `SplitCreation`
-		#[pallet::weight(10_000)]
-		pub fn split(
-			_origin: OriginFor<T>,
-			_asset: InstanceIdOf<T>,
-			_amounts: BiBoundedVec<T::Balance, 2, 16>,
-		) -> DispatchResult {
-			Err(DispatchError::Other("no implemented. TODO: call split on fnft provider"))
-		}
+		// /// Splits fNFT position into several chunks with various amounts, but with same exposure.
+		// /// fNFT splitted earns reward in current epoch proportional to split.
+		// /// Can split only at  `State::WaitingForEpochEnd` state.
+		// ///
+		// /// `origin` - owner of fNFT
+		// /// `amounts` - amount of in each fNFT, sum must equal to current stake.
+		// ///
+		// ///  raises event of NFT `SplitCreation`
+		// // #[pallet::weight(10_000)]
+		// // pub fn split(
+		// // 	_origin: OriginFor<T>,
+		// // 	_asset: InstanceIdOf<T>,
+		// // 	_amounts: BiBoundedVec<T::Balance, 2, 16>,
+		// // ) -> DispatchResult {
+		// // 	Err(DispatchError::Other("no implemented. TODO: call split on fnft provider"))
+		// // }
 
-		/// Extends fNFT position stake. Applied only to next epoch.
-		///
-		/// `extend_stake` is better than unstaking and restaking because of the early unstake penalty.
-		/// But this may incentivize making many small stakes one on top of each other to game the system.
-		#[pallet::weight(10_000)]
-		#[transactional]
-		pub fn extend_stake(
-			origin: OriginFor<T>,
-			instance_id: InstanceIdOf<T>,
-			balance: T::Balance,
-			keep_alive: bool,
-		) -> DispatchResult {
-			// // TODO: consider attack adding near zero stake each block, preventing stream to finish
-			// let owner = ensure_signed(origin)?;
-			// T::ensure_protocol_nft_owner::<StakingNFTOf<T>>(&owner, &instance_id)?;
-			// let position = T::get_protocol_nft::<StakingNFTOf<T>>(&instance_id)?;
-			// let protocol_account = Self::account_id(&position.asset);
-			// T::Assets::transfer(position.asset, &owner, &protocol_account, balance, keep_alive)?;
-			// PendingAmountExtensions::<T>::mutate_exists(instance_id, |x| {
-			// 	let increased = x.unwrap_or_default().safe_add(&balance);
-			// 	*x = Some(increased?);
-			// 	increased
-			// })?;
-			// Ok(())
-			panic!();
-		}
+		// /// Extends fNFT position stake. Applied only to next epoch.
+		// ///
+		// /// `extend_stake` is better than unstaking and restaking because of the early unstake penalty.
+		// /// But this may incentivize making many small stakes one on top of each other to game the system.
+		// // #[pallet::weight(10_000)]
+		// // #[transactional]
+		// // pub fn extend_stake(
+		// // 	origin: OriginFor<T>,
+		// // 	instance_id: InstanceIdOf<T>,
+		// // 	balance: T::Balance,
+		// // 	keep_alive: bool,
+		// // ) -> DispatchResult {
+		// // 	// // TODO: consider attack adding near zero stake each block, preventing stream to finish
+		// // 	// let owner = ensure_signed(origin)?;
+		// // 	// T::ensure_protocol_nft_owner::<StakingNFTOf<T>>(&owner, &instance_id)?;
+		// // 	// let position = T::get_protocol_nft::<StakingNFTOf<T>>(&instance_id)?;
+		// // 	// let protocol_account = Self::account_id(&position.asset);
+		// // 	// T::Assets::transfer(position.asset, &owner, &protocol_account, balance, keep_alive)?;
+		// // 	// PendingAmountExtensions::<T>::mutate_exists(instance_id, |x| {
+		// // 	// 	let increased = x.unwrap_or_default().safe_add(&balance);
+		// // 	// 	*x = Some(increased?);
+		// // 	// 	increased
+		// // 	// })?;
+		// // 	// Ok(())
+		// // 	panic!();
+		// // }
 
-		/// Extends stake duration.
-		/// `duration` - if none, then extend current duration from start. If more than current
-		/// duration, takes some time from new duration.
-		///
-		/// Fails if `duration` extensions does not fits allowed.
-		#[pallet::weight(10_000)]
-		#[transactional]
-		pub fn extend_duration(
-			origin: OriginFor<T>,
-			instance_id: InstanceIdOf<T>,
-			duration: Option<DurationSeconds>,
-		) -> DispatchResult {
-			// let owner = ensure_signed(origin)?;
-			// T::ensure_protocol_nft_owner::<StakingNFTOf<T>>(&owner, &instance_id)?;
-			// let position = T::get_protocol_nft::<StakingNFTOf<T>>(&instance_id)?;
-			// let config = Self::get_config(&position.asset)?;
-			// let duration = duration.unwrap_or(position.lock_duration);
-			// ensure!(
-			// 	position.lock_duration <= duration,
-			// 	Error::<T>::NewLockDurationMustBeEqualOrBiggerThanPreviousLockDuration
-			// );
-			// let _exists = *config
-			// 	.duration_presets
-			// 	.get(&duration)
-			// 	.ok_or(Error::<T>::InvalidDurationPreset)?;
+		// /// Extends stake duration.
+		// /// `duration` - if none, then extend current duration from start. If more than current
+		// /// duration, takes some time from new duration.
+		// ///
+		// /// Fails if `duration` extensions does not fits allowed.
+		// #[pallet::weight(10_000)]
+		// #[transactional]
+		// pub fn extend_duration(
+		// 	origin: OriginFor<T>,
+		// 	instance_id: InstanceIdOf<T>,
+		// 	duration: Option<DurationSeconds>,
+		// ) -> DispatchResult {
+		// 	// let owner = ensure_signed(origin)?;
+		// 	// T::ensure_protocol_nft_owner::<StakingNFTOf<T>>(&owner, &instance_id)?;
+		// 	// let position = T::get_protocol_nft::<StakingNFTOf<T>>(&instance_id)?;
+		// 	// let config = Self::get_config(&position.asset)?;
+		// 	// let duration = duration.unwrap_or(position.lock_duration);
+		// 	// ensure!(
+		// 	// 	position.lock_duration <= duration,
+		// 	// 	Error::<T>::NewLockDurationMustBeEqualOrBiggerThanPreviousLockDuration
+		// 	// );
+		// 	// let _exists = *config
+		// 	// 	.duration_presets
+		// 	// 	.get(&duration)
+		// 	// 	.ok_or(Error::<T>::InvalidDurationPreset)?;
 
-			// PendingDurationExtensions::<T>::insert(instance_id, duration);
+		// 	// PendingDurationExtensions::<T>::insert(instance_id, duration);
 
-			// Ok(())
-			panic!();
-		}
+		// 	// Ok(())
+		// 	panic!();
+		// }
 	}
 
 	#[pallet::hooks]
@@ -678,16 +614,16 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 
-		/// The staking protocol account. Derived from the staking pallet id.
-		pub(crate) fn account_id(asset: &AssetIdOf<T>) -> AccountIdOf<T> {
-			T::PalletId::get().into_sub_account(asset)
-		}
+		// /// The staking protocol account. Derived from the staking pallet id.
+		// pub(crate) fn account_id(asset: &AssetIdOf<T>) -> AccountIdOf<T> {
+		// 	T::PalletId::get().into_sub_account(asset)
+		// }
 
-		pub(crate) fn get_config(
-			asset: &AssetIdOf<T>,
-		) -> Result<StakingConfigOf<T>, DispatchError> {
-			StakingConfigurations::<T>::get(asset).ok_or_else(|| Error::<T>::NotConfigured.into())
-		}
+		// pub(crate) fn get_config(
+		// 	asset: &AssetIdOf<T>,
+		// ) -> Result<StakingConfigOf<T>, DispatchError> {
+		// 	StakingConfigurations::<T>::get(asset).ok_or_else(|| Error::<T>::NotConfigured.into())
+		// }
 
 	// 	pub(crate) fn collect_rewards(
 	// 		nft: &mut StakingNFTOf<T>,
