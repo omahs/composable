@@ -1,4 +1,5 @@
-use crate::{self as composable_traits};
+
+use super::{self as composable_traits};
 
 use composable_traits::{
 	financial_nft::{NftClass, NftVersion},
@@ -139,11 +140,35 @@ pub trait Staking {
 	/// * `to` the account to transfer the final claimed rewards to.
 	fn remove_share(
 		who: &Self::AccountId, instance_id: &Self::InstanceId, remove_amount: Self::Balance) -> DispatchResult;
+
+		// /// Splits fNFT position into several chunks with various amounts, but with same exposure.
+		// /// fNFT splitted earns reward in current epoch proportional to split.
+		// /// Can split only at  `State::WaitingForEpochEnd` state.
+		// ///
+		// /// `origin` - owner of fNFT
+		// /// `amounts` - amount of in each fNFT, sum must equal to current stake.
+		// ///
+		// ///  raises event of NFT `SplitCreation`
+		// // #[pallet::weight(10_000)]
+		// // pub fn split(
+		// // 	_origin: OriginFor<T>,
+		// // 	_asset: InstanceIdOf<T>,
+		// // 	_amounts: BiBoundedVec<T::Balance, 2, 16>,
+		// // ) -> DispatchResult {
+		// // 	Err(DispatchError::Other("no implemented. TODO: call split on fnft provider"))
+		// // }
+
 }
 
 
 pub trait Locking {
-	
+	// #[pallet::weight(10_000)]
+		// #[transactional]
+		// pub fn extend_duration(
+		// 	origin: OriginFor<T>,
+		// 	instance_id: InstanceIdOf<T>,
+		// 	duration: Option<DurationSeconds>,
+		// ) -> DispatchResult {
 }
 
 pub trait StakingReward {

@@ -31,5 +31,4 @@ pub mod time;
 pub mod vault;
 pub mod vesting;
 pub mod xcm;
-pub mod lock;
-pub mod rewards;
+pub mod staking;

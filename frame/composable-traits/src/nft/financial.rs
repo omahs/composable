@@ -1,3 +1,4 @@
+///
 use codec::{Decode, Encode, FullCodec, MaxEncodedLen};
 use composable_support::collections::vec::bounded::BiBoundedVec;
 use core::fmt::Debug;
@@ -10,13 +11,11 @@ use frame_support::{
 	},
 };
 use scale_info::TypeInfo;
-use sp_runtime::{DispatchError, TokenError};
+use sp_runtime::{DispatchError, TokenError, Permill};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
-// TODO: use BiBoundedVec to avoid for safety - it is easy to grow, but not easy to shrink (needs
-// migration)
-pub type AttributeKey = Vec<u8>; //TODO: len 1 to 64
-pub type AttributeValue = Vec<u8>; //TODO: len from 0 to 2048
+pub type AttributeKey = BiBoundedVec<u8, 1, 64>;
+pub type AttributeValue = BiBoundedVec<u8, 1, 256>; 
 
 pub trait FinancialNftProvider<AccountId>: Create<AccountId> + Mutate<AccountId> {
 	/// Mint an NFT instance with initial (key, value) attribute in the given account.
@@ -26,23 +25,62 @@ pub trait FinancialNftProvider<AccountId>: Create<AccountId> + Mutate<AccountId>
 	/// * `class` the NFT class id.
 	/// * `who` the owner of the minted NFT.
 	/// * `key` the key of the initial attribute.
-	/// * `value` the value of the initial attribute.
+	/// * `reference` the value of the initial attribute.
 	///
 	/// Note: we store the NFT scale encoded struct under a single attribute key.
 	///
 	/// Returns the unique instance id.
-	fn mint_nft<K: Encode, V: Encode>(
-		class: &Self::ClassId,
+	fn mint<K: Encode, V: Encode>(
 		who: &AccountId,
+
+		// unique identify NFT metadata storage
+		class: &Self::ClassId,
 		version: &K,
-		nft_data: &V,
+		reference: &V,
+
 	) -> Result<Self::InstanceId, DispatchError>;
 
 	fn split(
 		instance: &Self::InstanceId,
-		overrides: BiBoundedVec<BTreeMap<AttributeKey, AttributeValue>, 1, 16>,
+		parts: BiBoundedVec<Permill, 1, 16>,
 	) -> Result<BiBoundedVec<Self::InstanceId, 1, 16>, DispatchError>;
+
+	/// Retrieve the _possible_ owner of the NFT identified by `instance_id`.
+	///
+	/// Arguments
+	///
+	/// * `instance_id` the ID that uniquely identify the NFT.
+	fn get_owner<NFT>(
+		instance_id: &Self::InstanceId,
+	) -> Result<AccountId, DispatchError>
+	where
+		NFT: Get<Self::ClassId>,
+	{
+		Self::NFTProvider::owner(&NFT::get(), instance_id).ok_or(DispatchError::CannotLookup)
+	}
+
 }
+
+	/// Ensure that the owner of the identifier NFT is `account_id`.
+	///
+	/// Arguments
+	///
+	/// * `owner` the account id that should own the NFT.
+	/// * `instance_id` the NFT instance id.
+	///
+	/// Returns `Ok(())` if `owner` is the owner of the NFT identified by `instance_id`.
+	fn ensure_protocol_nft_owner<NFT>(
+		owner: &AccountId,
+		instance_id: &Self::InstanceId,
+	) -> Result<(), DispatchError>
+	where
+		NFT: Get<Self::ClassId>,
+	{
+		let nft_owner = Self::get_protocol_nft_owner::<NFT>(instance_id)?;
+		ensure!(nft_owner == *owner, DispatchError::BadOrigin);
+		Ok(())
+	}
+
 
 /// Default interface used to interact with financial NFTs through a NFT provider.
 ///
@@ -82,40 +120,6 @@ pub trait FinancialNftProtocol<AccountId: Eq> {
 		NFT: Get<Self::ClassId> + Get<Self::Version> + Encode,
 	{
 		Self::NFTProvider::mint_nft(&NFT::get(), owner, &<NFT as Get<Self::Version>>::get(), &nft)
-	}
-
-	/// Retrieve the _possible_ owner of the NFT identified by `instance_id`.
-	///
-	/// Arguments
-	///
-	/// * `instance_id` the ID that uniquely identify the NFT.
-	fn get_protocol_nft_owner<NFT>(
-		instance_id: &Self::InstanceId,
-	) -> Result<AccountId, DispatchError>
-	where
-		NFT: Get<Self::ClassId>,
-	{
-		Self::NFTProvider::owner(&NFT::get(), instance_id).ok_or(DispatchError::CannotLookup)
-	}
-
-	/// Ensure that the owner of the identifier NFT is `account_id`.
-	///
-	/// Arguments
-	///
-	/// * `owner` the account id that should own the NFT.
-	/// * `instance_id` the NFT instance id.
-	///
-	/// Returns `Ok(())` if `owner` is the owner of the NFT identified by `instance_id`.
-	fn ensure_protocol_nft_owner<NFT>(
-		owner: &AccountId,
-		instance_id: &Self::InstanceId,
-	) -> Result<(), DispatchError>
-	where
-		NFT: Get<Self::ClassId>,
-	{
-		let nft_owner = Self::get_protocol_nft_owner::<NFT>(instance_id)?;
-		ensure!(nft_owner == *owner, DispatchError::BadOrigin);
-		Ok(())
 	}
 
 	/// Return an NFT identified by its instance id.
