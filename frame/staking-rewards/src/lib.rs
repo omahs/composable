@@ -52,7 +52,7 @@ pub mod pallet {
 	};
 	use composable_traits::{
 		financial_nft::{FinancialNftProtocol, NftClass, NftVersion},
-		staking_rewards::{
+		staking::{
 			Penalty, PenaltyOutcome, PositionState, Shares, Staking, StakingConfig, StakingNFT,
 			StakingReward,
 		},
