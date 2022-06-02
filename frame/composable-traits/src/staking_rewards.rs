@@ -15,84 +15,11 @@ use sp_runtime::{
 };
 
 
-/// The outcome of a penalty applied/notapplied to an amount.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
-pub enum PenaltyOutcome<AccountId, Balance> {
-	/// The penalty has been actually applied.
-	Applied {
-		/// The amount remaining after having subtracted the penalty.
-		amount_remaining: Balance,
-		/// The penalty amount, a fraction of the amount we penalized (i.e. amount_remaining +
-		/// amount_penalty = amount_to_penalize).
-		amount_penalty: Balance,
-		/// The beneficiary of the applied penalty.
-		penalty_beneficiary: AccountId,
-	},
-	/// The penalty has not beend applied, i.e. identity => f x = x.
-	NotApplied { amount: Balance },
-}
 
-impl<AccountId, Balance: Zero + Copy> PenaltyOutcome<AccountId, Balance> {
-	pub fn penalty_amount(&self) -> Option<Balance> {
-		match self {
-			PenaltyOutcome::Applied { amount_penalty, .. } => Some(*amount_penalty),
-			PenaltyOutcome::NotApplied { .. } => None,
-		}
-	}
-
-	// NOTE(hussein-aitlahcen): sadly, Zero is asking for Add<Output = Self> for no particular
-	// reason?
-	pub fn is_zero(&self) -> bool {
-		match self {
-			PenaltyOutcome::Applied { amount_remaining, amount_penalty, .. } =>
-				amount_remaining.is_zero() && amount_penalty.is_zero(),
-			PenaltyOutcome::NotApplied { amount } => amount.is_zero(),
-		}
-	}
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
-pub struct Penalty<AccountId> {
-	/// The penalty.
-	pub value: Perbill,
-	/// The beneficiary of the penalty.
-	pub beneficiary: AccountId,
-}
-
-impl<AccountId: Clone> Penalty<AccountId> {
-	pub fn penalize<Balance>(
-		&self,
-		amount: Balance,
-	) -> Result<PenaltyOutcome<AccountId, Balance>, DispatchError>
-	where
-		Balance: AtLeast32BitUnsigned + Copy,
-	{
-		if self.value.is_zero() {
-			Ok(PenaltyOutcome::NotApplied { amount })
-		} else {
-			let amount_penalty = self.value.mul_floor(amount);
-			let amount_remaining = amount.safe_sub(&amount_penalty)?;
-			Ok(PenaltyOutcome::Applied {
-				amount_penalty,
-				amount_remaining,
-				penalty_beneficiary: self.beneficiary.clone(),
-			})
-		}
-	}
-}
-
-/// defines staking duration, rewards and early unstake penalty
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
-pub struct StakingConfig<AccountId, DurationPresets, RewardAssets> {
-	/// The possible locking duration.
-	pub duration_presets: DurationPresets,
-	/// The penalty applied if a staker unstake before the end date.
-	pub early_unstake_penalty: Penalty<AccountId>,
-}
 
 /// staking typed fNFT, usually can be mapped to raw fNFT storage type
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
-pub struct StakingNFT<AccountId, AssetId, Balance, Epoch, Rewards> {
+pub struct Stake<AccountId, AssetId, Balance, Epoch, Rewards> {
 	/// The original stake this NFT was minted for or updated NFT with increased stake amount.
 	pub original_stake: Balance,
 	/// List of reward asset/pending rewards.
