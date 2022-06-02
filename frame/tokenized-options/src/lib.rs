@@ -312,7 +312,7 @@ pub mod pallet {
 		/// and quote asset vaults do not exist.
 		OptionAssetVaultsDoNotExist,
 
-		/// raised when trying to create a new option, but at least one of the option's attributes
+		/// Raised when trying to create a new option, but at least one of the option's attributes
 		/// has an invalid value.
 		OptionAttributesAreInvalid,
 
@@ -391,31 +391,27 @@ pub mod pallet {
 		/// Create a new vault for the given asset and save the vault id on storage.
 		///
 		/// # Overview
-		///
 		/// ## Parameters
 		/// - `origin`: type representing the origin of this dispatch.
 		/// - `vault_config`: the configuration of the vault to create.
 		///
 		/// ## Requirements
-		///
 		/// 1. The call must have been signed by the protocol account.
 		/// 2. The vault should not already exist.
 		/// 3. The asset should be supported by the Oracle.
 		///
 		/// ## Emits
-		///
 		/// - [`Event::CreatedAssetVault`]
 		///
 		/// ## State Changes
-		///
 		/// - Updates the [`AssetToVault`] storage mapping the asset id with the new created vault id.
 		///
 		/// ## Errors
-		///
 		/// - [`AssetIsNotSupported`](Error::AssetIsNotSupported): raised when trying to create a new vault,
 		///  but the asset is not supported by the Oracle.
 		/// - [`AssetVaultAlreadyExists`](Error::AssetVaultAlreadyExists): raised when trying to create a new vault,
 		/// but it already exists.
+		///
 		/// # Examples
 		///
 		/// # Weight: O(TBD)
@@ -433,6 +429,39 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Create a new option and save the option's id, option's hash and option's epoch on storage.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `origin`: type representing the origin of this dispatch.
+		/// - `option_config`: the configuration of the option to create.
+		///
+		/// ## Requirements
+		/// 1. The call must have been signed by the protocol account.
+		/// 2. The option should not already exist.
+		/// 3. Both the base asset and the quote asset vaults should exist.
+		/// 4. The option attributes should all have valid values.
+		///
+		/// ## Emits
+		/// - [`Event::CreatedOption`]
+		///
+		/// ## State Changes
+		/// - Updates the [`OptionIdToOption`] storage mapping the option id with the created option.
+		/// - Updates the [`OptionHashToOptionId`] storage mapping the option hash with the generated option id.
+		/// - Updates the [`Scheduler`] storage inserting the timestamps when the option should change phases.
+		///
+		/// ## Errors
+		/// - [`OptionAlreadyExists`](Error::OptionAlreadyExists): raised when trying to create a new option,
+		/// but it already exists.
+		/// - [`OptionAssetVaultsDoNotExist`](Error::OptionAssetVaultsDoNotExist): raised when trying to create a new option,
+		/// but at least one between base asset and quote asset vaults do not exist.
+		/// - [`OptionAttributesAreInvalid`](Error::OptionAttributesAreInvalid): raised when trying to create a new option,
+		/// but at least one of the option's attributes has an invalid value.
+		///
+		/// # Examples
+		///
+		/// # Weight: O(TBD)
+
 		#[pallet::weight(<T as Config>::WeightInfo::create_option())]
 		pub fn create_option(
 			origin: OriginFor<T>,
@@ -446,7 +475,6 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Sell an option providing collateral
 		#[pallet::weight(<T as Config>::WeightInfo::sell_option())]
 		pub fn sell_option(
 			origin: OriginFor<T>,
@@ -500,7 +528,30 @@ pub mod pallet {
 		type OptionConfig = OptionConfigOf<T>;
 		type VaultConfig = VaultConfigOf<T>;
 
-		/// Create vault for a particular asset to deposit collateral
+		/// Create a new vault for the given asset and save the vault id on storage.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `vault_config`: the configuration of the vault to create.
+		///
+		/// ## Requirements
+		/// 1. The vault should not already exist.
+		/// 2. The asset should be supported by the Oracle.
+		///
+		/// ## Emits
+		/// - [`Event::CreatedAssetVault`]
+		///
+		/// ## State Changes
+		/// - Updates the [`AssetToVault`] storage mapping the asset id with the new created vault id.
+		///
+		/// ## Errors
+		/// - [`AssetIsNotSupported`](Error::AssetIsNotSupported): raised when trying to create a new vault,
+		///  but the asset is not supported by the Oracle.
+		/// - [`AssetVaultAlreadyExists`](Error::AssetVaultAlreadyExists): raised when trying to create a new vault,
+		/// but it already exists.
+		///
+		/// # Weight: O(TBD)
+
 		fn create_asset_vault(
 			vault_config: Self::VaultConfig,
 		) -> Result<Self::VaultId, DispatchError> {
@@ -518,7 +569,35 @@ pub mod pallet {
 			}
 		}
 
-		/// Create an option to be listed for sale
+		/// Create a new option and save the option's id, option's hash and option's epoch on storage.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `option_config`: the configuration of the option to create.
+		///
+		/// ## Requirements
+		/// 1. The option should not already exist.
+		/// 2. Both the base asset and the quote asset vaults should exist.
+		/// 3. The option attributes should all have valid values.
+		///
+		/// ## Emits
+		/// - [`Event::CreatedOption`]
+		///
+		/// ## State Changes
+		/// - Updates the [`OptionIdToOption`] storage mapping the option id with the created option.
+		/// - Updates the [`OptionHashToOptionId`] storage mapping the option hash with the generated option id.
+		/// - Updates the [`Scheduler`] storage inserting the timestamps when the option should change phases.
+		///
+		/// ## Errors
+		/// - [`OptionAlreadyExists`](Error::OptionAlreadyExists): raised when trying to create a new option,
+		/// but it already exists.
+		/// - [`OptionAssetVaultsDoNotExist`](Error::OptionAssetVaultsDoNotExist): raised when trying to create a new option,
+		/// but at least one between base asset and quote asset vaults do not exist.
+		/// - [`OptionAttributesAreInvalid`](Error::OptionAttributesAreInvalid): raised when trying to create a new option,
+		/// but at least one of the option's attributes has an invalid value.
+		///
+		/// # Weight: O(TBD)
+
 		fn create_option(
 			option_config: Self::OptionConfig,
 		) -> Result<Self::OptionId, DispatchError> {
