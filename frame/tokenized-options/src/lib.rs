@@ -322,6 +322,9 @@ pub mod pallet {
 		/// Raised when trying to sell an option, but deposits into vaults are disabled.
 		VaultDepositNotAllowed,
 
+		/// Raised when trying to sell an option, but the option amount is zero.
+		CannotSellZeroOptions,
+
 		/// Raised when trying to delete the sale of an option, but the user had never sold the
 		/// indicated option before.
 		UserDoesNotHaveSellerPosition,
@@ -332,6 +335,9 @@ pub mod pallet {
 
 		/// Raised when trying to delete the sale of an option, but withdrawals from vaults are disabled.
 		VaultWithdrawNotAllowed,
+
+		/// Raised when trying to delete the sale of an option, but the option amount is zero.
+		CannotDeleteZeroOptionsSale,
 
 		/// Raised when trying to sell an option, but it is not deposit phase for that option.
 		NotIntoDepositWindow,
@@ -484,6 +490,7 @@ pub mod pallet {
 		/// 1. The call must have been signed by the user.
 		/// 2. The option should exist.
 		/// 3. The option should be in deposit phase.
+		/// 4. The option amount should not be zero.
 		///
 		/// ## Emits
 		/// - [`Event::SellOption`]
@@ -504,6 +511,8 @@ pub mod pallet {
 		/// but the user does not own enough collateral to complete the operation
 		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
 		/// but deposits into vaults are disabled.
+		/// - [`CannotSellZeroOptions`](Error::CannotSellZeroOptions): raised when trying to sell an option,
+		/// but the option amount is zero.
 		///
 		/// # Examples
 		///
@@ -534,6 +543,7 @@ pub mod pallet {
 		/// 2. The option should exist.
 		/// 3. The option should be in deposit phase.
 		/// 4. The user should already have a seller position for the chosen option.
+		/// 5. The option amount to delete should not be zero.
 		///
 		/// ## Emits
 		/// - [`Event::DeleteSellOption`]
@@ -556,6 +566,8 @@ pub mod pallet {
 		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
 		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
 		/// but withdrawals from vaults are disabled.
+		/// - [`CannotDeleteZeroOptionsSale`](Error::CannotDeleteZeroOptionsSale): raised when trying to delete the sale of an option,
+		/// but the option amount is zero.
 		///
 		/// # Examples
 		///
@@ -698,6 +710,7 @@ pub mod pallet {
 		/// ## Requirements
 		/// 1. The option should exist.
 		/// 2. The option should be in deposit phase.
+		/// 3. The option amount should not be zero.
 		///
 		/// ## Emits
 		/// - [`Event::SellOption`]
@@ -718,6 +731,8 @@ pub mod pallet {
 		/// but the user does not own enough collateral to complete the operation
 		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
 		/// but deposits into vaults are disabled.
+		/// - [`CannotSellZeroOptions`](Error::CannotSellZeroOptions): raised when trying to sell an option,
+		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
 		fn sell_option(
@@ -729,6 +744,8 @@ pub mod pallet {
 				OptionIdToOption::<T>::contains_key(option_id),
 				Error::<T>::OptionDoesNotExists
 			);
+
+			ensure!(option_amount != BalanceOf::<T>::zero(), Error::<T>::CannotSellZeroOptions);
 
 			Self::do_sell_option(&from, option_amount, option_id)?;
 
@@ -747,6 +764,7 @@ pub mod pallet {
 		/// 1. The option should exist.
 		/// 2. The option should be in deposit phase.
 		/// 3. The user should already have a seller position for the chosen option.
+		/// 4. The option amount to delete should not be zero.
 		///
 		/// ## Emits
 		/// - [`Event::DeleteSellOption`]
@@ -769,6 +787,8 @@ pub mod pallet {
 		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
 		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
 		/// but withdrawals from vaults are disabled.
+		/// - [`CannotDeleteZeroOptionsSale`](Error::CannotDeleteZeroOptionsSale): raised when trying to delete the sale of an option,
+		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
 		fn delete_sell_option(
@@ -779,6 +799,11 @@ pub mod pallet {
 			ensure!(
 				OptionIdToOption::<T>::contains_key(option_id),
 				Error::<T>::OptionDoesNotExists
+			);
+
+			ensure!(
+				option_amount != BalanceOf::<T>::zero(),
+				Error::<T>::CannotDeleteZeroOptionsSale
 			);
 
 			Self::do_delete_sell_option(&from, option_amount, option_id)?;

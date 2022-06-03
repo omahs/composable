@@ -401,6 +401,41 @@ fn test_sell_option_error_user_has_not_enough_funds_update_position() {
 }
 
 #[test]
+fn test_sell_option_error_cannot_sell_zero_options() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_noop!(
+				TokenizedOptions::sell_option(Origin::signed(BOB), 0u128, option_id),
+				Error::<MockRuntime>::CannotSellZeroOptions
+			);
+		});
+}
+
+#[test]
 fn test_sell_option_error_deposits_not_allowed() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([

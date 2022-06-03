@@ -481,6 +481,43 @@ fn test_delete_sell_option_error_user_does_not_have_position() {
 }
 
 #[test]
+fn test_delete_sell_option_error_cannot_delete_zero_options_sale() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 5u128, option_id));
+
+			assert_noop!(
+				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 0u128, option_id),
+				Error::<MockRuntime>::CannotDeleteZeroOptionsSale
+			);
+		});
+}
+
+#[test]
 fn test_delete_sell_option_error_withdrawals_not_allowed() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
