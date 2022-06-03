@@ -145,10 +145,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// Maximum number of options that can be created.
-		#[pallet::constant]
-		type MaxOptionNumber: Get<u32>;
-
 		/// Oracle pallet to retrieve prices expressed in USDT.
 		type Oracle: Oracle<AssetId = AssetIdOf<Self>, Balance = BalanceOf<Self>>;
 
@@ -932,6 +928,7 @@ pub mod pallet {
 				OptionType::Call => (option.base_asset_id, option.base_asset_amount_per_option),
 				OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
 			};
+
 			let asset_amount =
 				asset_amount.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
 
@@ -1034,6 +1031,7 @@ pub mod pallet {
 				OptionType::Call => (option.base_asset_id, option.base_asset_amount_per_option),
 				OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
 			};
+
 			let asset_amount =
 				asset_amount.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
 

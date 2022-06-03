@@ -18,6 +18,7 @@ use frame_support::{assert_err, assert_noop, assert_ok, traits::fungibles::Inspe
 
 use frame_system::ensure_signed;
 use sp_core::{sr25519::Public, H256};
+use sp_runtime::ArithmeticError;
 
 // ----------------------------------------------------------------------------------------------------
 //		Sell Options Tests
@@ -431,6 +432,46 @@ fn test_sell_option_error_cannot_sell_zero_options() {
 			assert_noop!(
 				TokenizedOptions::sell_option(Origin::signed(BOB), 0u128, option_id),
 				Error::<MockRuntime>::CannotSellZeroOptions
+			);
+		});
+}
+
+#[test]
+fn test_sell_option_error_overflow_asset_amount() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 250000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			// Balance: u128 contains until ~4 * 10^38. Considering 12 decimals,
+			// the asset_amount to transfer should overflow with option amount > 3 * 10^26.
+			// It works until 3 * 10^26.
+			let option_amount = 4 * 10u128.pow(26);
+
+			assert_noop!(
+				TokenizedOptions::sell_option(Origin::signed(BOB), option_amount, option_id),
+				ArithmeticError::Overflow
 			);
 		});
 }

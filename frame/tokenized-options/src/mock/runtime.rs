@@ -317,7 +317,6 @@ impl pallet_vault::Config for MockRuntime {
 
 parameter_types! {
 	pub const TokenizedOptionsPalletId: PalletId = PalletId(*b"options_");
-	pub const MaxOptionNumber: u32 = 1000;
 }
 
 impl pallet_tokenized_options::Config for MockRuntime {
@@ -328,7 +327,6 @@ impl pallet_tokenized_options::Config for MockRuntime {
 	type Moment = Moment;
 	type Convert = ConvertInto;
 	type Time = Timestamp;
-	type MaxOptionNumber = MaxOptionNumber;
 	type CurrencyFactory = LpTokenFactory;
 	type NativeCurrency = Balances;
 	type MultiCurrency = Assets;
