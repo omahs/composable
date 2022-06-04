@@ -4,12 +4,15 @@ This pallet allow us to reward users for staking certain assets.
 
 ## Features
 
-- configuring an asset as being rewardable
-- staking an amount of tokens in exchange for a NFT
-- claiming reward at any time while the NFT has not expired
+- configuring an asset as being rewardable per pool
+- staking an amount of tokens in exchange for a position
+- claiming reward at any time
 - unstaking early, resulting in penalty applied
-- unstaking once the NFT expired
-- User owns fNFT, fNFT owns rewards. Hence selling fNFT is selling rewards too.
+- unstaking once the position expired is not penalized
+- locking for more time increases share (virtual amount increase)
+- creating pools without penalties or time locks or increases of share for time is possible
+- position can be wrapped(owned) into NFT
+- User who owns fNFT, fNFT owns rewards. Hence selling fNFT is selling rewards too.
 
 ### Configuring an asset as being rewardable
 
@@ -19,7 +22,6 @@ configurations such as:
 
 - the set of staking durations along their reward multiplier (e.g. `[(WEEK,
   0.5), (MONTH, 0.8), (TWOMONTH, 1.0)]`)
-- the list of assets we can reward the stakers with (e.g. `[PICA, BTC, ETH]`)
 - the early unstake penalty, applied on the staked asset when the user unstake
   early (before the end of the selected staking duration)
 - the penalty beneficiary, the account where the penalty are going to be
@@ -30,7 +32,7 @@ stakers, the mapping will be `PICA => ([(WEEK, 0.5), (MONTH, 0.8), (TWOMONTH,
 1.0)], [PICA, BTC, ETH])`. Meaning that users will be able to stake `PICA` for
 either a `WEEK` for a reward multiplier of `0.5` or a `MONTH` etc... The
 incentive for the users to stake will be the fact that they will be able to
-harvest `PICA` or `BTC` or `ETH` whenever a reward distribution occured.
+harvest `PICA` or `BTC` or `ETH` whenever a reward distribution occurred.
 
 ### Staking
 
@@ -60,10 +62,14 @@ Assuming the penalty is defined as being `0.5`, if I staked `10_000
 PICA`, unstaking the NFT will result in a penalty of  `5_000 PICA`. All
 harvested rewards are still in possession of the user.
 
-### Unstaking once the NFT expired
+### Expiration
 
 In this canonical case, the user is able to unstake and rapatriate it's staked
-asset with no penalty.
+asset with no penalty when lock expired, if pool configured with time locks.
+
+If stake expired, anycall on position will remove weight of stake of total weight.
+There is special function which allows bots to detect expired positions and get reward for that. 
+
 
 ### Claiming
 
@@ -73,8 +79,11 @@ Meaning that if a user trade a NFT including pending rewards, the new owner will
 
 ### Rewarding stakers
 
-Any protocol is able to rewards the stakers by calling the
-`StakingRewards::transfer_reward` implementation of this pallet.
+Any protocol is able to rewards the stakers by calling on chain functions implementated of this pallet.
+
+When pool is rewarded, it appends rewardable assets collection.
+
+If it collection reaches limit, it will never be able to  have other assets.
 
 ### Positions operations
 
@@ -142,3 +151,8 @@ Rewarded amount is not subject to multiplier until locked.
 
 Example,
 10k pica staked, after 1 month, the fNFT holds 1k PICA rewards because you are holding the fNFT - the user should be able to have compound function, and then extract the rewards.
+
+
+### References
+
+https://curve.fi/files/CurveDAO.pdf

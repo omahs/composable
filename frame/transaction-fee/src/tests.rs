@@ -147,7 +147,7 @@ fn signed_extension_transaction_payment_is_bounded() {
 		.execute_with(|| {
 			// maximum weight possible
 			assert!(matches!(
-				ChargeTransactionFee::<Runtime>::from(0, Perbill::zero(), None)
+				ChargeTransactionFee::<Runtime>::from(0, Perbill::zero(), None)T
 					.pre_dispatch(&1, &CALL, &info, 10),
 				Ok(_)
 			));

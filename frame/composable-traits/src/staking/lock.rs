@@ -51,29 +51,6 @@ use sp_runtime::{
 // 	}
 // }
 
-
-// impl<AccountId: Clone> Penalty<AccountId> {
-// 	pub fn penalize<Balance>(
-// 		&self,
-// 		amount: Balance,
-// 	) -> Result<PenaltyOutcome<AccountId, Balance>, DispatchError>
-// 	where
-// 		Balance: AtLeast32BitUnsigned + Copy,
-// 	{
-// 		if self.value.is_zero() {
-// 			Ok(PenaltyOutcome::NotApplied { amount })
-// 		} else {
-// 			let amount_penalty = self.value.mul_floor(amount);
-// 			let amount_remaining = amount.safe_sub(&amount_penalty)?;
-// 			Ok(PenaltyOutcome::Applied {
-// 				amount_penalty,
-// 				amount_remaining,
-// 				penalty_beneficiary: self.beneficiary.clone(),
-// 			})
-// 		}
-// 	}
-// }
-
 /// defines staking duration, rewards and early unstake penalty
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
 pub struct LockConfig<DurationPresets> {

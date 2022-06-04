@@ -316,30 +316,6 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> FinancialNftProvider<AccountIdOf<T>> for Pallet<T> {
-		/// actually burns sNFT and creates new NFTs.
-		/// uses bases shared metadata and override as described by `overrides`
-		/// count `overrides` is equal to count of splits
-		fn split(
-			_instance: &Self::InstanceId,
-			_overrides: BiBoundedVec<BTreeMap<AttributeKey, AttributeValue>, 1, 16>,
-		) -> Result<BiBoundedVec<Self::InstanceId, 1, 16>, DispatchError> {
-			Err(DispatchError::Other("no implemented"))
-		}
-
-		fn mint_nft<K: Encode, V: Encode>(
-			class: &Self::ClassId,
-			who: &AccountIdOf<T>,
-			key: &K,
-			value: &V,
-		) -> Result<Self::InstanceId, DispatchError> {
-			let instance = Self::get_next_nft_id(&NftClass::STAKING)?;
-			Self::mint_into(class, &instance, who)?;
-			Self::set_typed_attribute(class, &instance, key, value)?;
-			Ok(instance)
-		}
-	}
-
 	/// Returns a closure that inserts the given value into the contained set, initializing the set
 	/// if the `Option` is `None`.
 	fn insert_or_init_and_insert<T: Ord>(t: T) -> impl FnOnce(&'_ mut Option<BTreeSet<T>>) {

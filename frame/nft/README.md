@@ -1,11 +1,8 @@
 # Overview
 
-This pallet referesents NFT, for main usage in DeFi.
+This pallet represents NFT, for main usage in DeFi.
 
-## Usages
-
-- allows to enter positions and sell it before position is left as NFT
-- allow to split NFT into parts
+Allow to create NFT with class, owner, instance id and map of attributes. 
 
 ## References
 
