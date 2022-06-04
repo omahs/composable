@@ -1,13 +1,34 @@
 /// Default interface used to interact with financial NFTs through a NFT provider.
 /// 
+/// Allows  allows to enter positions and sell it before position is left as NFT.
+/// Allows to split financial positions.
+/// 
 /// # Design
-/// There are 2 ways to integrate NFT and finantial positions.
+/// There are 2 ways to integrate NFT and financial positions.
+/// 
+/// Store all metadata of position in NFT BLOB or store only reference in NFT.
+/// 
+/// In case of storing reference,
+/// - NFT account produced from identity is set as owner of position
+/// - protocol providing position implements trait which allow to work with it through NFT API
+/// - position is stored in any way efficient for that
+/// - NFT stores only reference to position in protocol, example pallet identifier and some monotonous identifier
+/// - during XCMP transfer, owner of NFT become target parachain
+/// - allow to build NFTs from lower level typed positions
+/// 
+/// So NFT is (class, id, position reference)
+/// 
+/// 
+/// In case of storing all data in NFT, 
+/// -  protocol calls NFT to read state 
+/// - storage is not maximally efficient
+/// - more risks of having serde issue and types
+/// 
+/// In both cases XCMP NFT state as whole requires protocol constraints, like immutability or protocol implementation on other side.   
+/// In both cases RPC or shared library is required to interpret state offchain.
 
 
 
-// - allows to s
-// - allows to enter positions and sell it before position is left as NFT
-// - allow to split NFT into parts
 
 // ///
 // /// The interface will always fully serialize/deserialize the NFT type with the NFT::Version as
