@@ -17,6 +17,11 @@ use sp_runtime::{
 	DispatchError, Perbill,
 };
 
+pub mod lock;
+pub mod math;
+pub mod protocol;
+pub mod rewards;
+
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
 pub struct StakeConfig<DurationPresets> {
@@ -95,7 +100,7 @@ pub trait ProtocolStaking {
 	type InstanceId;
 	type PoolId;
 
-	pub fn accumulate_reward(
+	fn accumulate_reward(
 		pool: &T::PoolId,
 		reward_currency: T::AssetId,
 		reward_increment: T::Balance,
