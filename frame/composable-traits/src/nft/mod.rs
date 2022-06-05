@@ -28,10 +28,7 @@
 //! In both cases RPC or shared library is required to interpret state offchain.
 //! 
 //! Problem with NFT as it is considered isolated, while burn, split, mint in protocols influence total/shared.
-//! 
-//! 
 pub mod protocol;
-
 
 use codec::{Decode, Encode, FullCodec, MaxEncodedLen};
 use composable_support::collections::vec::bounded::BiBoundedVec;
