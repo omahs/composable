@@ -1,5 +1,4 @@
 use crate::{
-	financial_nft::{NftClass, NftVersion},
 	time::{DurationSeconds, Timestamp},
 };
 use codec::{Decode, Encode};

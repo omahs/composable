@@ -29,7 +29,6 @@
 
 
 
-
 // // ///
 // // /// The interface will always fully serialize/deserialize the NFT type with the NFT::Version as
 // // /// single attribute key.

@@ -1,9 +1,8 @@
 
-use super::{self as composable_traits};
+use crate::{self as composable_traits, };
 
 use composable_traits::{
-	financial_nft::{NftClass, NftVersion},
-	time::{DurationSeconds, Timestamp}, lock::{LockConfig, Lock,},
+	time::{DurationSeconds, Timestamp}, staking::lock::{LockConfig, Lock,},
 };
 use codec::{Decode, Encode};
 use composable_support::math::safe::SafeSub;
@@ -25,7 +24,6 @@ pub mod rewards;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
 pub struct StakeConfig<DurationPresets> {
-	/// your stake make lock to get rumpup
 	pub lock : Option<LockConfig<DurationPresets>>,
 }
 
@@ -47,52 +45,6 @@ pub trait Shares {
 	fn shares(&self) -> Self::Balance;
 }
 
-// impl<AccountId, AssetId, Balance: AtLeast32BitUnsigned + Copy, Epoch: Ord, Rewards>
-// 	StakingNFT<AccountId, AssetId, Balance, Epoch, Rewards>
-// {
-// 	pub fn state(&self, epoch: &Epoch, epoch_start: Timestamp) -> PositionState {
-// 		if self.lock_date.saturating_add(self.lock_duration) < epoch_start {
-// 			PositionState::Expired
-// 		} else if self.reward_epoch_start > *epoch {
-// 			PositionState::Pending
-// 		} else {
-// 			PositionState::LockedRewarding
-// 		}
-// 	}
-// }
-
-// impl<
-// 		AccountId,
-// 		AssetId: PartialEq + Ord,
-// 		Balance: AtLeast32BitUnsigned + Copy + Zero + Saturating,
-// 		Epoch: Ord,
-// 		S: frame_support::traits::Get<u32>,
-// 	> Shares for StakingNFT<AccountId, AssetId, Balance, Epoch, BoundedBTreeMap<AssetId, Balance, S>>
-// {
-// 	type Balance = Balance;
-// 	fn shares(&self) -> Balance {
-// 		let compound = *self.pending_rewards.get(&self.asset).unwrap_or(&Balance::zero());
-// 		self.reward_multiplier.mul_floor(self.stake).saturating_add(compound)
-// 	}
-// }
-
-// impl<AccountId, AssetId, Balance, Epoch, Rewards> Get<NftClass>
-// 	for Stake<AccountId, AssetId, Balance, Epoch, Rewards>
-// {
-// 	fn get() -> NftClass {
-// 		NftClass::STAKING
-// 	}
-// }
-
-// impl<AccountId, AssetId, Balance, Epoch, Rewards> Get<NftVersion>
-// 	for StakingNFT<AccountId, AssetId, Balance, Epoch, Rewards>
-// {
-// 	fn get() -> NftVersion {
-// 		NftVersion::VERSION_1
-// 	}
-// }
-
-
 pub trait ProtocolStaking {
 	type AccountId;
 	type AssetId;
@@ -100,17 +52,18 @@ pub trait ProtocolStaking {
 	type InstanceId;
 	type PoolId;
 
+	/// adds reward to common pool share
 	fn accumulate_reward(
-		pool: &T::PoolId,
-		reward_currency: T::AssetId,
-		reward_increment: T::Balance,
+		pool: &Self::PoolId,
+		reward_currency: Self::AssetId,
+		reward_increment: Self::Balance,
 	) -> DispatchResult;
 }
 
 /// Interface for protocol staking.
 pub trait Staking {
 	type AccountId;
-	type AssetId;
+	type PoolId;
 	type Balance;
 	type InstanceId;
 

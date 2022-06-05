@@ -1,3 +1,6 @@
+
+use crate::{self as composable_traits};
+
 use composable_support::math::safe::{SafeAdd, SafeDiv, SafeMul, SafeSub};
 use composable_traits::time::DurationSeconds;
 use sp_runtime::{ArithmeticError, Perbill};
