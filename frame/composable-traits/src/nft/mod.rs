@@ -30,20 +30,18 @@
 //! Problem with NFT as it is considered isolated, while burn, split, mint in protocols influence total/shared.
 pub mod protocol;
 
-use codec::{Decode, Encode, FullCodec, MaxEncodedLen};
+use codec::{Decode, Encode, MaxEncodedLen};
 use composable_support::collections::vec::bounded::BiBoundedVec;
 use core::fmt::Debug;
 use frame_support::{
 	dispatch::DispatchResult,
-	ensure,
 	traits::{
 		tokens::nonfungibles::{Create, Inspect, Mutate},
-		Get,
 	},
 };
 use scale_info::TypeInfo;
-use sp_runtime::{DispatchError, TokenError, Permill};
-use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
+
+
 
 /// depending on `ClassId` this can mean typed position or complex storage in NFT
 pub type Reference = BiBoundedVec<u8, 1, 64>;

@@ -27,9 +27,10 @@ pub fn honest_locked_stake_increase(
 
 #[cfg(test)]
 mod tests {
-	use sp_runtime::{Perbill, ArithmeticError};
+	use composable_support::math::safe::SafeSub;
+use sp_runtime::{Perbill, ArithmeticError};
 
-	use crate::math::honest_locked_stake_increase;
+	use super::honest_locked_stake_increase;
 
 	#[test]
 	fn with_zero_time_passed_staking_gives_same_time() {

@@ -2,17 +2,16 @@
 use crate::{self as composable_traits, };
 
 use composable_traits::{
-	time::{DurationSeconds, Timestamp}, staking::lock::{LockConfig, Lock,},
+	staking::lock::{LockConfig, Lock,},
 };
 use codec::{Decode, Encode};
-use composable_support::math::safe::SafeSub;
+
 use core::fmt::Debug;
 use frame_support::{
-	dispatch::DispatchResult, storage::bounded_btree_map::BoundedBTreeMap, traits::Get,
+	dispatch::DispatchResult,
 };
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AtLeast32BitUnsigned, Saturating, Zero},
 	DispatchError, Perbill,
 };
 

@@ -2,15 +2,12 @@ use crate::{
 	time::{DurationSeconds, Timestamp},
 };
 use codec::{Decode, Encode};
-use composable_support::math::safe::SafeSub;
+
 use core::fmt::Debug;
-use frame_support::{
-	dispatch::DispatchResult, storage::bounded_btree_map::BoundedBTreeMap, traits::Get,
-};
+
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AtLeast32BitUnsigned, Saturating, Zero},
-	DispatchError, Perbill,
+	Perbill,
 };
 
 /// defines staking duration, rewards and early unstake penalty
