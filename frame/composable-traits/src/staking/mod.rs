@@ -18,7 +18,7 @@ use sp_runtime::{
 
 pub mod lock;
 pub mod math;
-pub mod protocol;
+pub mod nft;
 pub mod rewards;
 
 
