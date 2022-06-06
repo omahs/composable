@@ -32,13 +32,12 @@ pub fn delete_sell_option_success_checks(
 ) {
 	// Get info before extrinsic for checks
 	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
-	let mut asset_id = option_config.base_asset_id;
-	let mut asset_amount = option_amount * option_config.base_asset_amount_per_option;
 
-	if option_config.option_type == OptionType::Put {
-		asset_id = option_config.quote_asset_id;
-		asset_amount = option_config.base_asset_strike_price * option_amount;
-	}
+	// Different behaviors based on Call or Put option
+	let asset_id = match option_config.option_type {
+		OptionType::Call => option_config.base_asset_id,
+		OptionType::Put => option_config.quote_asset_id,
+	};
 
 	let vault_id = AssetToVault::<MockRuntime>::get(asset_id).unwrap();
 	let lp_token_id = <Vault as VaultTrait>::lp_asset_id(&vault_id).unwrap();
@@ -53,6 +52,8 @@ pub fn delete_sell_option_success_checks(
 
 	let shares_amount =
 		TokenizedOptions::calculate_shares_to_burn(option_amount, &initial_user_position).unwrap();
+
+	let asset_amount = Vault::lp_share_value(&vault_id, shares_amount).unwrap();
 
 	// Call exstrinsic
 	assert_ok!(TokenizedOptions::delete_sell_option(Origin::signed(who), option_amount, option_id));
@@ -74,7 +75,7 @@ pub fn delete_sell_option_success_checks(
 	// Check seller balance after sale is empty
 	assert_eq!(Assets::balance(asset_id, &who), initial_user_balance + asset_amount);
 
-	// Check vault balance after sale is correct
+	// // Check vault balance after sale is correct
 	assert_eq!(
 		Assets::balance(asset_id, &Vault::account_id(&vault_id)),
 		initial_vault_balance - asset_amount
@@ -658,4 +659,129 @@ fn test_delete_sell_option_error_withdrawals_not_allowed_update_position() {
 		});
 }
 
-// TODO: test for overflows and other math-precision checks
+#[test]
+fn test_delete_sell_option_shares_calculation_with_vault_value_accrual_success() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 10 * 10u128.pow(12)),
+			(BOB, BTC, 10 * 10u128.pow(12)),
+			(CHARLIE, BTC, 10 * 10u128.pow(12)),
+			(ALICE, USDC, 500000 * 10u128.pow(12)),
+			(BOB, USDC, 500000 * 10u128.pow(12)),
+			(CHARLIE, USDC, 500000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let vault_id = AssetToVault::<MockRuntime>::get(option_config.base_asset_id).unwrap();
+			let vault_account = Vault::account_id(&vault_id);
+
+			let alice_option_amount = 5u128;
+			sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				alice_option_amount,
+				ALICE,
+			);
+
+			// Remove 2 BTC from the vault to simulate vault value loss
+			assert_ok!(Assets::burn_from(
+				Origin::signed(ADMIN),
+				option_config.base_asset_id,
+				vault_account,
+				2 * 10u128.pow(12),
+			));
+
+			let bob_option_amount = 5u128;
+			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+
+			// Add 1 BTC to the vault to simulate vault value accrual
+			assert_ok!(Assets::mint_into(
+				Origin::signed(ADMIN),
+				option_config.base_asset_id,
+				vault_account,
+				1 * 10u128.pow(12),
+			));
+
+			let charlie_option_amount = 5u128;
+			sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				charlie_option_amount,
+				CHARLIE,
+			);
+
+			// Add 1 BTC to the vault to simulate vault value accrual
+			assert_ok!(Assets::mint_into(
+				Origin::signed(ADMIN),
+				option_config.base_asset_id,
+				vault_account,
+				1 * 10u128.pow(12),
+			));
+
+			let alice_option_amount = 4u128;
+			delete_sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				alice_option_amount,
+				ALICE,
+			);
+
+			let bob_option_amount = 4u128;
+			delete_sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				bob_option_amount,
+				BOB,
+			);
+
+			let charlie_option_amount = 4u128;
+			delete_sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				charlie_option_amount,
+				CHARLIE,
+			);
+
+			let alice_option_amount = 1u128;
+			delete_sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				alice_option_amount,
+				ALICE,
+			);
+
+			let bob_option_amount = 1u128;
+			delete_sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				bob_option_amount,
+				BOB,
+			);
+
+			let charlie_option_amount = 1u128;
+			delete_sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				charlie_option_amount,
+				CHARLIE,
+			);
+
+			assert_eq!(Assets::balance(option_config.base_asset_id, &vault_account), 0u128);
+		});
+}

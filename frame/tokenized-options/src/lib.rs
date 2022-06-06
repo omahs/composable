@@ -1027,13 +1027,10 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::UserDoesNotHaveSellerPosition)?;
 
 			// Different behaviors based on Call or Put option
-			let (asset_id, asset_amount) = match option.option_type {
-				OptionType::Call => (option.base_asset_id, option.base_asset_amount_per_option),
-				OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
+			let asset_id = match option.option_type {
+				OptionType::Call => option.base_asset_id,
+				OptionType::Put => option.quote_asset_id,
 			};
-
-			let asset_amount =
-				asset_amount.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
 
 			// Get vault_id for withdrawing collateral and make checks
 			let protocol_account = Self::account_id(asset_id);
@@ -1043,11 +1040,13 @@ pub mod pallet {
 
 			let shares_amount = Self::calculate_shares_to_burn(option_amount, &seller_position)?;
 
-			// Correct logic checks
+			let asset_amount = T::Vault::lp_share_value(&vault_id, shares_amount)?;
+
+			// Sanity checks
+			// 1. Asset amount <= Max asset amount withdrawable by user
+			// 2. Option amount <= Max option amount withdrawable by user
 			ensure!(
-				asset_amount == T::Vault::lp_share_value(&vault_id, shares_amount)?
-					&& asset_amount
-						<= T::Vault::lp_share_value(&vault_id, seller_position.shares_amount)?
+				asset_amount <= T::Vault::lp_share_value(&vault_id, seller_position.shares_amount)?
 					&& option_amount <= seller_position.option_amount,
 				Error::<T>::UserDoesNotHaveEnoughCollateralDeposited
 			);
@@ -1218,9 +1217,3 @@ pub mod pallet {
 		}
 	}
 }
-
-// ----------------------------------------------------------------------------------------------------
-//		Unit Tests
-// ----------------------------------------------------------------------------------------------------
-#[cfg(test)]
-mod unit_tests {}
