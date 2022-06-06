@@ -32,23 +32,28 @@ pub mod protocol;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use composable_support::collections::vec::bounded::BiBoundedVec;
+use sp_runtime::DispatchError;
 use core::fmt::Debug;
 use frame_support::{
 	dispatch::DispatchResult,
 	traits::{
-		tokens::nonfungibles::{Create, Inspect, Mutate},
-	},
+		tokens::nonfungibles::{Create, Inspect, Mutate}, Get,
+	}, BoundedBTreeMap,
 };
 use scale_info::TypeInfo;
 
 
+pub type Key = BiBoundedVec<u8, 1, 64>;
+pub type Value = BiBoundedVec<u8, 1, 256>;
+
+pub type Properties<MaxProperties: Get<u32>> = BoundedBTreeMap::<Key, Value, MaxProperties>;
 
 /// depending on `ClassId` this can mean typed position or complex storage in NFT
 pub type Reference = BiBoundedVec<u8, 1, 64>;
 
-
 /// allow to wrap any position into ownership of fFNT
 pub trait ReferenceNft<AccountId>: Create<AccountId> + Mutate<AccountId> + Inspect<AccountId> {
+	type MaxProperties : Get<u32>;
     // `who` must be owner of original reference. after NFTing position, NFT instance is owner, but `who` is owner of NFT
     // in case of reference NFT is reported burn (so owner is lost), it is auctioned
     fn reference_mint_into<NFTProvider, NFT>(
@@ -57,6 +62,12 @@ pub trait ReferenceNft<AccountId>: Create<AccountId> + Mutate<AccountId> + Inspe
 		_who: &AccountId,
         reference: Reference,
 	) -> DispatchResult;
+
+	fn  mint_new_into(
+		class: &Self::ClassId,
+		who: &AccountId,
+		properties: Properties<Self::MaxProperties>,
+	) -> Result<Self::InstanceId, DispatchError>;
 }
 
 /// Default ClassId type used for NFTs.

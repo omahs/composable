@@ -4,7 +4,7 @@ pub use composable_traits::nft::NftClass;
 use composable_traits::nft::{ReferenceNft, Key, Properties, Value};
 use frame_support::{
 	assert_ok,
-	traits::tokens::nonfungibles::{Inspect, Mutate},
+	traits::tokens::nonfungibles::{Inspect, Mutate}, BoundedBTreeMap, bounded_btree_map,
 };
 use std::{
 	collections::{BTreeMap, BTreeSet},
@@ -25,13 +25,9 @@ use crate::{
 ///
 /// NOTE: Only call once per test!
 pub(crate) fn mint_nft_and_assert() -> NftInstanceId {
-	let mut fix_me = Properties::<MaxProperties>::new(); 
-	let mut x = Key::from_vec(vec![1_u8]).unwrap();
-	let mut y = Value::from_vec(vec![1_u8]).unwrap();
-	{
-		let mut fix_me = &fix_me;
-		fix_me.insert(x,y );
-	}
+	let key = Key::from_vec(vec![1_u8]).unwrap();
+	let value = Value::from_vec(vec![1_u8]).unwrap();
+	let mut fix_me = bounded_btree_map!(key => value); 
 	let created_nft_id =
 		Pallet::<MockRuntime>::mint_new_into(&NftClass::STAKING, &ALICE, fix_me).unwrap();
 
