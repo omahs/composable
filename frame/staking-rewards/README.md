@@ -137,6 +137,8 @@ rolling = min(new_lock - previous_lock, passed_time)
 print(rolling) # time it moves to new lock
 ```
 
+Depending on pull configuration, time may be fully renewed.
+
 ### Compounding
 
 If fNFT has staked asset as reward asset, it is subject to compounding.
@@ -155,4 +157,5 @@ Example,
 
 ### References
 
-https://curve.fi/files/CurveDAO.pdf
+- https://curve.fi/files/CurveDAO.pdf
+- https://github.com/open-web3-stack/open-runtime-module-library/blob/master/rewards/README.md

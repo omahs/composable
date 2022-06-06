@@ -1,1 +1,0 @@
-//! NFT protocol implementation for staking

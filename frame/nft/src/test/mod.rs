@@ -23,8 +23,8 @@ mod financial_nft_provider {
 mod nonfungibles {
 	use std::collections::BTreeMap;
 
-	use composable_traits::financial_nft::NftClass;
-	use frame_support::traits::tokens::nonfungibles::*;
+	use composable_traits::nft::NftClass;
+use frame_support::traits::tokens::nonfungibles::*;
 
 	use crate::{
 		pallet::*,

@@ -1,5 +1,5 @@
 use codec::Encode;
-use composable_traits::financial_nft::NftClass;
+
 use frame_support::traits::tokens::nonfungibles::Inspect;
 
 use crate::{

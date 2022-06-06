@@ -6,6 +6,7 @@ pub trait ProtocolNft<AccountId> {
     type AssetId;
     type InstanceId;
     type Balance;
+    /// no always may work, for examples  if locked for sale or voting
     fn split_into(
         instance: &Self::InstanceId,
         parts: BiBoundedVec<Permill, 1, 16>,
@@ -14,3 +15,5 @@ pub trait ProtocolNft<AccountId> {
     /// if nft has asset behind it, it will be returned   
     fn nominal(instance: &Self::InstanceId) -> Option<(Self::AssetId, Self::Balance)>; 
 }
+
+//TODO: Implement typed NFT on each of protocols, including NFT and staking-rewards

@@ -2,6 +2,7 @@ use crate::{
 	time::{DurationSeconds, Timestamp},
 };
 use codec::{Decode, Encode};
+use frame_support::dispatch::DispatchResult;
 
 use core::fmt::Debug;
 
@@ -29,4 +30,14 @@ pub struct Lock {
 	pub duration: DurationSeconds,
 
 	pub unlock_penalty:  Perbill,
+}
+
+pub trait Locking {
+	type AccountId;
+	type InstanceId;
+		fn extend_duration(
+			who: &Self::AccountId,
+			instance_id: &Self::InstanceId,
+			duration: Option<DurationSeconds>,
+		) -> DispatchResult;
 }

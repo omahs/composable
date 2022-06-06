@@ -1,10 +1,9 @@
 
-use crate::{self as composable_traits};
-
 use composable_support::math::safe::{SafeAdd, SafeDiv, SafeMul, SafeSub};
-use composable_traits::time::DurationSeconds;
 use sp_runtime::{ArithmeticError, Perbill};
 use sp_std::convert::TryInto;
+
+use crate::time::DurationSeconds;
 type Balance = u128;
 
 // keep in sync with python math
@@ -50,7 +49,7 @@ use sp_runtime::{Perbill, ArithmeticError};
 		assert_eq!(remaining, 1000, "does not allows to reduce duration doing staking");
 	}
 
-	fn honest_lock_extensions(
+	pub fn honest_lock_extensions(
 		now: u64,
 		lock_date: u64,
 		new_lock: u64,

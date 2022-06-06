@@ -4,7 +4,6 @@ use codec::Encode;
 use composable_tests_helpers::test::{
 	block::process_and_progress_blocks, helper::assert_last_event,
 };
-use composable_traits::financial_nft::NftClass;
 use frame_support::{
 	assert_noop, assert_ok,
 	traits::tokens::nonfungibles::{Inspect, Transfer},

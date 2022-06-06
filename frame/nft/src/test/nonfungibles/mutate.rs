@@ -3,7 +3,7 @@ mod mint_into {
 	use std::collections::{BTreeMap, BTreeSet};
 
 	use composable_tests_helpers::test::helper::assert_last_event;
-	use composable_traits::financial_nft::NftClass;
+	
 	use frame_support::{assert_noop, traits::tokens::nonfungibles::Mutate};
 	use sp_runtime::DispatchError;
 
@@ -73,7 +73,7 @@ mod mint_into {
 mod set_attribute {
 	use codec::{Decode, Encode};
 	use composable_tests_helpers::test::block::process_and_progress_blocks;
-	use composable_traits::financial_nft::NftClass;
+	
 	use frame_support::{assert_noop, traits::tokens::nonfungibles::Mutate};
 	use sp_runtime::DispatchError;
 	use std::collections::BTreeMap;
@@ -178,7 +178,6 @@ mod burn_from {
 	use composable_tests_helpers::test::{
 		block::process_and_progress_blocks, helper::assert_last_event,
 	};
-	use composable_traits::financial_nft::NftClass;
 	use frame_support::{assert_ok, traits::tokens::nonfungibles::Mutate};
 
 	use crate::{
@@ -261,8 +260,9 @@ mod burn_from {
 	/// specifically.
 	mod not_found {
 		use composable_tests_helpers::test::helper::assert_last_event;
-		use composable_traits::financial_nft::NftClass;
-		use frame_support::{assert_noop, assert_ok, traits::tokens::nonfungibles::Mutate};
+		
+		use composable_traits::nft::NftClass;
+use frame_support::{assert_noop, assert_ok, traits::tokens::nonfungibles::Mutate};
 		use sp_runtime::DispatchError;
 
 		use crate::{
