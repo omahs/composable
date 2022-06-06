@@ -570,4 +570,111 @@ fn test_sell_option_error_deposits_not_allowed_update_position() {
 		});
 }
 
-// TODO: test for overflows and other math-precision checks
+#[test]
+fn test_sell_option_shares_calculation_with_vault_value_accrual_success() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 10 * 10u128.pow(12)),
+			(BOB, BTC, 10 * 10u128.pow(12)),
+			(CHARLIE, BTC, 10 * 10u128.pow(12)),
+			(ALICE, USDC, 500000 * 10u128.pow(12)),
+			(BOB, USDC, 500000 * 10u128.pow(12)),
+			(CHARLIE, USDC, 500000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let alice_option_amount = 5u128;
+			sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				alice_option_amount,
+				ALICE,
+			);
+
+			// Add 1 BTC to the vault to simulate vault value accrual
+			let vault_id = AssetToVault::<MockRuntime>::get(option_config.base_asset_id).unwrap();
+			let vault_account = Vault::account_id(&vault_id);
+			assert_ok!(Assets::mint_into(
+				Origin::signed(ADMIN),
+				option_config.base_asset_id,
+				vault_account,
+				1 * 10u128.pow(12),
+			));
+
+			let bob_option_amount = 5u128;
+			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+
+			// Remove 2 BTC from the vault to simulate vault value loss
+			assert_ok!(Assets::burn_from(
+				Origin::signed(ADMIN),
+				option_config.base_asset_id,
+				vault_account,
+				2 * 10u128.pow(12),
+			));
+
+			let charlie_option_amount = 5u128;
+			sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				charlie_option_amount,
+				CHARLIE,
+			);
+
+			// Remove 2 BTC from the vault to simulate vault value loss
+			assert_ok!(Assets::burn_from(
+				Origin::signed(ADMIN),
+				option_config.base_asset_id,
+				vault_account,
+				2 * 10u128.pow(12),
+			));
+
+			let alice_option_amount = 5u128;
+			sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				alice_option_amount,
+				ALICE,
+			);
+
+			assert_ok!(Assets::mint_into(
+				Origin::signed(ADMIN),
+				option_config.base_asset_id,
+				vault_account,
+				4 * 10u128.pow(12),
+			));
+
+			let bob_option_amount = 5u128;
+			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+
+			assert_ok!(Assets::mint_into(
+				Origin::signed(ADMIN),
+				option_config.base_asset_id,
+				vault_account,
+				1 * 10u128.pow(12),
+			));
+
+			let charlie_option_amount = 5u128;
+			sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				charlie_option_amount,
+				CHARLIE,
+			);
+		});
+}
