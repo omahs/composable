@@ -1,7 +1,7 @@
 use codec::{Decode, Encode};
 use composable_tests_helpers::test::helper::assert_last_event;
 pub use composable_traits::nft::NftClass;
-use composable_traits::nft::{ReferenceNft, Key, Properties};
+use composable_traits::nft::{ReferenceNft, Key, Properties, Value};
 use frame_support::{
 	assert_ok,
 	traits::tokens::nonfungibles::{Inspect, Mutate},
@@ -25,8 +25,13 @@ use crate::{
 ///
 /// NOTE: Only call once per test!
 pub(crate) fn mint_nft_and_assert() -> NftInstanceId {
-	let fix_me = Properties::<MaxProperties>::new(); 
-	fix_me.insert(Key::from_vec(vec![1_u8]).unwrap(), Key::from_vec(vec![1_u8]).unwrap());
+	let mut fix_me = Properties::<MaxProperties>::new(); 
+	let mut x = Key::from_vec(vec![1_u8]).unwrap();
+	let mut y = Value::from_vec(vec![1_u8]).unwrap();
+	{
+		let mut fix_me = &fix_me;
+		fix_me.insert(x,y );
+	}
 	let created_nft_id =
 		Pallet::<MockRuntime>::mint_new_into(&NftClass::STAKING, &ALICE, fix_me).unwrap();
 
