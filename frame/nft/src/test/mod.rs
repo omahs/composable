@@ -2,7 +2,7 @@
 pub(crate) mod mock;
 
 /// Various helpers used throughout this test suite.
-pub(crate) mod helpers;
+pub(crate) mod prelude;
 
 const ALICE: u128 = 0;
 const BOB: u128 = 1;
@@ -11,7 +11,7 @@ const CHARLIE: u128 = 2;
 /// Tests the pallet's
 /// [`FinancialNftProvider`][composable_traits::financial_nft::FinancialNftProvider] implementation.
 mod financial_nft_provider {
-	use crate::test::{helpers::mint_nft_and_assert, mock::new_test_ext};
+	use crate::test::{prelude::mint_nft_and_assert, mock::new_test_ext};
 
 	#[test]
 	fn mint_nft() {

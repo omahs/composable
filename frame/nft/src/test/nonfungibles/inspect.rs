@@ -1,10 +1,11 @@
 use codec::Encode;
 
+use composable_traits::nft::NftClass;
 use frame_support::traits::tokens::nonfungibles::Inspect;
 
 use crate::{
 	test::{
-		helpers::mint_nft_and_assert,
+		prelude::mint_nft_and_assert,
 		mock::{new_test_ext, MockRuntime},
 		ALICE,
 	},

@@ -10,6 +10,7 @@ mod mint_into {
 	use crate::{
 		pallet::*,
 		test::{
+			prelude::*,
 			mock::{new_test_ext, Event, MockRuntime},
 			ALICE,
 		},
@@ -81,7 +82,7 @@ mod set_attribute {
 	use crate::{
 		pallet::*,
 		test::{
-			helpers::{add_attributes_and_assert, mint_into_and_assert, mint_many_nfts_and_assert},
+			prelude::*,
 			mock::{new_test_ext, MockRuntime},
 			ALICE,
 		},
@@ -183,7 +184,7 @@ mod burn_from {
 	use crate::{
 		pallet::*,
 		test::{
-			helpers::{mint_into_and_assert, mint_many_nfts_and_assert, to_btree},
+			prelude::*,
 			mock::{new_test_ext, Event, MockRuntime},
 			ALICE,
 		},
@@ -267,7 +268,7 @@ use frame_support::{assert_noop, assert_ok, traits::tokens::nonfungibles::Mutate
 
 		use crate::{
 			test::{
-				helpers::{mint_many_nfts_and_assert, mint_nft_and_assert},
+				prelude::{mint_many_nfts_and_assert, mint_nft_and_assert},
 				mock::{new_test_ext, Event, MockRuntime},
 				ALICE,
 			},
