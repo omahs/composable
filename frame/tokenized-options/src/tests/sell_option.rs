@@ -32,14 +32,16 @@ pub fn sell_option_success_checks(
 ) {
 	// Get info before extrinsic for checks
 	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
-	let mut asset_id = option_config.base_asset_id;
-	let mut asset_amount = option_amount * option_config.base_asset_amount_per_option;
 
-	if option_config.option_type == OptionType::Put {
-		asset_id = option_config.quote_asset_id;
-		asset_amount = option_config.base_asset_strike_price * option_amount;
-	}
+	// Different behaviors based on Call or Put option
+	let (asset_id, asset_amount) = match option_config.option_type {
+		OptionType::Call => {
+			(option_config.base_asset_id, option_config.base_asset_amount_per_option)
+		},
+		OptionType::Put => (option_config.quote_asset_id, option_config.base_asset_strike_price),
+	};
 
+	let asset_amount = asset_amount * option_amount;
 	let vault_id = AssetToVault::<MockRuntime>::get(asset_id).unwrap();
 	let lp_token_id = <Vault as VaultTrait>::lp_asset_id(&vault_id).unwrap();
 	let protocol_account = TokenizedOptions::account_id(asset_id);

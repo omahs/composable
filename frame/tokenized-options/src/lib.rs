@@ -1145,11 +1145,11 @@ pub mod pallet {
 			);
 
 			// Fake call to pricing pallet
-			let option_premium = Self::fake_option_price(&option).expect("Error pricing option");
+			let option_premium = Self::fake_option_price().expect("Error pricing option");
 
-			// Get vault_id and protocol account for depositing premium
-			let vault_id = Self::asset_id_to_vault_id(option.quote_asset_id)
-				.ok_or(Error::<T>::AssetVaultDoesNotExists)?;
+			// // Get vault_id and protocol account for depositing premium
+			// let vault_id = Self::asset_id_to_vault_id(option.quote_asset_id)
+			// 	.ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
 			let protocol_account = Self::account_id(option.quote_asset_id);
 
@@ -1250,7 +1250,7 @@ pub mod pallet {
 			<Scheduler<T>>::insert(Swapped::from(epoch.end), option_id, WindowType::End);
 		}
 
-		pub fn fake_option_price(option: &OptionToken<T>) -> Result<BalanceOf<T>, DispatchError> {
+		pub fn fake_option_price() -> Result<BalanceOf<T>, DispatchError> {
 			Ok((100u128 * 10u128.pow(12)).into())
 		}
 
