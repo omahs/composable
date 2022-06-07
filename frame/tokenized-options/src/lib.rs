@@ -318,8 +318,8 @@ pub mod pallet {
 		/// Raised when trying to sell an option, but deposits into vaults are disabled.
 		VaultDepositNotAllowed,
 
-		/// Raised when trying to sell an option, but the option amount is zero.
-		CannotSellZeroOptions,
+		/// Raised when trying to sell/delete/buy an option, but the option amount is zero.
+		CannotPassZeroOptionAmount,
 
 		/// Raised when trying to delete the sale of an option, but the user had never sold the
 		/// indicated option before.
@@ -332,8 +332,8 @@ pub mod pallet {
 		/// Raised when trying to delete the sale of an option, but withdrawals from vaults are disabled.
 		VaultWithdrawNotAllowed,
 
-		/// Raised when trying to delete the sale of an option, but the option amount is zero.
-		CannotDeleteZeroOptionsSale,
+		/// Raised when trying to buy an option, but there are not enough option for sale.
+		NotEnoughOptionForSale,
 
 		/// Raised when trying to sell an option, but it is not deposit phase for that option.
 		NotIntoDepositWindow,
@@ -741,7 +741,10 @@ pub mod pallet {
 				Error::<T>::OptionDoesNotExists
 			);
 
-			ensure!(option_amount != BalanceOf::<T>::zero(), Error::<T>::CannotSellZeroOptions);
+			ensure!(
+				option_amount != BalanceOf::<T>::zero(),
+				Error::<T>::CannotPassZeroOptionAmount
+			);
 
 			Self::do_sell_option(&from, option_amount, option_id)?;
 
@@ -799,7 +802,7 @@ pub mod pallet {
 
 			ensure!(
 				option_amount != BalanceOf::<T>::zero(),
-				Error::<T>::CannotDeleteZeroOptionsSale
+				Error::<T>::CannotPassZeroOptionAmount
 			);
 
 			Self::do_delete_sell_option(&from, option_amount, option_id)?;
@@ -816,6 +819,11 @@ pub mod pallet {
 			ensure!(
 				OptionIdToOption::<T>::contains_key(option_id),
 				Error::<T>::OptionDoesNotExists
+			);
+
+			ensure!(
+				option_amount != BalanceOf::<T>::zero(),
+				Error::<T>::CannotPassZeroOptionAmount
 			);
 
 			Self::do_buy_option(&from, option_amount, option_id)?;
@@ -1123,6 +1131,66 @@ pub mod pallet {
 			option_amount: BalanceOf<T>,
 			option_id: OptionIdOf<T>,
 		) -> Result<(), DispatchError> {
+			let option =
+				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionDoesNotExists)?;
+
+			// Check if we are in purchase window
+			ensure!(
+				option
+					.epoch
+					.window_type(T::Time::now())
+					.ok_or(Error::<T>::NotIntoPurchaseWindow)?
+					== WindowType::Purchase,
+				Error::<T>::NotIntoPurchaseWindow
+			);
+
+			// Fake call to pricing pallet
+			let option_premium = Self::fake_option_price(&option).expect("Error pricing option");
+
+			// Get vault_id and protocol account for depositing premium
+			let vault_id = Self::asset_id_to_vault_id(option.quote_asset_id)
+				.ok_or(Error::<T>::AssetVaultDoesNotExists)?;
+
+			let protocol_account = Self::account_id(option.quote_asset_id);
+
+			// Update buyer option availability
+			OptionIdToOption::<T>::try_mutate(option_id, |option| {
+				match option {
+					Some(option) => {
+						// Add option amount to total issuance
+						let new_total_issuance_buyer = option
+							.total_issuance_buyer
+							.checked_add(&option_amount)
+							.ok_or(ArithmeticError::Overflow)?;
+
+						// Check if there are enough options for sale
+						if new_total_issuance_buyer > option.total_issuance_seller {
+							return Err(DispatchError::from(Error::<T>::NotEnoughOptionForSale));
+						}
+
+						option.total_issuance_buyer = new_total_issuance_buyer;
+
+						Ok(())
+					},
+					None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
+				}
+			})?;
+
+			// Transfer premium to protocol account
+			<T as Config>::MultiCurrency::transfer(
+				option.quote_asset_id,
+				&from,
+				&protocol_account,
+				option_premium,
+				true,
+			)
+			.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
+
+			// Deposit premium into a vault?
+
+			// Mint option token into user's account
+			<T as Config>::MultiCurrency::mint_into(option_id, &from, option_amount)?;
+
 			Self::deposit_event(Event::BuyOption { buyer: from.clone(), option_amount, option_id });
 
 			Ok(())
@@ -1180,6 +1248,10 @@ pub mod pallet {
 			<Scheduler<T>>::insert(Swapped::from(epoch.exercise), option_id, WindowType::Exercise);
 			<Scheduler<T>>::insert(Swapped::from(epoch.withdraw), option_id, WindowType::Withdraw);
 			<Scheduler<T>>::insert(Swapped::from(epoch.end), option_id, WindowType::End);
+		}
+
+		pub fn fake_option_price(option: &OptionToken<T>) -> Result<BalanceOf<T>, DispatchError> {
+			Ok((100u128 * 10u128.pow(12)).into())
 		}
 
 		fn option_state_change(option_id: OptionIdOf<T>, moment_type: WindowType) -> Weight {

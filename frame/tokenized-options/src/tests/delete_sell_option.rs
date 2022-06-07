@@ -514,7 +514,7 @@ fn test_delete_sell_option_error_cannot_delete_zero_options_sale() {
 
 			assert_noop!(
 				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 0u128, option_id),
-				Error::<MockRuntime>::CannotDeleteZeroOptionsSale
+				Error::<MockRuntime>::CannotPassZeroOptionAmount
 			);
 		});
 }

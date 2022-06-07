@@ -431,7 +431,7 @@ fn test_sell_option_error_cannot_sell_zero_options() {
 
 			assert_noop!(
 				TokenizedOptions::sell_option(Origin::signed(BOB), 0u128, option_id),
-				Error::<MockRuntime>::CannotSellZeroOptions
+				Error::<MockRuntime>::CannotPassZeroOptionAmount
 			);
 		});
 }
