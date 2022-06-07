@@ -135,3 +135,40 @@ fn test_buy_option_with_initialization_success() {
 			buy_option_success_checks(option_hash, option_config, option_amount, ALICE);
 		});
 }
+
+#[test]
+fn test_buy_option_success() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 3 * 10u128.pow(12)),
+			(ALICE, USDC, 50000 * 10u128.pow(12)),
+			(BOB, BTC, 5 * 10u128.pow(12)),
+			(BOB, USDC, 50000 * 10u128.pow(12)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config = OptionsConfigBuilder::default().build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+
+			let bob_option_amount = 5u128;
+			let alice_option_amount = 3u128;
+
+			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			run_to_block(3);
+			buy_option_success_checks(option_hash, option_config, alice_option_amount, ALICE);
+		});
+}
