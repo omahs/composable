@@ -124,10 +124,14 @@ fn test_buy_option_with_initialization_success() {
 			// Check creation ended correctly
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
-			// Perform extrinsic and make checks
+			// Sell option and make checks
 			let option_amount = 1u128;
 			sell_option_success_checks(option_hash, option_config.clone(), option_amount, BOB);
+
+			// Go to purchase window
 			run_to_block(3);
+
+			// Buy option
 			buy_option_success_checks(option_hash, option_config, option_amount, ALICE);
 		});
 }
