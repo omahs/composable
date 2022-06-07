@@ -1032,12 +1032,13 @@ pub mod pallet {
 				OptionType::Put => option.quote_asset_id,
 			};
 
-			// Get vault_id for withdrawing collateral and make checks
+			// Get vault_id for withdrawing collateral
 			let protocol_account = Self::account_id(asset_id);
 
 			let vault_id =
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
+			// Calculate amount to withdraw and make checks
 			let shares_amount = Self::calculate_shares_to_burn(option_amount, &seller_position)?;
 
 			let asset_amount = T::Vault::lp_share_value(&vault_id, shares_amount)?;
