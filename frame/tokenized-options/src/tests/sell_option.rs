@@ -55,7 +55,7 @@ pub fn sell_option_success_checks(
 	let initial_user_position =
 		Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or(SellerPosition::default());
 
-	// Call exstrinsic
+	// Call extrinsic
 	assert_ok!(TokenizedOptions::sell_option(Origin::signed(who), option_amount, option_id));
 
 	// Check correct event
