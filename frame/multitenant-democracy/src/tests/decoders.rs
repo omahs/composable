@@ -42,7 +42,11 @@ fn test_decode_compact_u32_at() {
 fn len_of_deposit_of() {
 	new_test_ext().execute_with(|| {
 		for l in vec![0, 1, 200, 1000] {
-			let value: (Vec<u64>, u64) = ((0..l).map(|_| Default::default()).collect(), 3u64);
+			let value: Deposit<u64, u64, u64> = Deposit {
+				depositors: (0..l).map(|_| Default::default()).collect(),
+				amount: 3u64,
+				asset_id: BTC,
+			};
 			DepositOf::<Test>::insert(2, value);
 			assert_eq!(Democracy::len_of_deposit_of(2), Some(l));
 		}
@@ -56,7 +60,7 @@ fn len_of_deposit_of() {
 fn pre_image() {
 	new_test_ext().execute_with(|| {
 		let key = Default::default();
-		let missing = PreimageStatus::Missing(0);
+		let missing = PreimageStatus::Missing { asset_id: BTC, expiry: 0 };
 		Preimages::<Test>::insert(key, missing);
 		assert_noop!(Democracy::pre_image_data_len(key), Error::<Test>::PreimageMissing);
 		assert_eq!(Democracy::check_pre_image_is_missing(key), Ok(()));
@@ -65,8 +69,9 @@ fn pre_image() {
 		assert_noop!(Democracy::pre_image_data_len(key), Error::<Test>::PreimageMissing);
 		assert_noop!(Democracy::check_pre_image_is_missing(key), Error::<Test>::NotImminent);
 
-		for l in vec![0, 10, 100, 1000u32] {
+		for l in vec![0, 10, 100, 1000_u32] {
 			let available = PreimageStatus::Available {
+				asset_id: BTC,
 				data: (0..l).map(|i| i as u8).collect(),
 				provider: 0,
 				deposit: 0,

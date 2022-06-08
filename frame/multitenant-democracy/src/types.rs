@@ -17,7 +17,9 @@
 
 //! Miscellaneous additional datatypes.
 
-use crate::{AccountVote, Conviction, Vote, VoteThreshold};
+use crate::{
+	AccountVote, BalanceOfNative, Config, Conviction, CurrencyIdOf, PropIndex, Vote, VoteThreshold,
+};
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::{
@@ -38,14 +40,15 @@ pub struct Tally<Balance> {
 
 /// Amount of votes and capital placed in delegation for an account.
 #[derive(Encode, Decode, Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
-pub struct Delegations<Balance> {
+pub struct Delegations</* AssetId, */ Balance> {
+	// pub asset_id: AssetId,
 	/// The number of votes (this is post-conviction).
 	pub votes: Balance,
 	/// The amount of raw capital, used for the turnout.
 	pub capital: Balance,
 }
 
-impl<Balance: Saturating> Saturating for Delegations<Balance> {
+impl</* AssetId, */ Balance: Saturating> Saturating for Delegations</* AssetId, */ Balance> {
 	fn saturating_add(self, o: Self) -> Self {
 		Self {
 			votes: self.votes.saturating_add(o.votes),
@@ -161,7 +164,9 @@ impl<
 
 /// Info regarding an ongoing referendum.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
-pub struct ReferendumStatus<BlockNumber, Hash, Balance> {
+pub struct ReferendumStatus</* AssetId, */ BlockNumber, Hash, Balance> {
+	/// The asset used to vote on this referendum.
+	// pub asset_id: AssetId,
 	/// When voting on this referendum will end.
 	pub end: BlockNumber,
 	/// The hash of the proposal being voted on.
@@ -176,24 +181,41 @@ pub struct ReferendumStatus<BlockNumber, Hash, Balance> {
 
 /// Info regarding a referendum, present or past.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
-pub enum ReferendumInfo<BlockNumber, Hash, Balance> {
+pub enum ReferendumInfo</* AssetId, */ BlockNumber, Hash, Balance> {
 	/// Referendum is happening, the arg is the block number at which it will end.
-	Ongoing(ReferendumStatus<BlockNumber, Hash, Balance>),
+	Ongoing(ReferendumStatus</* AssetId, */ BlockNumber, Hash, Balance>),
 	/// Referendum finished at `end`, and has been `approved` or rejected.
-	Finished { approved: bool, end: BlockNumber },
+	Finished { /* asset_id: AssetId, */ approved: bool, end: BlockNumber },
 }
 
-impl<BlockNumber, Hash, Balance: Default> ReferendumInfo<BlockNumber, Hash, Balance> {
+impl</* AssetId, */ BlockNumber, Hash, Balance: Default>
+	ReferendumInfo</* AssetId, */ BlockNumber, Hash, Balance>
+{
 	/// Create a new instance.
 	pub fn new(
 		end: BlockNumber,
 		proposal_hash: Hash,
 		threshold: VoteThreshold,
 		delay: BlockNumber,
+		// asset_id: AssetId,
 	) -> Self {
-		let s = ReferendumStatus { end, proposal_hash, threshold, delay, tally: Tally::default() };
+		let s = ReferendumStatus {
+			// asset_id,
+			end,
+			proposal_hash,
+			threshold,
+			delay,
+			tally: Tally::default(),
+		};
 		ReferendumInfo::Ongoing(s)
 	}
+
+	// pub fn asset_id(&self) -> AssetId {
+	// 	match self {
+	// 		ReferendumInfo::Ongoing(status) => status.asset_id,
+	// 		ReferendumInfo::Finished { asset_id, .. } => todo!(),
+	// 	}
+	// }
 }
 
 /// Whether an `unvote` operation is able to make actions that are not strictly always in the
@@ -203,4 +225,22 @@ pub enum UnvoteScope {
 	Any,
 	/// Permitted to do only the changes that do not need the owner's permission.
 	OnlyExpired,
+}
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+pub struct Deposit<AssetId, AccountId, Balance> {
+	/// Those who have backed the proposal.
+	pub depositors: Vec<AccountId>,
+	/// The asset being used for this proposal.
+	pub asset_id: AssetId,
+	/// The amount each backer has deposited.
+	pub amount: Balance,
+}
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+pub struct Proposal<T: Config> {
+	pub prop_index: PropIndex,
+	pub asset_id: CurrencyIdOf<T>,
+	pub account_id: T::AccountId,
+	pub native_deposit: BalanceOfNative<T>,
 }

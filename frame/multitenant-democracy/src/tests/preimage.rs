@@ -27,7 +27,9 @@ fn missing_preimage_should_fail() {
 			set_balance_proposal_hash(2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
-		);
+			BTC,
+		)
+		.unwrap();
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 
 		next_block();
@@ -44,9 +46,9 @@ fn preimage_deposit_should_be_required_and_returned() {
 		PREIMAGE_BYTE_DEPOSIT.with(|v| *v.borrow_mut() = 100);
 		assert_noop!(
 			if operational {
-				Democracy::note_preimage_operational(Origin::signed(6), vec![0; 500])
+				Democracy::note_preimage_operational(Origin::signed(6), vec![0; 500], BTC)
 			} else {
-				Democracy::note_preimage(Origin::signed(6), vec![0; 500])
+				Democracy::note_preimage(Origin::signed(6), vec![0; 500], BTC)
 			},
 			BalancesError::<Test, _>::InsufficientBalance,
 		);
@@ -54,10 +56,12 @@ fn preimage_deposit_should_be_required_and_returned() {
 		PREIMAGE_BYTE_DEPOSIT.with(|v| *v.borrow_mut() = 1);
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(2, BTC),
 			VoteThreshold::SuperMajorityApprove,
 			0,
-		);
+			BTC,
+		)
+		.unwrap();
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 
 		assert_eq!(Balances::reserved_balance(6), 12);
@@ -76,9 +80,9 @@ fn preimage_deposit_should_be_reapable_earlier_by_owner() {
 	new_test_ext_execute_with_cond(|operational| {
 		PREIMAGE_BYTE_DEPOSIT.with(|v| *v.borrow_mut() = 1);
 		assert_ok!(if operational {
-			Democracy::note_preimage_operational(Origin::signed(6), set_balance_proposal(2))
+			Democracy::note_preimage_operational(Origin::signed(6), set_balance_proposal(2), BTC)
 		} else {
-			Democracy::note_preimage(Origin::signed(6), set_balance_proposal(2))
+			Democracy::note_preimage(Origin::signed(6), set_balance_proposal(2), BTC)
 		});
 
 		assert_eq!(Balances::reserved_balance(6), 12);
@@ -110,9 +114,9 @@ fn preimage_deposit_should_be_reapable() {
 
 		PREIMAGE_BYTE_DEPOSIT.with(|v| *v.borrow_mut() = 1);
 		assert_ok!(if operational {
-			Democracy::note_preimage_operational(Origin::signed(6), set_balance_proposal(2))
+			Democracy::note_preimage_operational(Origin::signed(6), set_balance_proposal(2), BTC)
 		} else {
-			Democracy::note_preimage(Origin::signed(6), set_balance_proposal(2))
+			Democracy::note_preimage(Origin::signed(6), set_balance_proposal(2), BTC)
 		});
 		assert_eq!(Balances::reserved_balance(6), 12);
 
@@ -146,7 +150,9 @@ fn noting_imminent_preimage_for_free_should_work() {
 			set_balance_proposal_hash(2),
 			VoteThreshold::SuperMajorityApprove,
 			1,
-		);
+			BTC,
+		)
+		.unwrap();
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 
 		assert_noop!(
@@ -154,9 +160,10 @@ fn noting_imminent_preimage_for_free_should_work() {
 				Democracy::note_imminent_preimage_operational(
 					Origin::signed(6),
 					set_balance_proposal(2),
+					BTC,
 				)
 			} else {
-				Democracy::note_imminent_preimage(Origin::signed(6), set_balance_proposal(2))
+				Democracy::note_imminent_preimage(Origin::signed(6), set_balance_proposal(2), BTC)
 			},
 			Error::<Test>::NotImminent
 		);
@@ -164,7 +171,11 @@ fn noting_imminent_preimage_for_free_should_work() {
 		next_block();
 
 		// Now we're in the dispatch queue it's all good.
-		assert_ok!(Democracy::note_imminent_preimage(Origin::signed(6), set_balance_proposal(2)));
+		assert_ok!(Democracy::note_imminent_preimage(
+			Origin::signed(6),
+			set_balance_proposal(2),
+			BTC
+		));
 
 		next_block();
 
@@ -175,8 +186,9 @@ fn noting_imminent_preimage_for_free_should_work() {
 #[test]
 fn reaping_imminent_preimage_should_fail() {
 	new_test_ext().execute_with(|| {
-		let h = set_balance_proposal_hash_and_note(2);
-		let r = Democracy::inject_referendum(3, h, VoteThreshold::SuperMajorityApprove, 1);
+		let h = set_balance_proposal_hash_and_note(2, BTC);
+		let r = Democracy::inject_referendum(3, h, VoteThreshold::SuperMajorityApprove, 1, BTC)
+			.unwrap();
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 		next_block();
 		next_block();
@@ -197,22 +209,28 @@ fn note_imminent_preimage_can_only_be_successful_once() {
 			set_balance_proposal_hash(2),
 			VoteThreshold::SuperMajorityApprove,
 			1,
-		);
+			BTC,
+		)
+		.unwrap();
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 		next_block();
 
 		// First time works
-		assert_ok!(Democracy::note_imminent_preimage(Origin::signed(6), set_balance_proposal(2)));
+		assert_ok!(Democracy::note_imminent_preimage(
+			Origin::signed(6),
+			set_balance_proposal(2),
+			BTC
+		));
 
 		// Second time fails
 		assert_noop!(
-			Democracy::note_imminent_preimage(Origin::signed(6), set_balance_proposal(2)),
+			Democracy::note_imminent_preimage(Origin::signed(6), set_balance_proposal(2), BTC),
 			Error::<Test>::DuplicatePreimage
 		);
 
 		// Fails from any user
 		assert_noop!(
-			Democracy::note_imminent_preimage(Origin::signed(5), set_balance_proposal(2)),
+			Democracy::note_imminent_preimage(Origin::signed(5), set_balance_proposal(2), BTC),
 			Error::<Test>::DuplicatePreimage
 		);
 	});

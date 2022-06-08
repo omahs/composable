@@ -67,21 +67,21 @@ impl TypeInfo for Vote {
 
 /// A vote for a referendum of a particular account.
 #[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
-pub enum AccountVote<Balance> {
+pub enum AccountVote</* AssetId, */ Balance> {
 	/// A standard vote, one-way (approve or reject) with a given amount of conviction.
-	Standard { vote: Vote, balance: Balance },
+	Standard { vote: Vote, /* asset_id: AssetId, */ balance: Balance },
 	/// A split vote with balances given for both ways, and with no conviction, useful for
 	/// parachains when voting.
-	Split { aye: Balance, nay: Balance },
+	Split { /* asset_id: AssetId, */ aye: Balance, nay: Balance },
 }
 
-impl<Balance: Saturating> AccountVote<Balance> {
+impl</* AssetId, */ Balance: Saturating> AccountVote</* AssetId, */ Balance> {
 	/// Returns `Some` of the lock periods that the account is locked for, assuming that the
 	/// referendum passed iff `approved` is `true`.
 	pub fn locked_if(self, approved: bool) -> Option<(u32, Balance)> {
 		// winning side: can only be removed after the lock period ends.
 		match self {
-			AccountVote::Standard { vote, balance } if vote.aye == approved =>
+			AccountVote::Standard { vote, balance, .. } if vote.aye == approved =>
 				Some((vote.conviction.lock_periods(), balance)),
 			_ => None,
 		}
@@ -91,7 +91,7 @@ impl<Balance: Saturating> AccountVote<Balance> {
 	pub fn balance(self) -> Balance {
 		match self {
 			AccountVote::Standard { balance, .. } => balance,
-			AccountVote::Split { aye, nay } => aye.saturating_add(nay),
+			AccountVote::Split { aye, nay, .. } => aye.saturating_add(nay),
 		}
 	}
 
@@ -109,39 +109,44 @@ impl<Balance: Saturating> AccountVote<Balance> {
 #[derive(
 	Encode, Decode, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo,
 )]
-pub struct PriorLock<BlockNumber, Balance>(BlockNumber, Balance);
+pub struct PriorLock<BlockNumber, /* AssetId, */ Balance> {
+	when: BlockNumber,
+	amount: Balance, /* asset_id: AssetId */
+}
 
-impl<BlockNumber: Ord + Copy + Zero, Balance: Ord + Copy + Zero> PriorLock<BlockNumber, Balance> {
+impl<BlockNumber: Ord + Copy + Zero, /* AssetId, */ Balance: Ord + Copy + Zero>
+	PriorLock<BlockNumber, /* AssetId, */ Balance>
+{
 	/// Accumulates an additional lock.
 	pub fn accumulate(&mut self, until: BlockNumber, amount: Balance) {
-		self.0 = self.0.max(until);
-		self.1 = self.1.max(amount);
+		self.when = self.when.max(until);
+		self.amount = self.amount.max(amount);
 	}
 
 	pub fn locked(&self) -> Balance {
-		self.1
+		self.amount
 	}
 
 	pub fn rejig(&mut self, now: BlockNumber) {
-		if now >= self.0 {
-			self.0 = Zero::zero();
-			self.1 = Zero::zero();
+		if now >= self.when {
+			self.when = Zero::zero();
+			self.amount = Zero::zero();
 		}
 	}
 }
 
 /// An indicator for what an account is doing; it can either be delegating or voting.
 #[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
-pub enum Voting<Balance, AccountId, BlockNumber> {
+pub enum Voting</* AssetId, */ Balance, AccountId, BlockNumber> {
 	/// The account is voting directly. `delegations` is the total amount of post-conviction voting
 	/// weight that it controls from those that have delegated to it.
 	Direct {
 		/// The current votes of the account.
-		votes: Vec<(ReferendumIndex, AccountVote<Balance>)>,
+		votes: Vec<(ReferendumIndex, AccountVote</* AssetId, */ Balance>)>,
 		/// The total amount of delegations that this account has received.
-		delegations: Delegations<Balance>,
+		delegations: Delegations</* AssetId, */ Balance>,
 		/// Any pre-existing locks from past voting/delegating activity.
-		prior: PriorLock<BlockNumber, Balance>,
+		prior: PriorLock<BlockNumber, /* AssetId, */ Balance>,
 	},
 	/// The account is delegating `balance` of its balance to a `target` account with `conviction`.
 	Delegating {
@@ -149,26 +154,29 @@ pub enum Voting<Balance, AccountId, BlockNumber> {
 		target: AccountId,
 		conviction: Conviction,
 		/// The total amount of delegations that this account has received.
-		delegations: Delegations<Balance>,
+		delegations: Delegations</* AssetId, */ Balance>,
 		/// Any pre-existing locks from past voting/delegating activity.
-		prior: PriorLock<BlockNumber, Balance>,
+		prior: PriorLock<BlockNumber, /* AssetId, */ Balance>,
 	},
 }
 
-impl<Balance: Default, AccountId, BlockNumber: Zero> Default
-	for Voting<Balance, AccountId, BlockNumber>
+impl</* AssetId, */ Balance: Default, AccountId, BlockNumber: Zero> Default
+	for Voting</* AssetId, */ Balance, AccountId, BlockNumber>
 {
 	fn default() -> Self {
 		Voting::Direct {
 			votes: Vec::new(),
 			delegations: Default::default(),
-			prior: PriorLock(Zero::zero(), Default::default()),
+			prior: PriorLock { when: Zero::zero(), amount: Default::default() },
 		}
 	}
 }
 
-impl<Balance: Saturating + Ord + Zero + Copy, BlockNumber: Ord + Copy + Zero, AccountId>
-	Voting<Balance, AccountId, BlockNumber>
+impl<
+		/* AssetId, */ Balance: Saturating + Ord + Zero + Copy,
+		BlockNumber: Ord + Copy + Zero,
+		AccountId,
+	> Voting</* AssetId, */ Balance, AccountId, BlockNumber>
 {
 	pub fn rejig(&mut self, now: BlockNumber) {
 		match self {

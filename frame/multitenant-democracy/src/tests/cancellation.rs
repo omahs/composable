@@ -24,20 +24,22 @@ fn cancel_referendum_should_work() {
 	new_test_ext().execute_with(|| {
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(2, BTC),
 			VoteThreshold::SuperMajorityApprove,
 			0,
-		);
+			BTC,
+		)
+		.unwrap();
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 		assert_ok!(Democracy::cancel_referendum(Origin::root(), r.into()));
-		assert_eq!(Democracy::lowest_unbaked(), 0);
+		assert_eq!(LowestUnbaked::<Test>::get(), 0);
 
 		next_block();
 
 		next_block();
 
-		assert_eq!(Democracy::lowest_unbaked(), 1);
-		assert_eq!(Democracy::lowest_unbaked(), Democracy::referendum_count());
+		assert_eq!(LowestUnbaked::<Test>::get(), 1);
+		assert_eq!(LowestUnbaked::<Test>::get(), ReferendumCount::<Test>::get());
 		assert_eq!(Balances::free_balance(42), 0);
 	});
 }
@@ -46,7 +48,7 @@ fn cancel_referendum_should_work() {
 fn cancel_queued_should_work() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		assert_ok!(propose_set_balance_and_note(1, 2, 1));
+		assert_ok!(propose_set_balance_and_note(1, 2, 1, BTC));
 
 		// start of 2 => next referendum scheduled.
 		fast_forward_to(2);
@@ -69,24 +71,28 @@ fn emergency_cancel_should_work() {
 		System::set_block_number(0);
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(2, BTC),
 			VoteThreshold::SuperMajorityApprove,
 			2,
-		);
+			BTC,
+		)
+		.unwrap();
 		assert!(Democracy::referendum_status(r).is_ok());
 
 		assert_noop!(Democracy::emergency_cancel(Origin::signed(3), r), BadOrigin);
 		assert_ok!(Democracy::emergency_cancel(Origin::signed(4), r));
-		assert!(Democracy::referendum_info(r).is_none());
+		assert!(ReferendumInfoOf::<Test>::get(r).is_none());
 
 		// some time later...
 
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(2, BTC),
 			VoteThreshold::SuperMajorityApprove,
 			2,
-		);
+			BTC,
+		)
+		.unwrap();
 		assert!(Democracy::referendum_status(r).is_ok());
 		assert_noop!(
 			Democracy::emergency_cancel(Origin::signed(4), r),

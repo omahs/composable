@@ -163,6 +163,7 @@ use frame_support::{
 	},
 	weights::Weight,
 };
+use orml_traits::{MultiCurrency, MultiLockableCurrency, MultiReservableCurrency};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Bounded, Dispatchable, Hash, Saturating, Zero},
@@ -181,6 +182,8 @@ pub use types::{Delegations, ReferendumInfo, ReferendumStatus, Tally, UnvoteScop
 pub use vote::{AccountVote, Vote, Voting};
 pub use vote_threshold::{Approved, VoteThreshold};
 pub use weights::WeightInfo;
+
+use crate::types::Deposit;
 
 #[cfg(test)]
 mod tests;
@@ -202,30 +205,37 @@ pub type PropIndex = u32;
 pub type ReferendumIndex = u32;
 
 type BalanceOf<T> =
-	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
+	<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+type CurrencyIdOf<T> =
+	<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
+type BalanceOfNative<T> =
+	<<T as Config>::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+type NegativeImbalanceOf<T> = <<T as Config>::NativeCurrency as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::NegativeImbalance;
 
 #[derive(Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
-pub enum PreimageStatus<AccountId, Balance, BlockNumber> {
+pub enum PreimageStatus<AssetId, AccountId, Balance, BlockNumber> {
 	/// The preimage is imminently needed at the argument.
-	Missing(BlockNumber),
+	Missing { asset_id: AssetId, expiry: BlockNumber },
 	/// The preimage is available.
 	Available {
 		data: Vec<u8>,
 		provider: AccountId,
 		deposit: Balance,
+		asset_id: AssetId,
 		since: BlockNumber,
 		/// None if it's not imminent.
 		expiry: Option<BlockNumber>,
 	},
 }
 
-impl<AccountId, Balance, BlockNumber> PreimageStatus<AccountId, Balance, BlockNumber> {
+impl<AssetId, AccountId, Balance, BlockNumber>
+	PreimageStatus<AssetId, AccountId, Balance, BlockNumber>
+{
 	fn to_missing_expiry(self) -> Option<BlockNumber> {
 		match self {
-			PreimageStatus::Missing(expiry) => Some(expiry),
+			PreimageStatus::Missing { expiry, .. } => Some(expiry),
 			_ => None,
 		}
 	}
@@ -241,9 +251,12 @@ enum Releases {
 
 #[frame_support::pallet]
 pub mod pallet {
+	use crate::types::{Deposit, Proposal};
+
 	use super::{DispatchResult, *};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use orml_traits::{MultiLockableCurrency, MultiReservableCurrency};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -256,8 +269,16 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Currency type for this pallet.
-		type Currency: ReservableCurrency<Self::AccountId>
+		type Currency: MultiReservableCurrency<Self::AccountId>
+			+ MultiLockableCurrency<Self::AccountId, Moment = Self::BlockNumber>;
+
+		/// Currency type for this pallet.
+		type NativeCurrency: ReservableCurrency<Self::AccountId>
 			+ LockableCurrency<Self::AccountId, Moment = Self::BlockNumber>;
+
+		// /// Currency type for this pallet.
+		// type NativeCurrency: ReservableCurrency<Self::AccountId>
+		// 	+ LockableCurrency<Self::AccountId, Moment = Self::BlockNumber>;
 
 		/// The period between a proposal being approved and enacted.
 		///
@@ -375,21 +396,24 @@ pub mod pallet {
 	/// The number of (public) proposals that have been made so far.
 	#[pallet::storage]
 	#[pallet::getter(fn public_prop_count)]
+	// TODO: Nonce
 	pub type PublicPropCount<T> = StorageValue<_, PropIndex, ValueQuery>;
 
 	/// The public proposals. Unsorted. The second item is the proposal's hash.
 	#[pallet::storage]
-	#[pallet::getter(fn public_props)]
-	pub type PublicProps<T: Config> =
-		StorageValue<_, Vec<(PropIndex, T::Hash, T::AccountId)>, ValueQuery>;
+	// TODO: StorageMap of hash -> proposal
+	pub type PublicProps<T: Config> = StorageMap<_, Twox64Concat, T::Hash, Proposal<T>>;
 
 	/// Those who have locked a deposit.
 	///
 	/// TWOX-NOTE: Safe, as increasing integer keys are safe.
 	#[pallet::storage]
-	#[pallet::getter(fn deposit_of)]
-	pub type DepositOf<T: Config> =
-		StorageMap<_, Twox64Concat, PropIndex, (Vec<T::AccountId>, BalanceOf<T>)>;
+	pub type DepositOf<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		PropIndex,
+		Deposit<CurrencyIdOf<T>, T::AccountId, BalanceOf<T>>,
+	>;
 
 	/// Map of hashes to the proposal preimage, along with who registered it and their deposit.
 	/// The block number is the block at which it was deposited.
@@ -400,30 +424,30 @@ pub mod pallet {
 		_,
 		Identity,
 		T::Hash,
-		PreimageStatus<T::AccountId, BalanceOf<T>, T::BlockNumber>,
+		PreimageStatus<CurrencyIdOf<T>, T::AccountId, BalanceOf<T>, T::BlockNumber>,
 	>;
 
 	/// The next free referendum index, aka the number of referenda started so far.
 	#[pallet::storage]
-	#[pallet::getter(fn referendum_count)]
+	// #[pallet::getter(fn referendum_count)]
 	pub type ReferendumCount<T> = StorageValue<_, ReferendumIndex, ValueQuery>;
 
 	/// The lowest referendum index representing an unbaked referendum. Equal to
 	/// `ReferendumCount` if there isn't a unbaked referendum.
 	#[pallet::storage]
-	#[pallet::getter(fn lowest_unbaked)]
+	// #[pallet::getter(fn lowest_unbaked)]
 	pub type LowestUnbaked<T> = StorageValue<_, ReferendumIndex, ValueQuery>;
 
-	/// Information concerning any given referendum.
+	/// Information concerning any given referendum, with the related currency/ asset.
 	///
 	/// TWOX-NOTE: SAFE as indexes are not under an attacker’s control.
 	#[pallet::storage]
-	#[pallet::getter(fn referendum_info)]
+	// #[pallet::getter(fn referendum_info)]
 	pub type ReferendumInfoOf<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
 		ReferendumIndex,
-		ReferendumInfo<T::BlockNumber, T::Hash, BalanceOf<T>>,
+		(CurrencyIdOf<T>, ReferendumInfo<T::BlockNumber, T::Hash, BalanceOf<T>>),
 	>;
 
 	/// All votes for a particular voter. We store the balance for the number of votes that we
@@ -431,10 +455,12 @@ pub mod pallet {
 	///
 	/// TWOX-NOTE: SAFE as `AccountId`s are crypto hashes anyway.
 	#[pallet::storage]
-	pub type VotingOf<T: Config> = StorageMap<
+	pub type VotingOf<T: Config> = StorageDoubleMap<
 		_,
 		Twox64Concat,
 		T::AccountId,
+		Blake2_128Concat,
+		CurrencyIdOf<T>,
 		Voting<BalanceOf<T>, T::AccountId, T::BlockNumber>,
 		ValueQuery,
 	>;
@@ -625,28 +651,32 @@ pub mod pallet {
 		pub fn propose(
 			origin: OriginFor<T>,
 			proposal_hash: T::Hash,
+			asset_id: CurrencyIdOf<T>,
 			#[pallet::compact] value: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(value >= T::MinimumDeposit::get(), Error::<T>::ValueLow);
 
 			let index = Self::public_prop_count();
-			let real_prop_count = PublicProps::<T>::decode_len().unwrap_or(0) as u32;
+			let real_prop_count = PublicProps::<T>::dec().unwrap_or(0) as u32;
 			let max_proposals = T::MaxProposals::get();
 			ensure!(real_prop_count < max_proposals, Error::<T>::TooManyProposals);
 
-			if let Some((until, _)) = <Blacklist<T>>::get(proposal_hash) {
+			if let Some((until, _)) = Blacklist::<T>::get(proposal_hash) {
 				ensure!(
-					<frame_system::Pallet<T>>::block_number() >= until,
+					frame_system::Pallet::<T>::block_number() >= until,
 					Error::<T>::ProposalBlacklisted,
 				);
 			}
 
-			T::Currency::reserve(&who, value)?;
+			T::Currency::reserve(asset_id, &who, value)?;
 			PublicPropCount::<T>::put(index + 1);
-			<DepositOf<T>>::insert(index, (&[&who][..], value));
+			DepositOf::<T>::insert(
+				index,
+				Deposit { asset_id, depositors: [who].into(), amount: value },
+			);
 
-			<PublicProps<T>>::append((index, proposal_hash, who));
+			PublicProps::<T>::append((index, proposal_hash, asset_id, who));
 
 			Self::deposit_event(Event::<T>::Proposed { proposal_index: index, deposit: value });
 			Ok(())
@@ -672,10 +702,10 @@ pub mod pallet {
 
 			let seconds = Self::len_of_deposit_of(proposal).ok_or(Error::<T>::ProposalMissing)?;
 			ensure!(seconds <= seconds_upper_bound, Error::<T>::WrongUpperBound);
-			let mut deposit = Self::deposit_of(proposal).ok_or(Error::<T>::ProposalMissing)?;
-			T::Currency::reserve(&who, deposit.1)?;
-			deposit.0.push(who.clone());
-			<DepositOf<T>>::insert(proposal, deposit);
+			let mut deposit = DepositOf::<T>::get(proposal).ok_or(Error::<T>::ProposalMissing)?;
+			T::Currency::reserve(deposit.asset_id, &who, deposit.amount)?;
+			deposit.depositors.push(who.clone());
+			DepositOf::<T>::insert(proposal, deposit);
 			Self::deposit_event(Event::<T>::Seconded { seconder: who, prop_index: proposal });
 			Ok(())
 		}
@@ -718,10 +748,10 @@ pub mod pallet {
 			T::CancellationOrigin::ensure_origin(origin)?;
 
 			let status = Self::referendum_status(ref_index)?;
-			let h = status.proposal_hash;
-			ensure!(!<Cancellations<T>>::contains_key(h), Error::<T>::AlreadyCanceled);
+			let h = status.1.proposal_hash;
+			ensure!(!Cancellations::<T>::contains_key(h), Error::<T>::AlreadyCanceled);
 
-			<Cancellations<T>>::insert(h, true);
+			Cancellations::<T>::insert(h, true);
 			Self::internal_cancel_referendum(ref_index);
 			Ok(())
 		}
@@ -738,14 +768,14 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::external_propose(MAX_VETOERS))]
 		pub fn external_propose(origin: OriginFor<T>, proposal_hash: T::Hash) -> DispatchResult {
 			T::ExternalOrigin::ensure_origin(origin)?;
-			ensure!(!<NextExternal<T>>::exists(), Error::<T>::DuplicateProposal);
-			if let Some((until, _)) = <Blacklist<T>>::get(proposal_hash) {
+			ensure!(!NextExternal::<T>::exists(), Error::<T>::DuplicateProposal);
+			if let Some((until, _)) = Blacklist::<T>::get(proposal_hash) {
 				ensure!(
-					<frame_system::Pallet<T>>::block_number() >= until,
+					frame_system::Pallet::<T>::block_number() >= until,
 					Error::<T>::ProposalBlacklisted,
 				);
 			}
-			<NextExternal<T>>::put((proposal_hash, VoteThreshold::SuperMajorityApprove));
+			NextExternal::<T>::put((proposal_hash, VoteThreshold::SuperMajorityApprove));
 			Ok(())
 		}
 
@@ -766,7 +796,7 @@ pub mod pallet {
 			proposal_hash: T::Hash,
 		) -> DispatchResult {
 			T::ExternalMajorityOrigin::ensure_origin(origin)?;
-			<NextExternal<T>>::put((proposal_hash, VoteThreshold::SimpleMajority));
+			NextExternal::<T>::put((proposal_hash, VoteThreshold::SimpleMajority));
 			Ok(())
 		}
 
@@ -787,7 +817,7 @@ pub mod pallet {
 			proposal_hash: T::Hash,
 		) -> DispatchResult {
 			T::ExternalDefaultOrigin::ensure_origin(origin)?;
-			<NextExternal<T>>::put((proposal_hash, VoteThreshold::SuperMajorityAgainst));
+			NextExternal::<T>::put((proposal_hash, VoteThreshold::SuperMajorityAgainst));
 			Ok(())
 		}
 
@@ -829,21 +859,25 @@ pub mod pallet {
 				ensure!(T::InstantAllowed::get(), Error::<T>::InstantNotAllowed);
 			}
 
-			let (e_proposal_hash, threshold) =
-				<NextExternal<T>>::get().ok_or(Error::<T>::ProposalMissing)?;
+			let (external_proposal_hash, threshold) =
+				NextExternal::<T>::get().ok_or(Error::<T>::ProposalMissing)?;
 			ensure!(
 				threshold != VoteThreshold::SuperMajorityApprove,
 				Error::<T>::NotSimpleMajority,
 			);
-			ensure!(proposal_hash == e_proposal_hash, Error::<T>::InvalidHash);
+			ensure!(proposal_hash == external_proposal_hash, Error::<T>::InvalidHash);
 
-			<NextExternal<T>>::kill();
-			let now = <frame_system::Pallet<T>>::block_number();
+			NextExternal::<T>::kill();
+			let now = frame_system::Pallet::<T>::block_number();
+
+			let asset_id = asset_id_from_public_prop::<T>(&proposal_hash)?;
+
 			Self::inject_referendum(
 				now.saturating_add(voting_period),
 				proposal_hash,
 				threshold,
 				delay,
+				asset_id,
 			);
 			Ok(())
 		}
@@ -861,24 +895,24 @@ pub mod pallet {
 		pub fn veto_external(origin: OriginFor<T>, proposal_hash: T::Hash) -> DispatchResult {
 			let who = T::VetoOrigin::ensure_origin(origin)?;
 
-			if let Some((e_proposal_hash, _)) = <NextExternal<T>>::get() {
+			if let Some((e_proposal_hash, _)) = NextExternal::<T>::get() {
 				ensure!(proposal_hash == e_proposal_hash, Error::<T>::ProposalMissing);
 			} else {
 				return Err(Error::<T>::NoProposal.into())
 			}
 
 			let mut existing_vetoers =
-				<Blacklist<T>>::get(&proposal_hash).map(|pair| pair.1).unwrap_or_else(Vec::new);
+				Blacklist::<T>::get(&proposal_hash).map(|pair| pair.1).unwrap_or_else(Vec::new);
 			let insert_position =
 				existing_vetoers.binary_search(&who).err().ok_or(Error::<T>::AlreadyVetoed)?;
 
 			existing_vetoers.insert(insert_position, who.clone());
 			let until =
-				<frame_system::Pallet<T>>::block_number().saturating_add(T::CooloffPeriod::get());
-			<Blacklist<T>>::insert(&proposal_hash, (until, existing_vetoers));
+				frame_system::Pallet::<T>::block_number().saturating_add(T::CooloffPeriod::get());
+			Blacklist::<T>::insert(&proposal_hash, (until, existing_vetoers));
 
 			Self::deposit_event(Event::<T>::Vetoed { who, proposal_hash, until });
-			<NextExternal<T>>::kill();
+			NextExternal::<T>::kill();
 			Ok(())
 		}
 
@@ -942,9 +976,10 @@ pub mod pallet {
 			to: T::AccountId,
 			conviction: Conviction,
 			balance: BalanceOf<T>,
+			asset_id: CurrencyIdOf<T>,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
-			let votes = Self::try_delegate(who, to, conviction, balance)?;
+			let votes = Self::try_delegate(who, to, conviction, balance, asset_id)?;
 
 			Ok(Some(T::WeightInfo::delegate(votes)).into())
 		}
@@ -964,9 +999,12 @@ pub mod pallet {
 		// NOTE: weight must cover an incorrect voting of origin with max votes, this is ensure
 		// because a valid delegation cover decoding a direct voting with max votes.
 		#[pallet::weight(T::WeightInfo::undelegate(T::MaxVotes::get()))]
-		pub fn undelegate(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+		pub fn undelegate(
+			origin: OriginFor<T>,
+			asset_id: CurrencyIdOf<T>,
+		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
-			let votes = Self::try_undelegate(who)?;
+			let votes = Self::try_undelegate(who, asset_id)?;
 			Ok(Some(T::WeightInfo::undelegate(votes)).into())
 		}
 
@@ -978,7 +1016,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::clear_public_proposals())]
 		pub fn clear_public_proposals(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
-			<PublicProps<T>>::kill();
+			PublicProps::<T>::remove_all(None);
 			Ok(())
 		}
 
@@ -993,8 +1031,12 @@ pub mod pallet {
 		///
 		/// Weight: `O(E)` with E size of `encoded_proposal` (protected by a required deposit).
 		#[pallet::weight(T::WeightInfo::note_preimage(encoded_proposal.len() as u32))]
-		pub fn note_preimage(origin: OriginFor<T>, encoded_proposal: Vec<u8>) -> DispatchResult {
-			Self::note_preimage_inner(ensure_signed(origin)?, encoded_proposal)?;
+		pub fn note_preimage(
+			origin: OriginFor<T>,
+			encoded_proposal: Vec<u8>,
+			asset_id: CurrencyIdOf<T>,
+		) -> DispatchResult {
+			Self::note_preimage_inner(ensure_signed(origin)?, encoded_proposal, asset_id)?;
 			Ok(())
 		}
 
@@ -1006,9 +1048,10 @@ pub mod pallet {
 		pub fn note_preimage_operational(
 			origin: OriginFor<T>,
 			encoded_proposal: Vec<u8>,
+			asset_id: CurrencyIdOf<T>,
 		) -> DispatchResult {
 			let who = T::OperationalPreimageOrigin::ensure_origin(origin)?;
-			Self::note_preimage_inner(who, encoded_proposal)?;
+			Self::note_preimage_inner(who, encoded_proposal, asset_id)?;
 			Ok(())
 		}
 
@@ -1028,8 +1071,9 @@ pub mod pallet {
 		pub fn note_imminent_preimage(
 			origin: OriginFor<T>,
 			encoded_proposal: Vec<u8>,
+			asset_id: CurrencyIdOf<T>,
 		) -> DispatchResultWithPostInfo {
-			Self::note_imminent_preimage_inner(ensure_signed(origin)?, encoded_proposal)?;
+			Self::note_imminent_preimage_inner(ensure_signed(origin)?, encoded_proposal, asset_id)?;
 			// We check that this preimage was not uploaded before in
 			// `note_imminent_preimage_inner`, thus this call can only be successful once. If
 			// successful, user does not pay a fee.
@@ -1044,9 +1088,10 @@ pub mod pallet {
 		pub fn note_imminent_preimage_operational(
 			origin: OriginFor<T>,
 			encoded_proposal: Vec<u8>,
+			asset_id: CurrencyIdOf<T>,
 		) -> DispatchResultWithPostInfo {
 			let who = T::OperationalPreimageOrigin::ensure_origin(origin)?;
-			Self::note_imminent_preimage_inner(who, encoded_proposal)?;
+			Self::note_imminent_preimage_inner(who, encoded_proposal, asset_id)?;
 			// We check that this preimage was not uploaded before in
 			// `note_imminent_preimage_inner`, thus this call can only be successful once. If
 			// successful, user does not pay a fee.
@@ -1073,6 +1118,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			proposal_hash: T::Hash,
 			#[pallet::compact] proposal_len_upper_bound: u32,
+			// asset_id: CurrencyIdOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -1081,7 +1127,7 @@ pub mod pallet {
 				Error::<T>::WrongUpperBound,
 			);
 
-			let (provider, deposit, since, expiry) = <Preimages<T>>::get(&proposal_hash)
+			let (provider, deposit, since, expiry) = Preimages::<T>::get(&proposal_hash)
 				.and_then(|m| match m {
 					PreimageStatus::Available { provider, deposit, since, expiry, .. } =>
 						Some((provider, deposit, since, expiry)),
@@ -1089,7 +1135,7 @@ pub mod pallet {
 				})
 				.ok_or(Error::<T>::PreimageMissing)?;
 
-			let now = <frame_system::Pallet<T>>::block_number();
+			let now = frame_system::Pallet::<T>::block_number();
 			let (voting, enactment) = (T::VotingPeriod::get(), T::EnactmentPeriod::get());
 			let additional = if who == provider { Zero::zero() } else { enactment };
 			ensure!(
@@ -1098,10 +1144,17 @@ pub mod pallet {
 			);
 			ensure!(expiry.map_or(true, |e| now > e), Error::<T>::Imminent);
 
-			let res =
-				T::Currency::repatriate_reserved(&provider, &who, deposit, BalanceStatus::Free);
+			let asset_id = asset_id_from_public_prop::<T>(&proposal_hash)?;
+
+			let res = T::Currency::repatriate_reserved(
+				asset_id,
+				&provider,
+				&who,
+				deposit,
+				BalanceStatus::Free,
+			);
 			debug_assert!(res.is_ok());
-			<Preimages<T>>::remove(&proposal_hash);
+			Preimages::<T>::remove(&proposal_hash);
 			Self::deposit_event(Event::<T>::PreimageReaped {
 				proposal_hash,
 				provider,
@@ -1122,9 +1175,13 @@ pub mod pallet {
 			T::WeightInfo::unlock_set(T::MaxVotes::get())
 				.max(T::WeightInfo::unlock_remove(T::MaxVotes::get()))
 		)]
-		pub fn unlock(origin: OriginFor<T>, target: T::AccountId) -> DispatchResult {
+		pub fn unlock(
+			origin: OriginFor<T>,
+			target: T::AccountId,
+			asset_id: CurrencyIdOf<T>,
+		) -> DispatchResult {
 			ensure_signed(origin)?;
-			Self::update_lock(&target);
+			Self::update_lock(&target, asset_id);
 			Ok(())
 		}
 
@@ -1227,13 +1284,17 @@ pub mod pallet {
 			Blacklist::<T>::insert(&proposal_hash, permanent);
 
 			// Remove the queued proposal, if it's there.
-			PublicProps::<T>::mutate(|props| {
-				if let Some(index) = props.iter().position(|p| p.1 == proposal_hash) {
-					let (prop_index, ..) = props.remove(index);
-					if let Some((whos, amount)) = DepositOf::<T>::take(prop_index) {
-						for who in whos.into_iter() {
-							T::Slash::on_unbalanced(T::Currency::slash_reserved(&who, amount).0);
+			PublicProps::<T>::mutate_exists(proposal_hash, |maybe_proposal| {
+				if let Some(proposal) = maybe_proposal {
+					if let Some(Deposit { amount, asset_id, depositors }) =
+						DepositOf::<T>::take(proposal.prop_index)
+					{
+						for depositor in depositors.into_iter() {
+							T::Currency::slash_reserved(asset_id, &depositor, amount);
 						}
+						T::Slash::on_unbalanced(
+							T::NativeCurrency::slash_reserved(&depositor, amount).0,
+						);
 					}
 				}
 			});
@@ -1245,7 +1306,7 @@ pub mod pallet {
 
 			// Remove the referendum, if it's there.
 			if let Some(ref_index) = maybe_ref_index {
-				if let Ok(status) = Self::referendum_status(ref_index) {
+				if let Ok((asset_id, status)) = Self::referendum_status(ref_index) {
 					if status.proposal_hash == proposal_hash {
 						Self::internal_cancel_referendum(ref_index);
 					}
@@ -1266,14 +1327,18 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::cancel_proposal(T::MaxProposals::get()))]
 		pub fn cancel_proposal(
 			origin: OriginFor<T>,
+			// REVIEW(benluelo): Why is this the index and not the hash?
 			#[pallet::compact] prop_index: PropIndex,
 		) -> DispatchResult {
 			T::CancelProposalOrigin::ensure_origin(origin)?;
 
 			PublicProps::<T>::mutate(|props| props.retain(|p| p.0 != prop_index));
-			if let Some((whos, amount)) = DepositOf::<T>::take(prop_index) {
-				for who in whos.into_iter() {
-					T::Slash::on_unbalanced(T::Currency::slash_reserved(&who, amount).0);
+			if let Some(Deposit { depositors, asset_id, amount }) = DepositOf::<T>::take(prop_index)
+			{
+				for depositor in depositors.into_iter() {
+					T::Slash::on_unbalanced(T::Currency::slash_reserved(
+						asset_id, &depositor, amount,
+					));
 				}
 			}
 
@@ -1288,30 +1353,36 @@ impl<T: Config> Pallet<T> {
 	/// Get the amount locked in support of `proposal`; `None` if proposal isn't a valid proposal
 	/// index.
 	pub fn backing_for(proposal: PropIndex) -> Option<BalanceOf<T>> {
-		Self::deposit_of(proposal).map(|(l, d)| d.saturating_mul((l.len() as u32).into()))
+		DepositOf::<T>::get(proposal)
+			.map(|deposit| deposit.amount.saturating_mul((deposit.depositors.len() as u32).into()))
 	}
 
 	/// Get all referenda ready for tally at block `n`.
 	pub fn maturing_referenda_at(
 		n: T::BlockNumber,
-	) -> Vec<(ReferendumIndex, ReferendumStatus<T::BlockNumber, T::Hash, BalanceOf<T>>)> {
-		let next = Self::lowest_unbaked();
-		let last = Self::referendum_count();
+	) -> Vec<(
+		ReferendumIndex,
+		(CurrencyIdOf<T>, ReferendumStatus<T::BlockNumber, T::Hash, BalanceOf<T>>),
+	)> {
+		let next = LowestUnbaked::<T>::get();
+		let last = ReferendumCount::<T>::get();
 		Self::maturing_referenda_at_inner(n, next..last)
 	}
 
 	fn maturing_referenda_at_inner(
 		n: T::BlockNumber,
 		range: core::ops::Range<PropIndex>,
-	) -> Vec<(ReferendumIndex, ReferendumStatus<T::BlockNumber, T::Hash, BalanceOf<T>>)> {
+	) -> Vec<(
+		ReferendumIndex,
+		(CurrencyIdOf<T>, ReferendumStatus<T::BlockNumber, T::Hash, BalanceOf<T>>),
+	)> {
 		range
 			.into_iter()
-			.map(|i| (i, Self::referendum_info(i)))
-			.filter_map(|(i, maybe_info)| match maybe_info {
-				Some(ReferendumInfo::Ongoing(status)) => Some((i, status)),
+			.filter_map(|i| match ReferendumInfoOf::<T>::get(i) {
+				Some((asset_id, ReferendumInfo::Ongoing(status))) => Some((i, (asset_id, status))),
 				_ => None,
 			})
-			.filter(|(_, status)| status.end == n)
+			.filter(|(_, (_, status))| status.end == n)
 			.collect()
 	}
 
@@ -1322,12 +1393,14 @@ impl<T: Config> Pallet<T> {
 		proposal_hash: T::Hash,
 		threshold: VoteThreshold,
 		delay: T::BlockNumber,
-	) -> ReferendumIndex {
-		<Pallet<T>>::inject_referendum(
-			<frame_system::Pallet<T>>::block_number().saturating_add(T::VotingPeriod::get()),
+	) -> Result<ReferendumIndex, DispatchError> {
+		let asset_id = asset_id_from_public_prop::<T>(&proposal_hash)?;
+		Pallet::<T>::inject_referendum(
+			frame_system::Pallet::<T>::block_number().saturating_add(T::VotingPeriod::get()),
 			proposal_hash,
 			threshold,
 			delay,
+			asset_id,
 		)
 	}
 
@@ -1341,17 +1414,24 @@ impl<T: Config> Pallet<T> {
 
 	/// Ok if the given referendum is active, Err otherwise
 	fn ensure_ongoing(
-		r: ReferendumInfo<T::BlockNumber, T::Hash, BalanceOf<T>>,
-	) -> Result<ReferendumStatus<T::BlockNumber, T::Hash, BalanceOf<T>>, DispatchError> {
+		r: (CurrencyIdOf<T>, ReferendumInfo<T::BlockNumber, T::Hash, BalanceOf<T>>),
+	) -> Result<
+		(CurrencyIdOf<T>, ReferendumStatus<T::BlockNumber, T::Hash, BalanceOf<T>>),
+		DispatchError,
+	> {
 		match r {
-			ReferendumInfo::Ongoing(s) => Ok(s),
+			(asset_id, ReferendumInfo::Ongoing(referendum_status)) =>
+				Ok((asset_id, referendum_status)),
 			_ => Err(Error::<T>::ReferendumInvalid.into()),
 		}
 	}
 
 	fn referendum_status(
 		ref_index: ReferendumIndex,
-	) -> Result<ReferendumStatus<T::BlockNumber, T::Hash, BalanceOf<T>>, DispatchError> {
+	) -> Result<
+		(CurrencyIdOf<T>, ReferendumStatus<T::BlockNumber, T::Hash, BalanceOf<T>>),
+		DispatchError,
+	> {
 		let info = ReferendumInfoOf::<T>::get(ref_index).ok_or(Error::<T>::ReferendumInvalid)?;
 		Self::ensure_ongoing(info)
 	}
@@ -1361,10 +1441,14 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		ref_index: ReferendumIndex,
 		vote: AccountVote<BalanceOf<T>>,
+		// asset_id: CurrencyIdOf<T>,
 	) -> DispatchResult {
-		let mut status = Self::referendum_status(ref_index)?;
-		ensure!(vote.balance() <= T::Currency::free_balance(who), Error::<T>::InsufficientFunds);
-		VotingOf::<T>::try_mutate(who, |voting| -> DispatchResult {
+		let (asset_id, mut status) = Self::referendum_status(ref_index)?;
+		ensure!(
+			vote.balance() <= T::Currency::free_balance(asset_id, who),
+			Error::<T>::InsufficientFunds
+		);
+		VotingOf::<T>::try_mutate(who, asset_id, |voting| -> DispatchResult {
 			if let Voting::Direct { ref mut votes, delegations, .. } = voting {
 				match votes.binary_search_by_key(&ref_index, |i| i.0) {
 					Ok(i) => {
@@ -1396,8 +1480,8 @@ impl<T: Config> Pallet<T> {
 		})?;
 		// Extend the lock to `balance` (rather than setting it) since we don't know what other
 		// votes are in place.
-		T::Currency::extend_lock(DEMOCRACY_ID, who, vote.balance(), WithdrawReasons::TRANSFER);
-		ReferendumInfoOf::<T>::insert(ref_index, ReferendumInfo::Ongoing(status));
+		T::Currency::extend_lock(DEMOCRACY_ID, asset_id, who, vote.balance());
+		ReferendumInfoOf::<T>::insert(ref_index, (asset_id, ReferendumInfo::Ongoing(status)));
 		Ok(())
 	}
 
@@ -1412,23 +1496,41 @@ impl<T: Config> Pallet<T> {
 		ref_index: ReferendumIndex,
 		scope: UnvoteScope,
 	) -> DispatchResult {
-		let info = ReferendumInfoOf::<T>::get(ref_index);
-		VotingOf::<T>::try_mutate(who, |voting| -> DispatchResult {
-			if let Voting::Direct { ref mut votes, delegations, ref mut prior } = voting {
-				let i = votes
-					.binary_search_by_key(&ref_index, |i| i.0)
-					.map_err(|_| Error::<T>::NotVoter)?;
-				match info {
-					Some(ReferendumInfo::Ongoing(mut status)) => {
-						ensure!(matches!(scope, UnvoteScope::Any), Error::<T>::NoPermission);
+		fn try_find_vote<T: Config>(
+			votes: &mut Vec<(u32, AccountVote<BalanceOf<T>>)>,
+			ref_index: u32,
+		) -> Result<usize, DispatchError> {
+			let i = votes
+				.binary_search_by_key(&ref_index, |i| i.0)
+				.map_err(|_| Error::<T>::NotVoter)?;
+			Ok(i)
+		}
+
+		let maybe_info = ReferendumInfoOf::<T>::get(ref_index);
+		match maybe_info {
+			Some((asset_id, ReferendumInfo::Ongoing(mut status))) => {
+				ensure!(matches!(scope, UnvoteScope::Any), Error::<T>::NoPermission);
+				VotingOf::<T>::try_mutate(who, asset_id, |voting| -> DispatchResult {
+					if let Voting::Direct { ref mut votes, delegations, ref mut prior } = voting {
+						let i = try_find_vote::<T>(votes, ref_index)?;
 						// Shouldn't be possible to fail, but we handle it gracefully.
 						status.tally.remove(votes[i].1).ok_or(ArithmeticError::Underflow)?;
 						if let Some(approve) = votes[i].1.as_standard() {
 							status.tally.reduce(approve, *delegations);
 						}
-						ReferendumInfoOf::<T>::insert(ref_index, ReferendumInfo::Ongoing(status));
-					},
-					Some(ReferendumInfo::Finished { end, approved }) => {
+						ReferendumInfoOf::<T>::insert(
+							ref_index,
+							(asset_id, ReferendumInfo::Ongoing(status)),
+						);
+						votes.remove(i);
+					}
+					Ok(())
+				})?;
+			},
+			Some((asset_id, ReferendumInfo::Finished { end, approved })) => {
+				VotingOf::<T>::try_mutate(who, asset_id, |voting| -> DispatchResult {
+					if let Voting::Direct { ref mut votes, delegations, ref mut prior } = voting {
+						let i = try_find_vote::<T>(votes, ref_index)?;
 						if let Some((lock_periods, balance)) = votes[i].1.locked_if(approved) {
 							let unlock_at = end.saturating_add(
 								T::VoteLockingPeriod::get().saturating_mul(lock_periods.into()),
@@ -1441,20 +1543,24 @@ impl<T: Config> Pallet<T> {
 								);
 								prior.accumulate(unlock_at, balance)
 							}
+							votes.remove(i);
 						}
-					},
-					None => {}, // Referendum was cancelled.
-				}
-				votes.remove(i);
-			}
-			Ok(())
-		})?;
+					}
+					Ok(())
+				})?;
+			},
+			None => {}, // Referendum was cancelled.
+		}
 		Ok(())
 	}
 
 	/// Return the number of votes for `who`
-	fn increase_upstream_delegation(who: &T::AccountId, amount: Delegations<BalanceOf<T>>) -> u32 {
-		VotingOf::<T>::mutate(who, |voting| match voting {
+	fn increase_upstream_delegation(
+		who: &T::AccountId,
+		asset_id: CurrencyIdOf<T>,
+		amount: Delegations<BalanceOf<T>>,
+	) -> u32 {
+		VotingOf::<T>::mutate(who, asset_id, |voting| match voting {
 			Voting::Delegating { delegations, .. } => {
 				// We don't support second level delegating, so we don't need to do anything more.
 				*delegations = delegations.saturating_add(amount);
@@ -1465,7 +1571,9 @@ impl<T: Config> Pallet<T> {
 				for &(ref_index, account_vote) in votes.iter() {
 					if let AccountVote::Standard { vote, .. } = account_vote {
 						ReferendumInfoOf::<T>::mutate(ref_index, |maybe_info| {
-							if let Some(ReferendumInfo::Ongoing(ref mut status)) = maybe_info {
+							if let Some((asset_id, ReferendumInfo::Ongoing(ref mut status))) =
+								maybe_info
+							{
 								status.tally.increase(vote.aye, amount);
 							}
 						});
@@ -1477,8 +1585,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Return the number of votes for `who`
-	fn reduce_upstream_delegation(who: &T::AccountId, amount: Delegations<BalanceOf<T>>) -> u32 {
-		VotingOf::<T>::mutate(who, |voting| match voting {
+	fn reduce_upstream_delegation(
+		who: &T::AccountId,
+		asset_id: CurrencyIdOf<T>,
+		amount: Delegations<BalanceOf<T>>,
+	) -> u32 {
+		VotingOf::<T>::mutate(who, asset_id, |voting| match voting {
 			Voting::Delegating { delegations, .. } => {
 				// We don't support second level delegating, so we don't need to do anything more.
 				*delegations = delegations.saturating_sub(amount);
@@ -1488,8 +1600,10 @@ impl<T: Config> Pallet<T> {
 				*delegations = delegations.saturating_sub(amount);
 				for &(ref_index, account_vote) in votes.iter() {
 					if let AccountVote::Standard { vote, .. } = account_vote {
-						ReferendumInfoOf::<T>::mutate(ref_index, |maybe_info| {
-							if let Some(ReferendumInfo::Ongoing(ref mut status)) = maybe_info {
+						ReferendumInfoOf::<T>::mutate(ref_index, |(maybe_info)| {
+							if let Some((asset_id, ReferendumInfo::Ongoing(ref mut status))) =
+								maybe_info
+							{
 								status.tally.reduce(vote.aye, amount);
 							}
 						});
@@ -1508,43 +1622,62 @@ impl<T: Config> Pallet<T> {
 		target: T::AccountId,
 		conviction: Conviction,
 		balance: BalanceOf<T>,
+		asset_id: CurrencyIdOf<T>,
 	) -> Result<u32, DispatchError> {
 		ensure!(who != target, Error::<T>::Nonsense);
-		ensure!(balance <= T::Currency::free_balance(&who), Error::<T>::InsufficientFunds);
-		let votes = VotingOf::<T>::try_mutate(&who, |voting| -> Result<u32, DispatchError> {
-			let mut old = Voting::Delegating {
-				balance,
-				target: target.clone(),
-				conviction,
-				delegations: Default::default(),
-				prior: Default::default(),
-			};
-			sp_std::mem::swap(&mut old, voting);
-			match old {
-				Voting::Delegating {
-					balance, target, conviction, delegations, mut prior, ..
-				} => {
-					// remove any delegation votes to our current target.
-					Self::reduce_upstream_delegation(&target, conviction.votes(balance));
-					let now = frame_system::Pallet::<T>::block_number();
-					let lock_periods = conviction.lock_periods().into();
-					let unlock_block = now
-						.saturating_add(T::VoteLockingPeriod::get().saturating_mul(lock_periods));
-					prior.accumulate(unlock_block, balance);
-					voting.set_common(delegations, prior);
-				},
-				Voting::Direct { votes, delegations, prior } => {
-					// here we just ensure that we're currently idling with no votes recorded.
-					ensure!(votes.is_empty(), Error::<T>::VotesExist);
-					voting.set_common(delegations, prior);
-				},
-			}
-			let votes = Self::increase_upstream_delegation(&target, conviction.votes(balance));
-			// Extend the lock to `balance` (rather than setting it) since we don't know what other
-			// votes are in place.
-			T::Currency::extend_lock(DEMOCRACY_ID, &who, balance, WithdrawReasons::TRANSFER);
-			Ok(votes)
-		})?;
+		ensure!(
+			balance <= T::Currency::free_balance(asset_id, &who),
+			Error::<T>::InsufficientFunds
+		);
+		let votes =
+			VotingOf::<T>::try_mutate(&who, asset_id, |voting| -> Result<u32, DispatchError> {
+				let mut old = Voting::Delegating {
+					balance,
+					target: target.clone(),
+					conviction,
+					delegations: Default::default(),
+					prior: Default::default(),
+				};
+				sp_std::mem::swap(&mut old, voting);
+				match old {
+					Voting::Delegating {
+						balance,
+						target,
+						conviction,
+						delegations,
+						mut prior,
+						..
+					} => {
+						// remove any delegation votes to our current target.
+						Self::reduce_upstream_delegation(
+							&target,
+							asset_id,
+							conviction.votes(balance),
+						);
+						let now = frame_system::Pallet::<T>::block_number();
+						let lock_periods = conviction.lock_periods().into();
+						let unlock_block = now.saturating_add(
+							T::VoteLockingPeriod::get().saturating_mul(lock_periods),
+						);
+						prior.accumulate(unlock_block, balance);
+						voting.set_common(delegations, prior);
+					},
+					Voting::Direct { votes, delegations, prior } => {
+						// here we just ensure that we're currently idling with no votes recorded.
+						ensure!(votes.is_empty(), Error::<T>::VotesExist);
+						voting.set_common(delegations, prior);
+					},
+				}
+				let votes = Self::increase_upstream_delegation(
+					&target,
+					asset_id,
+					conviction.votes(balance),
+				);
+				// Extend the lock to `balance` (rather than setting it) since we don't know what
+				// other votes are in place.
+				T::Currency::extend_lock(DEMOCRACY_ID, asset_id, &who, balance);
+				Ok(votes)
+			})?;
 		Self::deposit_event(Event::<T>::Delegated { who, target });
 		Ok(votes)
 	}
@@ -1552,42 +1685,47 @@ impl<T: Config> Pallet<T> {
 	/// Attempt to end the current delegation.
 	///
 	/// Return the number of votes of upstream.
-	fn try_undelegate(who: T::AccountId) -> Result<u32, DispatchError> {
-		let votes = VotingOf::<T>::try_mutate(&who, |voting| -> Result<u32, DispatchError> {
-			let mut old = Voting::default();
-			sp_std::mem::swap(&mut old, voting);
-			match old {
-				Voting::Delegating { balance, target, conviction, delegations, mut prior } => {
-					// remove any delegation votes to our current target.
-					let votes =
-						Self::reduce_upstream_delegation(&target, conviction.votes(balance));
-					let now = frame_system::Pallet::<T>::block_number();
-					let lock_periods = conviction.lock_periods().into();
-					let unlock_block = now
-						.saturating_add(T::VoteLockingPeriod::get().saturating_mul(lock_periods));
-					prior.accumulate(unlock_block, balance);
-					voting.set_common(delegations, prior);
+	fn try_undelegate(who: T::AccountId, asset_id: CurrencyIdOf<T>) -> Result<u32, DispatchError> {
+		let votes =
+			VotingOf::<T>::try_mutate(&who, asset_id, |voting| -> Result<u32, DispatchError> {
+				let mut old = Voting::default();
+				sp_std::mem::swap(&mut old, voting);
+				match old {
+					Voting::Delegating { balance, target, conviction, delegations, mut prior } => {
+						// remove any delegation votes to our current target.
+						let votes = Self::reduce_upstream_delegation(
+							&target,
+							asset_id,
+							conviction.votes(balance),
+						);
+						let now = frame_system::Pallet::<T>::block_number();
+						let lock_periods = conviction.lock_periods().into();
+						let unlock_block = now.saturating_add(
+							T::VoteLockingPeriod::get().saturating_mul(lock_periods),
+						);
+						prior.accumulate(unlock_block, balance);
+						voting.set_common(delegations, prior);
 
-					Ok(votes)
-				},
-				Voting::Direct { .. } => Err(Error::<T>::NotDelegating.into()),
-			}
-		})?;
+						Ok(votes)
+					},
+					Voting::Direct { .. } => Err(Error::<T>::NotDelegating.into()),
+				}
+			})?;
 		Self::deposit_event(Event::<T>::Undelegated { account: who });
 		Ok(votes)
 	}
 
 	/// Rejig the lock on an account. It will never get more stringent (since that would indicate
 	/// a security hole) but may be reduced from what they are currently.
-	fn update_lock(who: &T::AccountId) {
-		let lock_needed = VotingOf::<T>::mutate(who, |voting| {
+	fn update_lock(who: &T::AccountId, asset_id: CurrencyIdOf<T>) {
+		let lock_needed = VotingOf::<T>::mutate(who, asset_id, |voting| {
 			voting.rejig(frame_system::Pallet::<T>::block_number());
 			voting.locked_balance()
 		});
 		if lock_needed.is_zero() {
-			T::Currency::remove_lock(DEMOCRACY_ID, who);
+			T::Currency::remove_lock(DEMOCRACY_ID, asset_id, who);
 		} else {
-			T::Currency::set_lock(DEMOCRACY_ID, who, lock_needed, WithdrawReasons::TRANSFER);
+			T::Currency::set_lock(DEMOCRACY_ID, asset_id, who, lock_needed);
 		}
 	}
 
@@ -1597,15 +1735,22 @@ impl<T: Config> Pallet<T> {
 		proposal_hash: T::Hash,
 		threshold: VoteThreshold,
 		delay: T::BlockNumber,
-	) -> ReferendumIndex {
-		let ref_index = Self::referendum_count();
+		asset_id: CurrencyIdOf<T>,
+	) -> Result<ReferendumIndex, DispatchError> {
+		let ref_index = ReferendumCount::<T>::get();
 		ReferendumCount::<T>::put(ref_index + 1);
-		let status =
-			ReferendumStatus { end, proposal_hash, threshold, delay, tally: Default::default() };
-		let item = ReferendumInfo::Ongoing(status);
-		<ReferendumInfoOf<T>>::insert(ref_index, item);
+		let status = ReferendumStatus {
+			// asset_id,
+			end,
+			proposal_hash,
+			threshold,
+			delay,
+			tally: Default::default(),
+		};
+		let info = ReferendumInfo::Ongoing(status);
+		ReferendumInfoOf::<T>::insert(ref_index, (asset_id, info));
 		Self::deposit_event(Event::<T>::Started { ref_index, threshold });
-		ref_index
+		Ok(ref_index)
 	}
 
 	/// Table the next waiting proposal for a vote.
@@ -1620,14 +1765,16 @@ impl<T: Config> Pallet<T> {
 
 	/// Table the waiting external proposal for a vote, if there is one.
 	fn launch_external(now: T::BlockNumber) -> DispatchResult {
-		if let Some((proposal, threshold)) = <NextExternal<T>>::take() {
+		if let Some((proposal_hash, threshold)) = NextExternal::<T>::take() {
 			LastTabledWasExternal::<T>::put(true);
+			let asset_id = asset_id_from_public_prop::<T>(&proposal_hash)?;
 			Self::deposit_event(Event::<T>::ExternalTabled);
 			Self::inject_referendum(
 				now.saturating_add(T::VotingPeriod::get()),
-				proposal,
+				proposal_hash,
 				threshold,
 				T::EnactmentPeriod::get(),
+				asset_id,
 			);
 			Ok(())
 		} else {
@@ -1637,29 +1784,31 @@ impl<T: Config> Pallet<T> {
 
 	/// Table the waiting public proposal with the highest backing for a vote.
 	fn launch_public(now: T::BlockNumber) -> DispatchResult {
-		let mut public_props = Self::public_props();
+		let mut public_props = PublicProps::<T>::get();
 		if let Some((winner_index, _)) = public_props.iter().enumerate().max_by_key(
 			// defensive only: All current public proposals have an amount locked
 			|x| Self::backing_for((x.1).0).defensive_unwrap_or_else(Zero::zero),
 		) {
-			let (prop_index, proposal, _) = public_props.swap_remove(winner_index);
-			<PublicProps<T>>::put(public_props);
+			let (prop_index, proposal_hash, asset_id, _) = public_props.swap_remove(winner_index);
+			PublicProps::<T>::put(public_props);
 
-			if let Some((depositors, deposit)) = <DepositOf<T>>::take(prop_index) {
+			if let Some(Deposit { depositors, amount, asset_id }) = DepositOf::<T>::take(prop_index)
+			{
 				// refund depositors
-				for d in &depositors {
-					T::Currency::unreserve(d, deposit);
+				for depositor in &depositors {
+					T::Currency::unreserve(asset_id, depositor, amount);
 				}
 				Self::deposit_event(Event::<T>::Tabled {
 					proposal_index: prop_index,
-					deposit,
+					deposit: amount,
 					depositors,
 				});
 				Self::inject_referendum(
 					now.saturating_add(T::VotingPeriod::get()),
-					proposal,
+					proposal_hash,
 					VoteThreshold::SuperMajorityApprove,
 					T::EnactmentPeriod::get(),
+					asset_id,
 				);
 			}
 			Ok(())
@@ -1669,10 +1818,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_enact_proposal(proposal_hash: T::Hash, index: ReferendumIndex) -> DispatchResult {
-		let preimage = <Preimages<T>>::take(&proposal_hash);
-		if let Some(PreimageStatus::Available { data, provider, deposit, .. }) = preimage {
+		let preimage = Preimages::<T>::take(&proposal_hash);
+		if let Some(PreimageStatus::Available { data, provider, deposit, asset_id, .. }) = preimage
+		{
 			if let Ok(proposal) = T::Proposal::decode(&mut &data[..]) {
-				let err_amount = T::Currency::unreserve(&provider, deposit);
+				let err_amount = T::Currency::unreserve(asset_id, &provider, deposit);
 				debug_assert!(err_amount.is_zero());
 				Self::deposit_event(Event::<T>::PreimageUsed { proposal_hash, provider, deposit });
 
@@ -1684,7 +1834,7 @@ impl<T: Config> Pallet<T> {
 
 				Ok(())
 			} else {
-				T::Slash::on_unbalanced(T::Currency::slash_reserved(&provider, deposit).0);
+				T::Slash::on_unbalanced(T::Currency::slash_reserved(asset_id, &provider, deposit));
 				Self::deposit_event(Event::<T>::PreimageInvalid {
 					proposal_hash,
 					ref_index: index,
@@ -1701,8 +1851,9 @@ impl<T: Config> Pallet<T> {
 		now: T::BlockNumber,
 		index: ReferendumIndex,
 		status: ReferendumStatus<T::BlockNumber, T::Hash, BalanceOf<T>>,
+		asset_id: CurrencyIdOf<T>,
 	) -> bool {
-		let total_issuance = T::Currency::total_issuance();
+		let total_issuance = T::Currency::total_issuance(asset_id);
 		let approved = status.threshold.approved(status.tally, total_issuance);
 
 		if approved {
@@ -1717,7 +1868,7 @@ impl<T: Config> Pallet<T> {
 					|maybe_pre| match *maybe_pre {
 						Some(PreimageStatus::Available { ref mut expiry, .. }) =>
 							*expiry = Some(when),
-						ref mut a => *a = Some(PreimageStatus::Missing(when)),
+						ref mut a => *a = Some(PreimageStatus::Missing { asset_id, expiry: when }),
 					},
 				);
 
@@ -1757,8 +1908,8 @@ impl<T: Config> Pallet<T> {
 		let max_block_weight = T::BlockWeights::get().max_block;
 		let mut weight = 0;
 
-		let next = Self::lowest_unbaked();
-		let last = Self::referendum_count();
+		let next = LowestUnbaked::<T>::get();
+		let last = ReferendumCount::<T>::get();
 		let r = last.saturating_sub(next);
 
 		// pick out another public referendum if it's time.
@@ -1776,9 +1927,12 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// tally up votes for any expiring referenda.
-		for (index, info) in Self::maturing_referenda_at_inner(now, next..last).into_iter() {
-			let approved = Self::bake_referendum(now, index, info);
-			ReferendumInfoOf::<T>::insert(index, ReferendumInfo::Finished { end: now, approved });
+		for (index, (asset_id, info)) in Self::maturing_referenda_at_inner(now, next..last) {
+			let approved = Self::bake_referendum(now, index, info, asset_id);
+			ReferendumInfoOf::<T>::insert(
+				index,
+				(asset_id, ReferendumInfo::Finished { end: now, approved }),
+			);
 			weight = max_block_weight;
 		}
 
@@ -1790,10 +1944,10 @@ impl<T: Config> Pallet<T> {
 		// * We shouldn't iterate more than `LaunchPeriod/VotingPeriod + 1` times because the number
 		//   of unbaked referendum is bounded by this number. In case those number have changed in a
 		//   runtime upgrade the formula should be adjusted but the bound should still be sensible.
-		<LowestUnbaked<T>>::mutate(|ref_index| {
+		LowestUnbaked::<T>::mutate(|ref_index| {
 			while *ref_index < last &&
-				Self::referendum_info(*ref_index)
-					.map_or(true, |info| matches!(info, ReferendumInfo::Finished { .. }))
+				ReferendumInfoOf::<T>::get(*ref_index)
+					.map_or(true, |info| matches!(info, (_, ReferendumInfo::Finished { .. })))
 			{
 				*ref_index += 1
 			}
@@ -1808,7 +1962,7 @@ impl<T: Config> Pallet<T> {
 	fn len_of_deposit_of(proposal: PropIndex) -> Option<u32> {
 		// DepositOf first tuple element is a vec, decoding its len is equivalent to decode a
 		// `Compact<u32>`.
-		decode_compact_u32_at(&<DepositOf<T>>::hashed_key_for(proposal))
+		decode_compact_u32_at(&DepositOf::<T>::hashed_key_for(proposal))
 	}
 
 	/// Check that pre image exists and its value is variant `PreimageStatus::Missing`.
@@ -1818,7 +1972,7 @@ impl<T: Config> Pallet<T> {
 	fn check_pre_image_is_missing(proposal_hash: T::Hash) -> DispatchResult {
 		// To decode the enum variant we only need the first byte.
 		let mut buf = [0u8; 1];
-		let key = <Preimages<T>>::hashed_key_for(proposal_hash);
+		let key = Preimages::<T>::hashed_key_for(proposal_hash);
 		let bytes = sp_io::storage::read(&key, &mut buf, 0).ok_or(Error::<T>::NotImminent)?;
 		// The value may be smaller that 1 byte.
 		let mut input = &buf[0..buf.len().min(bytes as usize)];
@@ -1846,7 +2000,7 @@ impl<T: Config> Pallet<T> {
 		// * one byte for the variant
 		// * at most 5 bytes to decode a `Compact<u32>`
 		let mut buf = [0u8; 6];
-		let key = <Preimages<T>>::hashed_key_for(proposal_hash);
+		let key = Preimages::<T>::hashed_key_for(proposal_hash);
 		let bytes = sp_io::storage::read(&key, &mut buf, 0).ok_or(Error::<T>::PreimageMissing)?;
 		// The value may be smaller that 6 bytes.
 		let mut input = &buf[0..buf.len().min(bytes as usize)];
@@ -1872,23 +2026,28 @@ impl<T: Config> Pallet<T> {
 	}
 
 	// See `note_preimage`
-	fn note_preimage_inner(who: T::AccountId, encoded_proposal: Vec<u8>) -> DispatchResult {
+	fn note_preimage_inner(
+		who: T::AccountId,
+		encoded_proposal: Vec<u8>,
+		asset_id: CurrencyIdOf<T>,
+	) -> DispatchResult {
 		let proposal_hash = T::Hashing::hash(&encoded_proposal[..]);
-		ensure!(!<Preimages<T>>::contains_key(&proposal_hash), Error::<T>::DuplicatePreimage);
+		ensure!(!Preimages::<T>::contains_key(&proposal_hash), Error::<T>::DuplicatePreimage);
 
-		let deposit = <BalanceOf<T>>::from(encoded_proposal.len() as u32)
+		let deposit = BalanceOf::<T>::from(encoded_proposal.len() as u32)
 			.saturating_mul(T::PreimageByteDeposit::get());
-		T::Currency::reserve(&who, deposit)?;
+		T::Currency::reserve(asset_id, &who, deposit)?;
 
-		let now = <frame_system::Pallet<T>>::block_number();
+		let now = frame_system::Pallet::<T>::block_number();
 		let a = PreimageStatus::Available {
+			asset_id,
 			data: encoded_proposal,
 			provider: who.clone(),
 			deposit,
 			since: now,
 			expiry: None,
 		};
-		<Preimages<T>>::insert(proposal_hash, a);
+		Preimages::<T>::insert(proposal_hash, a);
 
 		Self::deposit_event(Event::<T>::PreimageNoted { proposal_hash, who, deposit });
 
@@ -1899,27 +2058,41 @@ impl<T: Config> Pallet<T> {
 	fn note_imminent_preimage_inner(
 		who: T::AccountId,
 		encoded_proposal: Vec<u8>,
+		asset_id: CurrencyIdOf<T>,
 	) -> DispatchResult {
 		let proposal_hash = T::Hashing::hash(&encoded_proposal[..]);
 		Self::check_pre_image_is_missing(proposal_hash)?;
 		let status = Preimages::<T>::get(&proposal_hash).ok_or(Error::<T>::NotImminent)?;
 		let expiry = status.to_missing_expiry().ok_or(Error::<T>::DuplicatePreimage)?;
 
-		let now = <frame_system::Pallet<T>>::block_number();
-		let free = <BalanceOf<T>>::zero();
+		let now = frame_system::Pallet::<T>::block_number();
+		let free = BalanceOf::<T>::zero();
 		let a = PreimageStatus::Available {
+			asset_id,
 			data: encoded_proposal,
 			provider: who.clone(),
 			deposit: Zero::zero(),
 			since: now,
 			expiry: Some(expiry),
 		};
-		<Preimages<T>>::insert(proposal_hash, a);
+		Preimages::<T>::insert(proposal_hash, a);
 
 		Self::deposit_event(Event::<T>::PreimageNoted { proposal_hash, who, deposit: free });
 
 		Ok(())
 	}
+}
+
+fn asset_id_from_public_prop<T: Config>(
+	proposal_hash: &T::Hash,
+) -> Result<CurrencyIdOf<T>, DispatchError> {
+	let asset_id = PublicProps::<T>::get()
+		.iter()
+		.find_map(|(prop_index, hash, asset_id, account_id)| {
+			hash.eq(&proposal_hash).then(|| asset_id)
+		})
+		.ok_or(Error::<T>::ProposalMissing)?;
+	Ok(*asset_id)
 }
 
 /// Decode `Compact<u32>` from the trie at given key.
