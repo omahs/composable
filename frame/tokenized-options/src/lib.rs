@@ -153,7 +153,7 @@ pub mod pallet {
 		/// stored in lexical order.
 		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
 
-		/// The Unixtime provider
+		/// The Unix time provider
 		type Time: Time<Moment = MomentOf<Self>>;
 
 		/// Trait used to convert from this pallet `Balance` type to `u128`.
@@ -332,8 +332,8 @@ pub mod pallet {
 		/// Raised when trying to delete the sale of an option, but withdrawals from vaults are disabled.
 		VaultWithdrawNotAllowed,
 
-		/// Raised when trying to buy an option, but there are not enough option for sale.
-		NotEnoughOptionForSale,
+		/// Raised when trying to buy an option, but there are not enough options for sale.
+		NotEnoughOptionsForSale,
 
 		/// Raised when trying to sell an option, but it is not deposit phase for that option.
 		NotIntoDepositWindow,
@@ -421,7 +421,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			vault_config: VaultConfigOf<T>,
 		) -> DispatchResult {
-			// Check if it's protocol to call the exstrinsic (TODO)
+			// Check if it's protocol to call the extrinsic (TODO)
 			let _from = ensure_signed(origin)?;
 
 			<Self as TokenizedOptions>::create_asset_vault(vault_config.clone())?;
@@ -466,7 +466,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			option_config: OptionConfigOf<T>,
 		) -> DispatchResult {
-			// Check if it's protocol to call the exstrinsic (TODO)
+			// Check if it's protocol to call the extrinsic (TODO)
 			let _from = ensure_signed(origin)?;
 
 			<Self as TokenizedOptions>::create_option(option_config.clone())?;
@@ -1147,10 +1147,10 @@ pub mod pallet {
 			// Fake call to pricing pallet
 			let option_premium = Self::fake_option_price().expect("Error pricing option");
 
-			// // Get vault_id and protocol account for depositing premium
-			// let vault_id = Self::asset_id_to_vault_id(option.quote_asset_id)
-			// 	.ok_or(Error::<T>::AssetVaultDoesNotExists)?;
+			let option_premium =
+				option_premium.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
 
+			// This should take USDC asset_id, not quote_asset_id
 			let protocol_account = Self::account_id(option.quote_asset_id);
 
 			// Update buyer option availability
@@ -1165,7 +1165,7 @@ pub mod pallet {
 
 						// Check if there are enough options for sale
 						if new_total_issuance_buyer > option.total_issuance_seller {
-							return Err(DispatchError::from(Error::<T>::NotEnoughOptionForSale));
+							return Err(DispatchError::from(Error::<T>::NotEnoughOptionsForSale));
 						}
 
 						option.total_issuance_buyer = new_total_issuance_buyer;
@@ -1177,6 +1177,7 @@ pub mod pallet {
 			})?;
 
 			// Transfer premium to protocol account
+			// This should take USDC asset_id, not quote_asset_id
 			<T as Config>::MultiCurrency::transfer(
 				option.quote_asset_id,
 				&from,
@@ -1185,8 +1186,6 @@ pub mod pallet {
 				true,
 			)
 			.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
-
-			// Deposit premium into a vault?
 
 			// Mint option token into user's account
 			<T as Config>::MultiCurrency::mint_into(option_id, &from, option_amount)?;
@@ -1251,7 +1250,7 @@ pub mod pallet {
 		}
 
 		pub fn fake_option_price() -> Result<BalanceOf<T>, DispatchError> {
-			Ok((100u128 * 10u128.pow(12)).into())
+			Ok((1000u128 * 10u128.pow(12)).into())
 		}
 
 		fn option_state_change(option_id: OptionIdOf<T>, moment_type: WindowType) -> Weight {
