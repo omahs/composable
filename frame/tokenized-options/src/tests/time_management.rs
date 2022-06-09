@@ -79,11 +79,8 @@ fn initialize_options(epochs: Vec<Epoch<Moment>>) -> HashMap<OptionId, Epoch<Mom
 			.epoch(epoch)
 			.build();
 		let option_id = <TokenizedOptions as TokenizedOptionsTrait>::create_option(option_config);
-		match option_id {
-			Ok(option_id) => {
-				hash_map.insert(option_id, epoch);
-			},
-			Err(_) => {},
+		if let Ok(option_id) = option_id {
+			hash_map.insert(option_id, epoch);
 		}
 		assert_ok!(option_id);
 	}

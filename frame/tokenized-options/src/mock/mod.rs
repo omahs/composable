@@ -1,8 +1,5 @@
-#[cfg(test)]
-pub mod runtime;
+#![allow(clippy::disallowed_methods)]
 
-#[cfg(test)]
-pub mod assets;
-
-#[cfg(test)]
 pub mod accounts;
+pub mod assets;
+pub mod runtime;

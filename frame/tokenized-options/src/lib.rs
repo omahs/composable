@@ -428,9 +428,9 @@ pub mod pallet {
 			// Check if it's protocol to call the extrinsic (TODO)
 			let _from = ensure_signed(origin)?;
 
-			<Self as TokenizedOptions>::create_asset_vault(vault_config.clone())?;
+			<Self as TokenizedOptions>::create_asset_vault(vault_config)?;
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Create a new option and save the option's id, option's hash and option's epoch on storage.
@@ -473,9 +473,9 @@ pub mod pallet {
 			// Check if it's protocol to call the extrinsic (TODO)
 			let _from = ensure_signed(origin)?;
 
-			<Self as TokenizedOptions>::create_option(option_config.clone())?;
+			<Self as TokenizedOptions>::create_option(option_config)?;
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Sell the indicated option and save the seller's position.
@@ -511,7 +511,7 @@ pub mod pallet {
 		/// but the user does not own enough collateral to complete the operation
 		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
 		/// but deposits into vaults are disabled.
-		/// - [`CannotSellZeroOptions`](Error::CannotSellZeroOptions): raised when trying to sell an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to sell an option,
 		/// but the option amount is zero.
 		///
 		/// # Examples
@@ -527,7 +527,7 @@ pub mod pallet {
 
 			<Self as TokenizedOptions>::sell_option(&from, option_amount, option_id)?;
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Delete the selling of the indicated option and update the seller's position.
@@ -566,7 +566,7 @@ pub mod pallet {
 		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
 		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
 		/// but withdrawals from vaults are disabled.
-		/// - [`CannotDeleteZeroOptionsSale`](Error::CannotDeleteZeroOptionsSale): raised when trying to delete the sale of an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to delete the sale of an option,
 		/// but the option amount is zero.
 		///
 		/// # Examples
@@ -582,7 +582,7 @@ pub mod pallet {
 
 			<Self as TokenizedOptions>::delete_sell_option(&from, option_amount, option_id)?;
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Buy an option paying premium
@@ -596,7 +596,7 @@ pub mod pallet {
 
 			<Self as TokenizedOptions>::buy_option(&from, option_amount, option_id)?;
 
-			Ok(().into())
+			Ok(())
 		}
 	}
 
@@ -731,7 +731,7 @@ pub mod pallet {
 		/// but the user does not own enough collateral to complete the operation
 		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
 		/// but deposits into vaults are disabled.
-		/// - [`CannotSellZeroOptions`](Error::CannotSellZeroOptions): raised when trying to sell an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to sell an option,
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
@@ -750,7 +750,7 @@ pub mod pallet {
 				Error::<T>::CannotPassZeroOptionAmount
 			);
 
-			Self::do_sell_option(&from, option_amount, option_id)?;
+			Self::do_sell_option(from, option_amount, option_id)?;
 
 			Ok(())
 		}
@@ -790,7 +790,7 @@ pub mod pallet {
 		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
 		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
 		/// but withdrawals from vaults are disabled.
-		/// - [`CannotDeleteZeroOptionsSale`](Error::CannotDeleteZeroOptionsSale): raised when trying to delete the sale of an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to delete the sale of an option,
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
@@ -809,7 +809,7 @@ pub mod pallet {
 				Error::<T>::CannotPassZeroOptionAmount
 			);
 
-			Self::do_delete_sell_option(&from, option_amount, option_id)?;
+			Self::do_delete_sell_option(from, option_amount, option_id)?;
 
 			Ok(())
 		}
@@ -830,7 +830,7 @@ pub mod pallet {
 				Error::<T>::CannotPassZeroOptionAmount
 			);
 
-			Self::do_buy_option(&from, option_amount, option_id)?;
+			Self::do_buy_option(from, option_amount, option_id)?;
 
 			Ok(())
 		}
@@ -980,7 +980,7 @@ pub mod pallet {
 			// Transfer collateral to protocol account
 			<T as Config>::MultiCurrency::transfer(
 				asset_id,
-				&from,
+				from,
 				&protocol_account,
 				asset_amount,
 				true,
@@ -1100,7 +1100,7 @@ pub mod pallet {
 			<T as Config>::MultiCurrency::transfer(
 				asset_id,
 				&protocol_account,
-				&from,
+				from,
 				asset_amount,
 				true,
 			)?;
@@ -1184,7 +1184,7 @@ pub mod pallet {
 			// Transfer premium to protocol account
 			<T as Config>::MultiCurrency::transfer(
 				stablecoin_id,
-				&from,
+				from,
 				&protocol_account,
 				option_premium,
 				true,
@@ -1192,7 +1192,7 @@ pub mod pallet {
 			.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
 
 			// Mint option token into user's account
-			<T as Config>::MultiCurrency::mint_into(option_id, &from, option_amount)?;
+			<T as Config>::MultiCurrency::mint_into(option_id, from, option_amount)?;
 
 			Self::deposit_event(Event::BuyOption { buyer: from.clone(), option_amount, option_id });
 

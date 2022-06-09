@@ -52,8 +52,7 @@ pub fn sell_option_success_checks(
 		OptionIdToOption::<MockRuntime>::get(option_id).unwrap().total_issuance_seller;
 	let initial_user_balance = Assets::balance(asset_id, &who);
 	let initial_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
-	let initial_user_position =
-		Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or(SellerPosition::default());
+	let initial_user_position = Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or_default();
 
 	// Call extrinsic
 	assert_ok!(TokenizedOptions::sell_option(Origin::signed(who), option_amount, option_id));
@@ -84,8 +83,7 @@ pub fn sell_option_success_checks(
 	);
 
 	// Check position is updated correctly
-	let updated_user_position =
-		Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or(SellerPosition::default());
+	let updated_user_position = Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or_default();
 
 	assert_eq!(
 		updated_user_position.option_amount,
@@ -121,12 +119,12 @@ fn test_sell_option_with_initialization_success() {
 			// Create BTC and USDC vaults
 			assert_ok!(TokenizedOptions::create_asset_vault(
 				Origin::signed(ADMIN),
-				btc_vault_config.clone()
+				btc_vault_config
 			));
 
 			assert_ok!(TokenizedOptions::create_asset_vault(
 				Origin::signed(ADMIN),
-				usdc_vault_config.clone(),
+				usdc_vault_config
 			));
 
 			// Create default BTC option
@@ -515,7 +513,7 @@ fn test_sell_option_error_deposits_not_allowed() {
 				},
 			};
 
-			assert_ok!(<Vault as CapabilityVault>::stop_deposits(&vault_id.into()));
+			assert_ok!(<Vault as CapabilityVault>::stop_deposits(&vault_id));
 
 			assert_noop!(
 				TokenizedOptions::sell_option(Origin::signed(BOB), 5u128, option_id),
@@ -563,7 +561,7 @@ fn test_sell_option_error_deposits_not_allowed_update_position() {
 				},
 			};
 
-			assert_ok!(<Vault as CapabilityVault>::stop_deposits(&vault_id.into()));
+			assert_ok!(<Vault as CapabilityVault>::stop_deposits(&vault_id));
 
 			assert_noop!(
 				TokenizedOptions::sell_option(Origin::signed(BOB), 2u128, option_id),
@@ -672,11 +670,6 @@ fn test_sell_option_shares_calculation_with_vault_value_accrual_success() {
 			));
 
 			let charlie_option_amount = 5u128;
-			sell_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				charlie_option_amount,
-				CHARLIE,
-			);
+			sell_option_success_checks(option_hash, option_config, charlie_option_amount, CHARLIE);
 		});
 }

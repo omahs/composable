@@ -27,15 +27,9 @@ fn test_create_option_success() {
 		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC).build();
 
 		// Create BTC and USDC vaults
-		assert_ok!(TokenizedOptions::create_asset_vault(
-			Origin::signed(ADMIN),
-			btc_vault_config.clone()
-		));
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), btc_vault_config));
 
-		assert_ok!(TokenizedOptions::create_asset_vault(
-			Origin::signed(ADMIN),
-			usdc_vault_config.clone(),
-		));
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), usdc_vault_config));
 
 		// Get BTC option config
 		let option_config = OptionsConfigBuilder::default().build();
@@ -78,15 +72,9 @@ fn test_create_option_success_ext() {
 		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC).build();
 
 		// Create BTC and USDC vaults
-		assert_ok!(TokenizedOptions::create_asset_vault(
-			Origin::signed(ADMIN),
-			btc_vault_config.clone()
-		));
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), btc_vault_config));
 
-		assert_ok!(TokenizedOptions::create_asset_vault(
-			Origin::signed(ADMIN),
-			usdc_vault_config.clone(),
-		));
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), usdc_vault_config));
 
 		// Get BTC option config
 		let option_config = OptionsConfigBuilder::default().build();
@@ -114,7 +102,7 @@ fn test_create_option_error_vaults_not_exist_ext() {
 
 		// Create same option again and check error is raised
 		assert_noop!(
-			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config),
 			Error::<MockRuntime>::OptionAssetVaultsDoNotExist
 		);
 
@@ -138,7 +126,7 @@ fn test_create_option_error_invalid_epoch_ext() {
 
 			// Create same option again and check error is raised
 			assert_noop!(
-				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config),
 				Error::<MockRuntime>::OptionAttributesAreInvalid
 			);
 
@@ -159,7 +147,7 @@ fn test_create_option_error_base_quote_equal_ext() {
 
 			// Create option with same base and quote asset and check error is raised
 			assert_noop!(
-				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config),
 				Error::<MockRuntime>::OptionAttributesAreInvalid
 			);
 
@@ -181,7 +169,7 @@ fn test_create_option_error_initial_issuance_not_zero_ext() {
 
 			// Create option with initial issuance seller not zero and check error is raised
 			assert_noop!(
-				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config),
 				Error::<MockRuntime>::OptionAttributesAreInvalid
 			);
 
@@ -190,7 +178,7 @@ fn test_create_option_error_initial_issuance_not_zero_ext() {
 
 			// Create option with initial issuance buyer not zero and check error is raised
 			assert_noop!(
-				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config),
 				Error::<MockRuntime>::OptionAttributesAreInvalid
 			);
 
@@ -209,15 +197,9 @@ fn test_create_option_error_option_already_exists() {
 		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC).build();
 
 		// Create BTC and USDC vaults
-		assert_ok!(TokenizedOptions::create_asset_vault(
-			Origin::signed(ADMIN),
-			btc_vault_config.clone()
-		));
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), btc_vault_config));
 
-		assert_ok!(TokenizedOptions::create_asset_vault(
-			Origin::signed(ADMIN),
-			usdc_vault_config.clone(),
-		));
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), usdc_vault_config));
 
 		// Get default option config
 		let option_config = OptionsConfigBuilder::default().build();
@@ -236,7 +218,7 @@ fn test_create_option_error_option_already_exists() {
 
 		// Create same option again and check error is raised
 		assert_noop!(
-			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config),
 			Error::<MockRuntime>::OptionAlreadyExists
 		);
 	});
@@ -252,15 +234,9 @@ fn test_create_option_error_option_already_exists_ext() {
 		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC).build();
 
 		// Create BTC and USDC vaults
-		assert_ok!(TokenizedOptions::create_asset_vault(
-			Origin::signed(ADMIN),
-			btc_vault_config.clone()
-		));
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), btc_vault_config));
 
-		assert_ok!(TokenizedOptions::create_asset_vault(
-			Origin::signed(ADMIN),
-			usdc_vault_config.clone(),
-		));
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), usdc_vault_config));
 
 		// Get default option config
 		let option_config = OptionsConfigBuilder::default().build();
@@ -278,7 +254,7 @@ fn test_create_option_error_option_already_exists_ext() {
 
 		// Create same option again and check error is raised
 		assert_noop!(
-			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()),
+			TokenizedOptions::create_option(Origin::signed(ADMIN), option_config),
 			Error::<MockRuntime>::OptionAlreadyExists
 		);
 	});

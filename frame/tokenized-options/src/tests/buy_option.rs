@@ -96,12 +96,12 @@ fn test_buy_option_with_initialization_success() {
 			// Create BTC and USDC vaults
 			assert_ok!(TokenizedOptions::create_asset_vault(
 				Origin::signed(ADMIN),
-				btc_vault_config.clone()
+				btc_vault_config
 			));
 
 			assert_ok!(TokenizedOptions::create_asset_vault(
 				Origin::signed(ADMIN),
-				usdc_vault_config.clone(),
+				usdc_vault_config
 			));
 
 			// Create default BTC option
@@ -436,7 +436,7 @@ fn test_buy_option_error_cannot_buy_zero_options() {
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
 			let bob_option_amount = 5u128;
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_hash, option_config, bob_option_amount, BOB);
 
 			run_to_block(3);
 
@@ -478,7 +478,7 @@ fn test_buy_option_error_overflow_asset_amount() {
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
 			let bob_option_amount = 5u128;
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_hash, option_config, bob_option_amount, BOB);
 
 			run_to_block(3);
 
@@ -533,12 +533,7 @@ fn test_buy_option_error_not_enough_options_for_sale() {
 
 			run_to_block(3);
 
-			buy_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				alice_option_amount,
-				ALICE,
-			);
+			buy_option_success_checks(option_hash, option_config, alice_option_amount, ALICE);
 
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 

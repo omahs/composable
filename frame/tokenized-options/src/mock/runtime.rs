@@ -142,7 +142,7 @@ impl pallet_currency_factory::Config for MockRuntime {
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		0u128 as Balance
+		0u128
 	};
 }
 

@@ -48,7 +48,7 @@ impl<T: Config> Validate<VaultConfigOf<T>, ValidateAssetIsSupported<T>>
 	fn validate(vault_config: VaultConfigOf<T>) -> Result<VaultConfigOf<T>, &'static str> {
 		match OracleOf::<T>::is_supported(vault_config.asset_id) {
 			Ok(_) => Ok(vault_config),
-			Err(_) => return Err("ValidateAssetIsSupported"),
+			Err(_) => Err("ValidateAssetIsSupported"),
 		}
 	}
 }

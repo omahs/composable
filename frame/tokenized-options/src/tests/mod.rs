@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_methods, clippy::identity_op)]
+
 use crate::{
 	mock::{
 		accounts::*,
@@ -112,7 +114,7 @@ impl VaultInitializer for sp_io::TestExternalities {
 		self.execute_with(|| {
 			assets.iter().for_each(|&asset| {
 				let config = VaultConfigBuilder::default().asset_id(asset).build();
-				TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), config.clone()).ok();
+				TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), config).ok();
 			});
 		});
 
@@ -315,9 +317,9 @@ impl OptionInitializer for sp_io::TestExternalities {
 					.base_asset_strike_price(price3)
 					.build();
 
-				TokenizedOptions::create_option(Origin::signed(ADMIN), config.clone()).ok();
-				TokenizedOptions::create_option(Origin::signed(ADMIN), config2.clone()).ok();
-				TokenizedOptions::create_option(Origin::signed(ADMIN), config3.clone()).ok();
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config).ok();
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config2).ok();
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config3).ok();
 			});
 		});
 
@@ -485,8 +487,7 @@ pub fn trait_create_asset_vault(
 ) -> Result<VaultId, DispatchError> {
 	let _account_id = ensure_signed(_origin).unwrap();
 
-	let vault_id =
-		<TokenizedOptions as TokenizedOptionsTrait>::create_asset_vault(vault_config.clone())?;
+	let vault_id = <TokenizedOptions as TokenizedOptionsTrait>::create_asset_vault(vault_config)?;
 
 	Ok(vault_id)
 }
@@ -498,8 +499,7 @@ pub fn trait_create_option(
 ) -> Result<OptionId, DispatchError> {
 	let _account_id = ensure_signed(origin).unwrap();
 
-	let option_id =
-		<TokenizedOptions as TokenizedOptionsTrait>::create_option(option_config.clone())?;
+	let option_id = <TokenizedOptions as TokenizedOptionsTrait>::create_option(option_config)?;
 
 	Ok(option_id)
 }

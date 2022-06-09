@@ -88,7 +88,7 @@ fn test_create_vault_error_vault_already_exists_ext() {
 		}));
 
 		assert_noop!(
-			TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), vault_config.clone()),
+			TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), vault_config),
 			Error::<MockRuntime>::AssetVaultAlreadyExists
 		);
 	});
@@ -106,7 +106,7 @@ fn test_create_vault_error_asset_not_supported_ext() {
 
 		// Check no changes have been perfomed
 		assert_noop!(
-			TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), vault_config.clone()),
+			TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), vault_config),
 			Error::<MockRuntime>::AssetIsNotSupported
 		);
 	});

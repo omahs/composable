@@ -47,8 +47,7 @@ pub fn delete_sell_option_success_checks(
 		OptionIdToOption::<MockRuntime>::get(option_id).unwrap().total_issuance_seller;
 	let initial_user_balance = Assets::balance(asset_id, &who);
 	let initial_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
-	let initial_user_position =
-		Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or(SellerPosition::default());
+	let initial_user_position = Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or_default();
 
 	let shares_amount =
 		TokenizedOptions::calculate_shares_to_burn(option_amount, &initial_user_position).unwrap();
@@ -88,8 +87,7 @@ pub fn delete_sell_option_success_checks(
 	);
 
 	// Check position is updated correctly
-	let updated_user_position =
-		Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or(SellerPosition::default());
+	let updated_user_position = Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or_default();
 
 	assert_eq!(
 		updated_user_position.option_amount,
@@ -600,7 +598,7 @@ fn test_delete_sell_option_error_withdrawals_not_allowed() {
 				},
 			};
 
-			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id.into()));
+			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id));
 
 			assert_noop!(
 				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 5u128, option_id),
@@ -650,7 +648,7 @@ fn test_delete_sell_option_error_withdrawals_not_allowed_update_position() {
 				},
 			};
 
-			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id.into()));
+			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id));
 
 			assert_noop!(
 				TokenizedOptions::delete_sell_option(Origin::signed(BOB), 2u128, option_id),
