@@ -98,6 +98,7 @@ pub mod pallet {
 		tokenized_options::*,
 		vault::{CapabilityVault, Deposit as Duration, Vault, VaultConfig},
 	};
+
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::traits::Hash,
@@ -161,6 +162,9 @@ pub mod pallet {
 
 		/// Option IDs generator
 		type CurrencyFactory: CurrencyFactory<OptionIdOf<Self>, BalanceOf<Self>>;
+
+		/// Stablecoin ID to use for cash operations
+		type StablecoinAssetId: Get<AssetIdOf<Self>>;
 
 		/// Used for PICA management.
 		type NativeCurrency: NativeTransfer<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -1134,6 +1138,8 @@ pub mod pallet {
 			let option =
 				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionDoesNotExists)?;
 
+			let stablecoin_id = T::StablecoinAssetId::get();
+
 			// Check if we are in purchase window
 			ensure!(
 				option
@@ -1150,8 +1156,7 @@ pub mod pallet {
 			let option_premium =
 				option_premium.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
 
-			// This should take USDC asset_id, not quote_asset_id
-			let protocol_account = Self::account_id(option.quote_asset_id);
+			let protocol_account = Self::account_id(stablecoin_id);
 
 			// Update buyer option availability
 			OptionIdToOption::<T>::try_mutate(option_id, |option| {
@@ -1177,9 +1182,8 @@ pub mod pallet {
 			})?;
 
 			// Transfer premium to protocol account
-			// This should take USDC asset_id, not quote_asset_id
 			<T as Config>::MultiCurrency::transfer(
-				option.quote_asset_id,
+				stablecoin_id,
 				&from,
 				&protocol_account,
 				option_premium,

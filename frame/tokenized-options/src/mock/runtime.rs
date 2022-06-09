@@ -6,6 +6,8 @@ use frame_support::{
 	traits::{Everything, GenesisBuild},
 	PalletId,
 };
+// use primitives::currency::CurrencyId;
+
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use sp_core::{sr25519::Signature, H256};
@@ -317,6 +319,8 @@ impl pallet_vault::Config for MockRuntime {
 
 parameter_types! {
 	pub const TokenizedOptionsPalletId: PalletId = PalletId(*b"options_");
+	// pub const StablecoinAssetId: CurrencyId = CurrencyId::USDC;
+	pub const StablecoinAssetId: AssetId = USDC;
 }
 
 impl pallet_tokenized_options::Config for MockRuntime {
@@ -327,6 +331,7 @@ impl pallet_tokenized_options::Config for MockRuntime {
 	type Moment = Moment;
 	type Convert = ConvertInto;
 	type Time = Timestamp;
+	type StablecoinAssetId = StablecoinAssetId;
 	type CurrencyFactory = LpTokenFactory;
 	type NativeCurrency = Balances;
 	type MultiCurrency = Assets;

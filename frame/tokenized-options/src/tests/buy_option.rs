@@ -29,13 +29,13 @@ use sp_runtime::ArithmeticError;
 
 pub fn buy_option_success_checks(
 	option_hash: H256,
-	option_config: OptionConfig<AssetId, Balance, Moment>,
+	_option_config: OptionConfig<AssetId, Balance, Moment>,
 	option_amount: Balance,
 	who: Public,
 ) {
 	// Get info before extrinsic for checks
 	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
-	let asset_id = option_config.quote_asset_id;
+	let asset_id = USDC;
 
 	let protocol_account = TokenizedOptions::account_id(asset_id);
 
