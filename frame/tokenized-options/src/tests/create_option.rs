@@ -10,7 +10,7 @@ use crate::{
 	tests::*,
 	Error, OptionHashToOptionId, OptionIdToOption,
 };
-use frame_support::{assert_err, assert_noop, assert_ok};
+use frame_support::{assert_err, assert_noop, assert_ok, error::BadOrigin};
 
 use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
 use frame_system::ensure_signed;
@@ -260,7 +260,43 @@ fn test_create_option_error_option_already_exists_ext() {
 	});
 }
 
-// TODO: create option with no-admin account and check error raised
+/// Create BTC vault, create BTC option and check if vault_id is correctly saved and event emitted
+/// using exstrinsic
+#[test]
+fn test_create_option_error_not_protocol_origin_ext() {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
+		// Get BTC and USDC vault config
+		let btc_vault_config = VaultConfigBuilder::default().build();
+		let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC).build();
+
+		// Create BTC and USDC vaults
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), btc_vault_config));
+
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), usdc_vault_config));
+
+		// Get BTC option config
+		let option_config = OptionsConfigBuilder::default().build();
+
+		// Check no changes has been performed with ALICE caller
+		assert_noop!(
+			TokenizedOptions::create_option(Origin::signed(ALICE), option_config.clone()),
+			BadOrigin
+		);
+
+		// Check root can create option
+		assert_ok!(TokenizedOptions::create_option(Origin::root(), option_config.clone()));
+
+		// Check option has been created (ID = 3 because first two IDs are used for the vaults
+		// lp_tokens)
+		assert!(OptionIdToOption::<MockRuntime>::contains_key(100000000003u128));
+
+		// Check event is emitted correctly
+		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
+			option_id: 100000000003u128,
+			option_config,
+		}));
+	});
+}
 
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(20))]
