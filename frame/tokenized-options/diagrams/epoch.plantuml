@@ -92,29 +92,14 @@ group #0000FF33 Purchase Window [From Thursday 8AM UTC to Friday 8AM UTC]
 Buyer -> Protocol: Buy option (passing option_id)
 activate Protocol
 Protocol -> Options: get option
-Protocol -> Sellers: check option available for sale
-note left
-Better to have a storage 
-just to list options 
-that are still for sale?
-end note
-Protocol -> Pricing: get premium price for option
+Protocol -> Pricing: calculate premium to pay
 activate Pricing
 Protocol <-- Pricing: premium_price
 deactivate Pricing
-Protocol --> Protocol: check if Buyer has funds for paying premium
+Protocol -> Options: check option available for sale
+Protocol --> Protocol: check if Buyer owns enough funds to pay premium
 Protocol -> ProtocolAccount: transfer premium
-note left
-Not yet decided what to do with premium.
-We can deposit it into vault or distribute
-it to seller at the end of purchase window
-end note
 Buyer <- Protocol: mint option token
-Protocol -> Buyers: save position
-note left
-Not needed right now but 
-will be useful for sure in future
-end note
 Buyer o<- Protocol: emit event
 deactivate Protocol
 end
