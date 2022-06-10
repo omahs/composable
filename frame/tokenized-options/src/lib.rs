@@ -585,7 +585,42 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Buy an option paying premium
+		/// Buy the indicated option.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `origin`: type representing the origin of this dispatch.
+		/// - `option_amount`: the amount of option the user wants to buy.
+		/// - `option_id`: the option id.
+		///
+		/// ## Requirements
+		/// 1. The call must have been signed by the user.
+		/// 2. The option should exist.
+		/// 3. The option should be in purchase phase.
+		/// 4. The option amount should not be zero.
+		///
+		/// ## Emits
+		/// - [`Event::BuyOption`]
+		///
+		/// ## State Changes
+		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to buy to the total amount
+		/// already bought.
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
+		/// but it already exists.
+		/// - [`NotIntoPurchaseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
+		/// but it is not purchase phase for that option.
+		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to buy an option,
+		/// but the user does not own enough funds to complete the operation paying the premium
+		/// - [`NotEnoughOptionsForSale`](Error::NotEnoughOptionsForSale): raised when trying to buy an option,
+		/// but there are not enough option for sale to complete the purchase.
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
+		/// but the option amount is zero.
+		///
+		/// # Examples
+		///
+		/// # Weight: O(TBD)
 		#[pallet::weight(<T as Config>::WeightInfo::buy_option())]
 		pub fn buy_option(
 			origin: OriginFor<T>,
@@ -814,7 +849,39 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Buy an option paying premium
+		/// Buy the indicated option.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `from`: user's account id.
+		/// - `option_amount`: the amount of option the user wants to buy.
+		/// - `option_id`: the option id.
+		///
+		/// ## Requirements
+		/// 1. The option should exist.
+		/// 2. The option should be in purchase phase.
+		/// 3. The option amount should not be zero.
+		///
+		/// ## Emits
+		/// - [`Event::BuyOption`]
+		///
+		/// ## State Changes
+		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to buy to the total amount
+		/// already bought.
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
+		/// but it already exists.
+		/// - [`NotIntoPurchaseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
+		/// but it is not purchase phase for that option.
+		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to buy an option,
+		/// but the user does not own enough funds to complete the operation paying the premium
+		/// - [`NotEnoughOptionsForSale`](Error::NotEnoughOptionsForSale): raised when trying to buy an option,
+		/// but there are not enough option for sale to complete the purchase.
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
+		/// but the option amount is zero.
+		///
+		/// # Weight: O(TBD)
 		fn buy_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
@@ -1150,7 +1217,7 @@ pub mod pallet {
 				Error::<T>::NotIntoPurchaseWindow
 			);
 
-			// Fake call to pricing pallet
+			// Fake call to pricing pallet (to replace with actual call to pricing pallet)
 			let option_premium = Self::fake_option_price().expect("Error pricing option");
 
 			let option_premium =
