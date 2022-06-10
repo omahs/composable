@@ -84,11 +84,11 @@ fn test_create_option_success_ext() {
 
 		// Check option has been created (ID = 3 because first two IDs are used for the vaults
 		// lp_tokens)
-		assert!(OptionIdToOption::<MockRuntime>::contains_key(100000000003u128));
+		assert!(OptionIdToOption::<MockRuntime>::contains_key(AssetId(100000000003u128)));
 
 		// Check event is emitted correctly
 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
-			option_id: 100000000003u128,
+			option_id: AssetId(100000000003u128),
 			option_config,
 		}));
 	});
@@ -107,7 +107,7 @@ fn test_create_option_error_vaults_not_exist_ext() {
 		);
 
 		// Check option has not been created
-		assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000001u128));
+		assert!(!OptionIdToOption::<MockRuntime>::contains_key(AssetId(100000000001u128)));
 	});
 }
 
@@ -131,7 +131,7 @@ fn test_create_option_error_invalid_epoch_ext() {
 			);
 
 			// Check option has not been created
-			assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000001u128));
+			assert!(!OptionIdToOption::<MockRuntime>::contains_key(AssetId(100000000001u128)));
 		});
 }
 
@@ -152,7 +152,7 @@ fn test_create_option_error_base_quote_equal_ext() {
 			);
 
 			// Check option has not been created
-			assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000001u128));
+			assert!(!OptionIdToOption::<MockRuntime>::contains_key(AssetId(100000000001u128)));
 		});
 }
 
@@ -183,7 +183,7 @@ fn test_create_option_error_initial_issuance_not_zero_ext() {
 			);
 
 			// Check option has not been created
-			assert!(!OptionIdToOption::<MockRuntime>::contains_key(100000000001u128));
+			assert!(!OptionIdToOption::<MockRuntime>::contains_key(AssetId(100000000001u128)));
 		});
 }
 
@@ -244,11 +244,11 @@ fn test_create_option_error_option_already_exists_ext() {
 		assert_ok!(TokenizedOptions::create_option(Origin::signed(ADMIN), option_config.clone()));
 
 		// Check option has been created
-		assert!(OptionIdToOption::<MockRuntime>::contains_key(100000000003u128));
+		assert!(OptionIdToOption::<MockRuntime>::contains_key(AssetId(100000000003u128)));
 
 		// Check event is emitted correctly
 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
-			option_id: 100000000003u128,
+			option_id: AssetId(100000000003u128),
 			option_config: option_config.clone(),
 		}));
 
@@ -288,11 +288,11 @@ fn test_create_option_error_not_protocol_origin_ext() {
 
 		// Check option has been created (ID = 3 because first two IDs are used for the vaults
 		// lp_tokens)
-		assert!(OptionIdToOption::<MockRuntime>::contains_key(100000000003u128));
+		assert!(OptionIdToOption::<MockRuntime>::contains_key(AssetId(100000000003u128)));
 
 		// Check event is emitted correctly
 		System::assert_last_event(Event::TokenizedOptions(pallet::Event::CreatedOption {
-			option_id: 100000000003u128,
+			option_id: AssetId(100000000003u128),
 			option_config,
 		}));
 	});

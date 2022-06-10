@@ -298,7 +298,11 @@ fn test_buy_option_error_option_not_exists() {
 		.execute_with(|| {
 			assert_noop!(
 				// 10000000000005u128 it's a meaningless number
-				TokenizedOptions::buy_option(Origin::signed(BOB), 1u128, 10000000000005u128),
+				TokenizedOptions::buy_option(
+					Origin::signed(BOB),
+					1u128,
+					AssetId(10000000000005u128)
+				),
 				Error::<MockRuntime>::OptionDoesNotExists
 			);
 		});

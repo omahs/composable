@@ -321,7 +321,7 @@ fn test_delete_sell_option_error_option_not_exists() {
 				TokenizedOptions::delete_sell_option(
 					Origin::signed(BOB),
 					1u128,
-					10000000000005u128
+					AssetId(10000000000005u128)
 				),
 				Error::<MockRuntime>::OptionDoesNotExists
 			);
