@@ -1,6 +1,7 @@
 use crate as pallet_tokenized_options;
 use crate::mock::{accounts::*, assets::*};
 use composable_traits::{defi::DeFiComposableConfig, governance::SignedRawOrigin, oracle::Price};
+use frame_support::traits::EnsureOneOf;
 use frame_support::{
 	ord_parameter_types, parameter_types,
 	traits::{Everything, GenesisBuild},
@@ -332,6 +333,8 @@ impl pallet_tokenized_options::Config for MockRuntime {
 	type Convert = ConvertInto;
 	type Time = Timestamp;
 	type StablecoinAssetId = StablecoinAssetId;
+	type ProtocolOrigin =
+		EnsureOneOf<EnsureSignedBy<RootAccount, AccountId>, EnsureRoot<AccountId>>;
 	type CurrencyFactory = LpTokenFactory;
 	type NativeCurrency = Balances;
 	type MultiCurrency = Assets;

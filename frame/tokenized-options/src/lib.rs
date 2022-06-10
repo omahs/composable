@@ -106,7 +106,7 @@ pub mod pallet {
 		traits::{
 			fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
 			fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
-			Time,
+			EnsureOrigin, Time,
 		},
 		transactional, PalletId,
 	};
@@ -165,6 +165,9 @@ pub mod pallet {
 
 		/// Stablecoin ID to use for cash operations
 		type StablecoinAssetId: Get<AssetIdOf<Self>>;
+
+		/// Protocol Origin that can create vaults and options
+		type ProtocolOrigin: EnsureOrigin<Self::Origin>;
 
 		/// Used for PICA management.
 		type NativeCurrency: NativeTransfer<AccountIdOf<Self>, Balance = BalanceOf<Self>>
@@ -425,8 +428,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			vault_config: VaultConfigOf<T>,
 		) -> DispatchResult {
-			// Check if it's protocol to call the extrinsic (TODO)
-			let _from = ensure_signed(origin)?;
+			// Check if it's protocol to call the extrinsic
+			T::ProtocolOrigin::ensure_origin(origin)?;
 
 			<Self as TokenizedOptions>::create_asset_vault(vault_config)?;
 
@@ -451,9 +454,7 @@ pub mod pallet {
 		///
 		/// ## State Changes
 		/// - Updates the [`OptionIdToOption`] storage mapping the option id with the created option.
-		/// - Updates the [`OptionHashToOptionId`] storage mapping the option hash with the generated option id.
-		/// - Updates the [`Scheduler`] storage inserting the timestamps when the option should change phases.
-		///
+		/// - Updates the [`traits::EnsureOrigin
 		/// ## Errors
 		/// - [`OptionAlreadyExists`](Error::OptionAlreadyExists): raised when trying to create a new option,
 		/// but it already exists.
@@ -470,8 +471,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			option_config: OptionConfigOf<T>,
 		) -> DispatchResult {
-			// Check if it's protocol to call the extrinsic (TODO)
-			let _from = ensure_signed(origin)?;
+			// Check if it's protocol to call the extrinsic
+			T::ProtocolOrigin::ensure_origin(origin)?;
 
 			<Self as TokenizedOptions>::create_option(option_config)?;
 

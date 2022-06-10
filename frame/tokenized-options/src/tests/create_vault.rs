@@ -10,7 +10,7 @@ use crate::{
 use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
 use frame_system::ensure_signed;
 
-use frame_support::{assert_err, assert_noop};
+use frame_support::{assert_err, assert_noop, error::BadOrigin};
 
 // ----------------------------------------------------------------------------------------------------
 //		Create Vault Tests
@@ -112,7 +112,26 @@ fn test_create_vault_error_asset_not_supported_ext() {
 	});
 }
 
-// TODO: create vault with no-admin account and check error raised
+/// Create vault with no root account; check that correct error is raised
+#[test]
+fn test_create_vault_error_not_protocol_origin_ext() {
+	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
+		// Get ETH vault config (not supported by oracle)
+		let vault_config = VaultConfigBuilder::default().build();
+
+		// Check that the vault has not already been created
+		assert!(!AssetToVault::<MockRuntime>::contains_key(vault_config.asset_id));
+
+		// Check no changes have been perfomed with ALICE caller
+		assert_noop!(
+			TokenizedOptions::create_asset_vault(Origin::signed(ALICE), vault_config.clone()),
+			BadOrigin
+		);
+
+		// Check root can create vault
+		assert_ok!(TokenizedOptions::create_asset_vault(Origin::root(), vault_config));
+	});
+}
 
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(20))]
