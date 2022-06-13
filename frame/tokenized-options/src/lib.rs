@@ -776,19 +776,10 @@ pub mod pallet {
 			option_amount: Self::Balance,
 			option_id: Self::OptionId,
 		) -> Result<(), DispatchError> {
-			ensure!(
-				OptionIdToOption::<T>::contains_key(option_id),
-				Error::<T>::OptionDoesNotExists
-			);
-
-			ensure!(
-				option_amount != BalanceOf::<T>::zero(),
-				Error::<T>::CannotPassZeroOptionAmount
-			);
-
-			Self::do_sell_option(from, option_amount, option_id)?;
-
-			Ok(())
+			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
+				Some(option) => Self::do_sell_option(from, option_amount, option_id, option),
+				None => Err(Error::<T>::OptionDoesNotExists.into()),
+			})
 		}
 
 		/// Delete the selling of the indicated option and update the seller's position.
@@ -989,9 +980,12 @@ pub mod pallet {
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: OptionIdOf<T>,
+			option: &mut OptionToken<T>,
 		) -> Result<(), DispatchError> {
-			let option =
-				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionDoesNotExists)?;
+			ensure!(
+				option_amount != BalanceOf::<T>::zero(),
+				Error::<T>::CannotPassZeroOptionAmount
+			);
 
 			// Check if we are in deposit window
 			ensure!(
@@ -1055,7 +1049,7 @@ pub mod pallet {
 			)
 			.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
 
-			// Protocol account deposits into the vault and keep shares_amount
+			// Protocol account deposits into the vault and keep asset_amount
 			T::Vault::deposit(&vault_id, &protocol_account, asset_amount)
 				.map_err(|_| Error::<T>::VaultDepositNotAllowed)?;
 
@@ -1065,22 +1059,14 @@ pub mod pallet {
 				option_id,
 			});
 
-			OptionIdToOption::<T>::try_mutate(option_id, |option| {
-				match option {
-					Some(option) => {
-						// Add option amount to total issuance
-						let new_total_issuance_seller = option
-							.total_issuance_seller
-							.checked_add(&option_amount)
-							.ok_or(ArithmeticError::Overflow)?;
+			// Add option amount to total issuance
+			let new_total_issuance_seller = option
+				.total_issuance_seller
+				.checked_add(&option_amount)
+				.ok_or(ArithmeticError::Overflow)?;
+			option.total_issuance_seller = new_total_issuance_seller;
 
-						option.total_issuance_seller = new_total_issuance_seller;
-
-						Ok(())
-					},
-					None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
-				}
-			})
+			Ok(())
 		}
 
 		#[transactional]
