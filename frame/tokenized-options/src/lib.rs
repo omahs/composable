@@ -826,19 +826,12 @@ pub mod pallet {
 			option_amount: Self::Balance,
 			option_id: Self::OptionId,
 		) -> Result<(), DispatchError> {
-			ensure!(
-				OptionIdToOption::<T>::contains_key(option_id),
-				Error::<T>::OptionDoesNotExists
-			);
-
-			ensure!(
-				option_amount != BalanceOf::<T>::zero(),
-				Error::<T>::CannotPassZeroOptionAmount
-			);
-
-			Self::do_delete_sell_option(from, option_amount, option_id)?;
-
-			Ok(())
+			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
+				Some(option) => Sellers::<T>::try_mutate(option_id, from, |position| {
+					Self::do_delete_sell_option(from, option_amount, option_id, option, position)
+				}),
+				None => Err(Error::<T>::OptionDoesNotExists.into()),
+			})
 		}
 
 		/// Buy the indicated option.
@@ -1065,9 +1058,13 @@ pub mod pallet {
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: OptionIdOf<T>,
+			option: &mut OptionToken<T>,
+			position: &mut Option<SellerPosition<T>>,
 		) -> Result<(), DispatchError> {
-			let option =
-				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionDoesNotExists)?;
+			ensure!(
+				option_amount != BalanceOf::<T>::zero(),
+				Error::<T>::CannotPassZeroOptionAmount
+			);
 
 			// Check if we are in deposit window
 			ensure!(
@@ -1080,8 +1077,8 @@ pub mod pallet {
 			);
 
 			// Check if user has deposited any collateral before and retrieve position
-			let seller_position = Sellers::<T>::try_get(option_id, from)
-				.map_err(|_| Error::<T>::UserDoesNotHaveSellerPosition)?;
+			let seller_position =
+				position.as_mut().ok_or(Error::<T>::UserDoesNotHaveSellerPosition)?;
 
 			// Different behaviors based on Call or Put option
 			let asset_id = match option.option_type {
@@ -1096,7 +1093,7 @@ pub mod pallet {
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
 			// Calculate amount to withdraw and make checks
-			let shares_amount = Self::calculate_shares_to_burn(option_amount, &seller_position)?;
+			let shares_amount = Self::calculate_shares_to_burn(option_amount, seller_position)?;
 
 			let asset_amount = T::Vault::lp_share_value(&vault_id, shares_amount)?;
 
@@ -1110,32 +1107,24 @@ pub mod pallet {
 			);
 
 			// Update position or delete position
-			Sellers::<T>::try_mutate(option_id, from, |position| -> Result<(), DispatchError> {
-				if shares_amount != seller_position.shares_amount {
-					match position {
-						Some(position) => {
-							// Subtract option amount to position
-							let new_option_amount = position
-								.option_amount
-								.checked_sub(&option_amount)
-								.ok_or(ArithmeticError::Overflow)?;
+			if shares_amount != seller_position.shares_amount {
+				// Subtract option amount to position
+				let new_option_amount = seller_position
+					.option_amount
+					.checked_sub(&option_amount)
+					.ok_or(ArithmeticError::Overflow)?;
 
-							// Subtract shares amount to position
-							let new_shares_amount = position
-								.shares_amount
-								.checked_sub(&shares_amount)
-								.ok_or(ArithmeticError::Overflow)?;
+				// Subtract shares amount to position
+				let new_shares_amount = seller_position
+					.shares_amount
+					.checked_sub(&shares_amount)
+					.ok_or(ArithmeticError::Overflow)?;
 
-							position.option_amount = new_option_amount;
-							position.shares_amount = new_shares_amount;
-						},
-						None => return Err(DispatchError::from(Error::<T>::UnexpectedError)),
-					}
-				} else {
-					*position = None;
-				}
-				Ok(())
-			})?;
+				seller_position.option_amount = new_option_amount;
+				seller_position.shares_amount = new_shares_amount;
+			} else {
+				*position = None;
+			}
 
 			// Protocol account withdraw from the vault and burn shares_amount
 			T::Vault::withdraw(&vault_id, &protocol_account, shares_amount)
@@ -1156,22 +1145,14 @@ pub mod pallet {
 				option_id,
 			});
 
-			OptionIdToOption::<T>::try_mutate(option_id, |option| {
-				match option {
-					Some(option) => {
-						// Subtract option amount to total issuance
-						let new_total_issuance_seller = option
-							.total_issuance_seller
-							.checked_sub(&option_amount)
-							.ok_or(ArithmeticError::Overflow)?;
+			// Subtract option amount to total issuance
+			let new_total_issuance_seller = option
+				.total_issuance_seller
+				.checked_sub(&option_amount)
+				.ok_or(ArithmeticError::Overflow)?;
+			option.total_issuance_seller = new_total_issuance_seller;
 
-						option.total_issuance_seller = new_total_issuance_seller;
-
-						Ok(())
-					},
-					None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
-				}
-			})
+			Ok(())
 		}
 
 		#[transactional]
