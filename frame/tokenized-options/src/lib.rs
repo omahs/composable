@@ -879,19 +879,10 @@ pub mod pallet {
 			option_amount: Self::Balance,
 			option_id: Self::OptionId,
 		) -> Result<(), DispatchError> {
-			ensure!(
-				OptionIdToOption::<T>::contains_key(option_id),
-				Error::<T>::OptionDoesNotExists
-			);
-
-			ensure!(
-				option_amount != BalanceOf::<T>::zero(),
-				Error::<T>::CannotPassZeroOptionAmount
-			);
-
-			Self::do_buy_option(from, option_amount, option_id)?;
-
-			Ok(())
+			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
+				Some(option) => Self::do_buy_option(from, option_amount, option_id, option),
+				None => Err(Error::<T>::OptionDoesNotExists.into()),
+			})
 		}
 	}
 
@@ -1188,9 +1179,12 @@ pub mod pallet {
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: OptionIdOf<T>,
+			option: &mut OptionToken<T>,
 		) -> Result<(), DispatchError> {
-			let option =
-				Self::option_id_to_option(option_id).ok_or(Error::<T>::OptionDoesNotExists)?;
+			ensure!(
+				option_amount != BalanceOf::<T>::zero(),
+				Error::<T>::CannotPassZeroOptionAmount
+			);
 
 			let stablecoin_id = T::StablecoinAssetId::get();
 
@@ -1213,27 +1207,16 @@ pub mod pallet {
 			let protocol_account = Self::account_id(stablecoin_id);
 
 			// Update buyer option availability
-			OptionIdToOption::<T>::try_mutate(option_id, |option| {
-				match option {
-					Some(option) => {
-						// Add option amount to total issuance
-						let new_total_issuance_buyer = option
-							.total_issuance_buyer
-							.checked_add(&option_amount)
-							.ok_or(ArithmeticError::Overflow)?;
-
-						// Check if there are enough options for sale
-						if new_total_issuance_buyer > option.total_issuance_seller {
-							return Err(DispatchError::from(Error::<T>::NotEnoughOptionsForSale));
-						}
-
-						option.total_issuance_buyer = new_total_issuance_buyer;
-
-						Ok(())
-					},
-					None => Err(DispatchError::from(Error::<T>::UnexpectedError)),
-				}
-			})?;
+			// Add option amount to total issuance
+			let new_total_issuance_buyer = option
+				.total_issuance_buyer
+				.checked_add(&option_amount)
+				.ok_or(ArithmeticError::Overflow)?;
+			// Check if there are enough options for sale
+			if new_total_issuance_buyer > option.total_issuance_seller {
+				return Err(DispatchError::from(Error::<T>::NotEnoughOptionsForSale));
+			}
+			option.total_issuance_buyer = new_total_issuance_buyer;
 
 			// Transfer premium to protocol account
 			<T as Config>::MultiCurrency::transfer(
