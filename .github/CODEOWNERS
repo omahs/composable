@@ -4,18 +4,20 @@
 # Any change inside this directory will require approval from senior maintainers
 
 # CI and deployment related files
-.github/ @haroldsphinx @seunlanlege @kaiserkarel @hussein-aitlahcen
-docker/ @haroldsphinx @seunlanlege
-Makefile @haroldsphinx
+.github/ @sre @devops
+docker/ @sre @devops
+Makefile @sre @devops
 
 # Parachain related files
-frame/*/rpc/ @benluelo
-frame/*/runtime-api @benluelo
-runtime/ @seunlanlege @hussein-aitlahcen @kaiserkarel @vimukthi-git
-node/ @seunlanlege @hussein-aitlahcen @kaiserkarel @vimukthi-git
+runtime/ @parachain-leads
+node/ @parachain-leads
+frame/*/rpc/ @parachain-rpc
+frame/*/runtime-api @parachain-rpc
+
 
 # Gitbook
-book/ @0xbrainjar2
+book/ @technical-writing-reviewers
+
 
 # Frontend and Blockchain Integration 
 frontend/ @ComposableFi/ui @ComposableFi/blockchain-integrations
