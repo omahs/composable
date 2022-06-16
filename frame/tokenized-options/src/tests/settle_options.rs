@@ -171,6 +171,6 @@ fn test_settle_options_with_initialization_success() {
 			run_to_block(7);
 
 			// Exercise option
-			exercise_option_success_checks(option_hash, option_config, option_amount, ALICE);
+			settle_options_success_checks(option_hash, option_config, option_amount, ALICE);
 		});
 }

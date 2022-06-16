@@ -10,7 +10,7 @@ use crate::{
 	tests::{
 		buy_option::buy_option_success_checks,
 		delete_sell_option::delete_sell_option_success_checks,
-		sell_option::sell_option_success_checks, settle_option::settle_options_success_checks, *,
+		sell_option::sell_option_success_checks, settle_options::settle_options_success_checks, *,
 	},
 };
 
