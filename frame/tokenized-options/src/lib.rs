@@ -169,12 +169,8 @@ pub mod pallet {
 		/// Protocol Origin that can create vaults and options
 		type ProtocolOrigin: EnsureOrigin<Self::Origin>;
 
-		/// Used for PICA management.
-		type NativeCurrency: NativeTransfer<AccountIdOf<Self>, Balance = BalanceOf<Self>>
-			+ NativeInspect<AccountIdOf<Self>, Balance = BalanceOf<Self>>;
-
 		/// Used for option tokens and other assets management.
-		type MultiCurrency: Transfer<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
+		type Assets: Transfer<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ Mutate<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
@@ -199,6 +195,7 @@ pub mod pallet {
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub type AssetIdOf<T> = <T as DeFiComposableConfig>::MayBeAssetId;
 	pub type BalanceOf<T> = <T as DeFiComposableConfig>::Balance;
+	pub type AssetsOf<T> = <T as Config>::Assets;
 	pub type MomentOf<T> = <T as Config>::Moment;
 	pub type OracleOf<T> = <T as Config>::Oracle;
 	pub type OptionConfigOf<T> = OptionConfig<AssetIdOf<T>, BalanceOf<T>, MomentOf<T>>;
@@ -271,6 +268,13 @@ pub mod pallet {
 		/// Emitted after a successful call to the [`buy_option`](Pallet::buy_option) extrinsic.
 		BuyOption { buyer: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
 
+		/// Emitted after a successful call to the [`exercise_option`](Pallet::exercise_option) extrinsic.
+		ExerciseOption {
+			user: AccountIdOf<T>,
+			option_amount: BalanceOf<T>,
+			option_id: OptionIdOf<T>,
+		},
+
 		/// Emitted when the deposit phase for the reported option starts
 		OptionDepositStart { option_id: OptionIdOf<T> },
 
@@ -341,6 +345,9 @@ pub mod pallet {
 
 		/// Raised when trying to buy an option, but there are not enough options for sale.
 		NotEnoughOptionsForSale,
+
+		/// Raised when trying to get the price for a specific asset, but the asset is not found in the Oracle
+		AssetPriceNotFound,
 
 		/// Raised when trying to sell an option, but it is not deposit phase for that option.
 		NotIntoDepositWindow,
@@ -454,7 +461,9 @@ pub mod pallet {
 		///
 		/// ## State Changes
 		/// - Updates the [`OptionIdToOption`] storage mapping the option id with the created option.
-		/// - Updates the [`traits::EnsureOrigin
+		/// - Updates the [`OptionHashToOptionId`] storage mapping the option hash with the generated option id.
+		/// - Updates the [`Scheduler`] storage inserting the timestamps when the option should change phases.
+		///
 		/// ## Errors
 		/// - [`OptionAlreadyExists`](Error::OptionAlreadyExists): raised when trying to create a new option,
 		/// but it already exists.
@@ -631,6 +640,19 @@ pub mod pallet {
 			let from = ensure_signed(origin)?;
 
 			<Self as TokenizedOptions>::buy_option(&from, option_amount, option_id)?;
+
+			Ok(())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::exercise_option())]
+		pub fn exercise_option(
+			origin: OriginFor<T>,
+			option_amount: BalanceOf<T>,
+			option_id: OptionIdOf<T>,
+		) -> DispatchResult {
+			let from = ensure_signed(origin)?;
+
+			<Self as TokenizedOptions>::exercise_option(&from, option_amount, option_id)?;
 
 			Ok(())
 		}
@@ -877,6 +899,17 @@ pub mod pallet {
 				None => Err(Error::<T>::OptionDoesNotExists.into()),
 			})
 		}
+
+		fn exercise_option(
+			from: &Self::AccountId,
+			option_amount: Self::Balance,
+			option_id: Self::OptionId,
+		) -> Result<(), DispatchError> {
+			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
+				Some(option) => Self::do_exercise_option(from, option_amount, option_id, option),
+				None => Err(Error::<T>::OptionDoesNotExists.into()),
+			})
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -894,7 +927,7 @@ pub mod pallet {
 			let account_id = Self::account_id(config.asset_id);
 
 			// Create new vault for the asset
-			let asset_vault_id: T::VaultId = T::Vault::create(
+			let asset_vault_id: VaultIdOf<T> = VaultOf::<T>::create(
 				Duration::Existential,
 				VaultConfig {
 					asset_id: config.asset_id,
@@ -927,7 +960,8 @@ pub mod pallet {
 			>,
 		) -> Result<OptionIdOf<T>, DispatchError> {
 			// Generate new option_id for the option token
-			let option_id = T::CurrencyFactory::create(RangeId::LP_TOKENS, T::Balance::default())?;
+			let option_id =
+				T::CurrencyFactory::create(RangeId::LP_TOKENS, BalanceOf::<T>::default())?;
 
 			let option = OptionToken {
 				base_asset_id: option_config.base_asset_id,
@@ -997,7 +1031,7 @@ pub mod pallet {
 			let protocol_account = Self::account_id(asset_id);
 
 			// Calculate the amount of shares the user should get and make checks
-			let shares_amount = T::Vault::calculate_lp_tokens_to_mint(&vault_id, asset_amount)?;
+			let shares_amount = VaultOf::<T>::calculate_lp_tokens_to_mint(&vault_id, asset_amount)?;
 
 			// Update position or create position
 			Sellers::<T>::try_mutate(option_id, from, |position| -> Result<(), DispatchError> {
@@ -1024,17 +1058,11 @@ pub mod pallet {
 			})?;
 
 			// Transfer collateral to protocol account
-			<T as Config>::MultiCurrency::transfer(
-				asset_id,
-				from,
-				&protocol_account,
-				asset_amount,
-				true,
-			)
-			.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
+			AssetsOf::<T>::transfer(asset_id, from, &protocol_account, asset_amount, true)
+				.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
 
 			// Protocol account deposits into the vault and keep asset_amount
-			T::Vault::deposit(&vault_id, &protocol_account, asset_amount)
+			VaultOf::<T>::deposit(&vault_id, &protocol_account, asset_amount)
 				.map_err(|_| Error::<T>::VaultDepositNotAllowed)?;
 
 			Self::deposit_event(Event::SellOption {
@@ -1095,13 +1123,14 @@ pub mod pallet {
 			// Calculate amount to withdraw and make checks
 			let shares_amount = Self::calculate_shares_to_burn(option_amount, seller_position)?;
 
-			let asset_amount = T::Vault::lp_share_value(&vault_id, shares_amount)?;
+			let asset_amount = VaultOf::<T>::lp_share_value(&vault_id, shares_amount)?;
 
 			// Sanity checks
 			// 1. Asset amount <= Max asset amount withdrawable by user
 			// 2. Option amount <= Max option amount withdrawable by user
 			ensure!(
-				asset_amount <= T::Vault::lp_share_value(&vault_id, seller_position.shares_amount)?
+				asset_amount
+					<= VaultOf::<T>::lp_share_value(&vault_id, seller_position.shares_amount)?
 					&& option_amount <= seller_position.option_amount,
 				Error::<T>::UserDoesNotHaveEnoughCollateralDeposited
 			);
@@ -1127,17 +1156,11 @@ pub mod pallet {
 			}
 
 			// Protocol account withdraw from the vault and burn shares_amount
-			T::Vault::withdraw(&vault_id, &protocol_account, shares_amount)
+			VaultOf::<T>::withdraw(&vault_id, &protocol_account, shares_amount)
 				.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
 
 			// Transfer collateral to user account
-			<T as Config>::MultiCurrency::transfer(
-				asset_id,
-				&protocol_account,
-				from,
-				asset_amount,
-				true,
-			)?;
+			AssetsOf::<T>::transfer(asset_id, &protocol_account, from, asset_amount, true)?;
 
 			Self::deposit_event(Event::DeleteSellOption {
 				seller: from.clone(),
@@ -1200,19 +1223,36 @@ pub mod pallet {
 			option.total_issuance_buyer = new_total_issuance_buyer;
 
 			// Transfer premium to protocol account
-			<T as Config>::MultiCurrency::transfer(
-				stablecoin_id,
-				from,
-				&protocol_account,
-				option_premium,
-				true,
-			)
-			.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
+			AssetsOf::<T>::transfer(stablecoin_id, from, &protocol_account, option_premium, true)
+				.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
 
 			// Mint option token into user's account
-			<T as Config>::MultiCurrency::mint_into(option_id, from, option_amount)?;
+			AssetsOf::<T>::mint_into(option_id, from, option_amount)?;
 
 			Self::deposit_event(Event::BuyOption { buyer: from.clone(), option_amount, option_id });
+
+			Ok(())
+		}
+
+		#[transactional]
+		fn do_exercise_option(
+			from: &AccountIdOf<T>,
+			option_amount: BalanceOf<T>,
+			option_id: OptionIdOf<T>,
+			option: &mut OptionToken<T>,
+		) -> Result<(), DispatchError> {
+			ensure!(
+				option_amount != BalanceOf::<T>::zero(),
+				Error::<T>::CannotPassZeroOptionAmount
+			);
+
+			Self::settle_options(option.expiring_date);
+
+			Self::deposit_event(Event::ExerciseOption {
+				user: from.clone(),
+				option_amount,
+				option_id,
+			});
 
 			Ok(())
 		}
@@ -1246,6 +1286,110 @@ pub mod pallet {
 			))
 		}
 
+		pub fn settle_options(timestamp: MomentOf<T>) -> Result<(), DispatchError> {
+			OptionIdToOption::<T>::iter().for_each(|(option_id, option)| {
+				// Check expiring date has passed
+				if timestamp < option.expiring_date {
+					return;
+				}
+
+				// Calculate payoff based on Put/Call and add to the total to swap
+				match option.option_type {
+					OptionType::Call => Self::settle_call_options(option_id, &option),
+					OptionType::Put => Self::settle_call_options(option_id, &option),
+				};
+			});
+
+			Ok(())
+		}
+
+		pub fn settle_call_options(
+			option_id: OptionIdOf<T>,
+			option: &OptionToken<T>,
+		) -> Result<(), DispatchError> {
+			let base_asset_spot_price = Self::get_price(option.base_asset_id)?;
+
+			let collateral_for_buyers = if base_asset_spot_price >= option.base_asset_strike_price {
+				let diff = base_asset_spot_price
+					.checked_sub(&option.base_asset_strike_price)
+					.ok_or(ArithmeticError::Overflow)?;
+
+				diff.checked_div(&base_asset_spot_price).ok_or(ArithmeticError::Overflow)?
+			} else {
+				// return Ok(BalanceOf::<T>::zero());
+				return Ok(());
+			};
+
+			let protocol_account = Self::account_id(option.base_asset_id);
+
+			let vault_id = Self::asset_id_to_vault_id(option.base_asset_id)
+				.ok_or(Error::<T>::AssetVaultDoesNotExists)?;
+
+			let shares_amount =
+				Self::calculate_shares_to_burn_from_asset_amount(collateral_for_buyers, vault_id)?;
+
+			// Update sellers positions if option is in profit for buyers (In the money)
+			Sellers::<T>::iter_prefix(option_id).map(
+				|(from, position)| -> Result<(), DispatchError> {
+					Sellers::<T>::try_mutate(
+						option_id,
+						from,
+						|position| -> Result<(), DispatchError> {
+							match position {
+								Some(position) => {
+									// Add option amount to position
+									let shares_for_buyers = position
+										.option_amount
+										.checked_mul(&shares_amount)
+										.ok_or(ArithmeticError::Overflow)?;
+
+									// Add shares amount to position
+									let new_shares_amount = position
+										.shares_amount
+										.checked_sub(&shares_for_buyers)
+										.ok_or(ArithmeticError::Overflow)?;
+
+									position.shares_amount = new_shares_amount;
+								},
+								None => {
+									return Err(DispatchError::from(Error::<T>::UnexpectedError));
+								},
+							};
+
+							Ok(())
+						},
+					)
+				},
+			);
+
+			let total_shares_amount = shares_amount
+				.checked_mul(&option.total_issuance_buyer)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			VaultOf::<T>::withdraw(&vault_id, &protocol_account, total_shares_amount)
+				.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
+
+			// let vault_account = VaultOf::<T>::account_id(&vault_id);
+
+			// // Transfer premium to protocol account
+			// AssetsOf::<T>::transfer(
+			// 	option.base_asset_id,
+			// 	&vault_account,
+			// 	&protocol_account,
+			// 	amount_to_swap,
+			// 	true,
+			// )
+			// .map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
+
+			Ok(())
+		}
+
+		fn get_price(asset_id: AssetIdOf<T>) -> Result<BalanceOf<T>, DispatchError> {
+			OracleOf::<T>::get_price(asset_id, BalanceOf::<T>::one())
+				.map(|p| p.price)
+				.map_err(|_| Error::<T>::AssetPriceNotFound.into())
+		}
+
 		pub fn calculate_shares_to_burn(
 			option_amount: BalanceOf<T>,
 			seller_position: &SellerPosition<T>,
@@ -1259,7 +1403,26 @@ pub mod pallet {
 			let shares_amount =
 				multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
 
-			let shares_amount = <T::Convert as Convert<u128, T::Balance>>::convert(shares_amount);
+			let shares_amount = <T::Convert as Convert<u128, BalanceOf<T>>>::convert(shares_amount);
+			Ok(shares_amount)
+		}
+
+		pub fn calculate_shares_to_burn_from_asset_amount(
+			asset_amount: BalanceOf<T>,
+			vault_id: VaultIdOf<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			let lp_token_id = VaultOf::<T>::lp_asset_id(&vault_id)?;
+			let total_lp_issuance = AssetsOf::<T>::total_issuance(lp_token_id);
+			let aum = VaultOf::<T>::assets_under_management(&vault_id)?;
+
+			let a = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(asset_amount);
+			let b = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(total_lp_issuance);
+			let c = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(aum);
+
+			let shares_amount =
+				multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
+
+			let shares_amount = <T::Convert as Convert<u128, BalanceOf<T>>>::convert(shares_amount);
 			Ok(shares_amount)
 		}
 
