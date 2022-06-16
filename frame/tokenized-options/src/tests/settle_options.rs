@@ -10,7 +10,7 @@ use crate::{
 	tests::{
 		buy_option::buy_option_success_checks,
 		delete_sell_option::delete_sell_option_success_checks,
-		sell_option::sell_option_success_checks, settle_option::settle_options_success_checks, *,
+		sell_option::sell_option_success_checks, *,
 	},
 };
 
@@ -25,9 +25,10 @@ use sp_core::{sr25519::Public, H256};
 use sp_runtime::ArithmeticError;
 
 // ----------------------------------------------------------------------------------------------------
-//		Exercise Options Tests
+//		Settle Options Tests
 // ----------------------------------------------------------------------------------------------------
-pub fn exercise_option_success_checks(
+
+pub fn settle_options_success_checks(
 	option_hash: H256,
 	option_config: OptionConfig<AssetId, Balance, Moment>,
 	option_amount: Balance,
@@ -106,7 +107,7 @@ pub fn exercise_option_success_checks(
 }
 
 #[test]
-fn test_exercise_option_with_initialization_success() {
+fn test_settle_options_with_initialization_success() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
 			(ALICE, BTC, 1 * 10u128.pow(12)),
