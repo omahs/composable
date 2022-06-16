@@ -2,7 +2,7 @@ use crate::Config;
 use frame_support::pallet_prelude::*;
 
 use sp_core::H256;
-use sp_runtime::traits::{BlakeTwo256, Hash};
+use sp_runtime::traits::{BlakeTwo256, Hash, Zero};
 use sp_std::fmt::Debug;
 
 // ----------------------------------------------------------------------------------------------------
@@ -128,9 +128,6 @@ pub struct SellerPosition<T: Config> {
 
 impl<T: Config> Default for SellerPosition<T> {
 	fn default() -> Self {
-		SellerPosition {
-			option_amount: T::Balance::default(),
-			shares_amount: T::Balance::default(),
-		}
+		SellerPosition { option_amount: T::Balance::zero(), shares_amount: T::Balance::zero() }
 	}
 }

@@ -35,6 +35,7 @@ pub mod buy_option;
 pub mod create_option;
 pub mod create_vault;
 pub mod delete_sell_option;
+pub mod exercise_option;
 pub mod sell_option;
 mod time_management;
 

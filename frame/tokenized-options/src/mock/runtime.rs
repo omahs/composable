@@ -42,9 +42,8 @@ frame_support::construct_runtime!(
 		Oracle: pallet_oracle::{Pallet, Storage, Event<T>, Call},
 		LpTokenFactory: pallet_currency_factory::{Pallet, Storage, Event<T>},
 		Assets: pallet_assets::{Pallet, Call, Storage},
-		// GovernanceRegistry: governance::{Pallet, Call, Storage, Event<T>},
-
 		Vault: pallet_vault::{Pallet, Call, Storage, Event<T>},
+		// GovernanceRegistry: governance::{Pallet, Call, Storage, Event<T>},
 		TokenizedOptions: pallet_tokenized_options::{Pallet, Call, Storage, Event<T>},
 	}
 );
@@ -307,7 +306,7 @@ impl pallet_vault::Config for MockRuntime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type RentPerBlock = RentPerBlock;
 	type NativeCurrency = Balances;
-	type Currency = Tokens;
+	type Currency = Assets;
 	type VaultId = VaultId;
 	type TombstoneDuration = TombstoneDuration;
 	type WeightInfo = ();
@@ -334,8 +333,7 @@ impl pallet_tokenized_options::Config for MockRuntime {
 	type ProtocolOrigin =
 		EnsureOneOf<EnsureSignedBy<RootAccount, AccountId>, EnsureRoot<AccountId>>;
 	type CurrencyFactory = LpTokenFactory;
-	type NativeCurrency = Balances;
-	type MultiCurrency = Assets;
+	type Assets = Assets;
 	type VaultId = VaultId;
 	type Vault = Vault;
 }

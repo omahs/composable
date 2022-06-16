@@ -9,6 +9,7 @@ pub trait WeightInfo {
 	fn sell_option() -> Weight;
 	fn delete_sell_option() -> Weight;
 	fn buy_option() -> Weight;
+	fn exercise_option() -> Weight;
 }
 
 /// Weights for pallet_tokenized_options using the Substrate node and recommended hardware.
@@ -33,6 +34,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn buy_option() -> Weight {
 		WEIGHT as Weight
 	}
+
+	fn exercise_option() -> Weight {
+		WEIGHT as Weight
+	}
 }
 
 // For backwards compatibility and tests
@@ -54,6 +59,10 @@ impl WeightInfo for () {
 	}
 
 	fn buy_option() -> Weight {
+		WEIGHT as Weight
+	}
+
+	fn exercise_option() -> Weight {
 		WEIGHT as Weight
 	}
 }

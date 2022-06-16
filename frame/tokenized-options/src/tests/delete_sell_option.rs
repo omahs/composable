@@ -22,7 +22,7 @@ use sp_core::{sr25519::Public, H256};
 use sp_runtime::ArithmeticError;
 
 // ----------------------------------------------------------------------------------------------------
-//		Withdraw Deposited Collateral Tests
+//		Delete Sell Option Tests
 // ----------------------------------------------------------------------------------------------------
 pub fn delete_sell_option_success_checks(
 	option_hash: H256,

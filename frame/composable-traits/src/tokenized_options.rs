@@ -30,4 +30,10 @@ pub trait TokenizedOptions {
 		option_amount: Self::Balance,
 		option: Self::OptionId,
 	) -> Result<(), DispatchError>;
+
+	fn exercise_option(
+		from: &Self::AccountId,
+		option_amount: Self::Balance,
+		option: Self::OptionId,
+	) -> Result<(), DispatchError>;
 }
