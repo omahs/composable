@@ -1325,8 +1325,10 @@ pub mod pallet {
 			let vault_id = Self::asset_id_to_vault_id(option.base_asset_id)
 				.ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
-			let shares_amount =
-				Self::calculate_shares_to_burn_from_asset_amount(collateral_for_buyers, vault_id)?;
+			let shares_amount = VaultOf::<T>::calculate_lp_tokens_from_asset_amount(
+				&vault_id,
+				collateral_for_buyers,
+			)?;
 
 			// Update sellers positions if option is in profit for buyers (In the money)
 			Sellers::<T>::iter_prefix(option_id).map(
@@ -1399,25 +1401,6 @@ pub mod pallet {
 			let b = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(option_amount);
 			let c =
 				<T::Convert as Convert<BalanceOf<T>, u128>>::convert(seller_position.option_amount);
-
-			let shares_amount =
-				multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
-
-			let shares_amount = <T::Convert as Convert<u128, BalanceOf<T>>>::convert(shares_amount);
-			Ok(shares_amount)
-		}
-
-		pub fn calculate_shares_to_burn_from_asset_amount(
-			asset_amount: BalanceOf<T>,
-			vault_id: VaultIdOf<T>,
-		) -> Result<BalanceOf<T>, DispatchError> {
-			let lp_token_id = VaultOf::<T>::lp_asset_id(&vault_id)?;
-			let total_lp_issuance = AssetsOf::<T>::total_issuance(lp_token_id);
-			let aum = VaultOf::<T>::assets_under_management(&vault_id)?;
-
-			let a = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(asset_amount);
-			let b = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(total_lp_issuance);
-			let c = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(aum);
 
 			let shares_amount =
 				multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
