@@ -199,7 +199,7 @@ impl SortedMembers<u64> for OneToFive {
 impl Config for Test {
 	type Proposal = Call;
 	type Event = Event;
-	type Currency = pallet_balances::Pallet<Self>;
+	type MultiCurrency = pallet_balances::Pallet<Self>;
 	type EnactmentPeriod = ConstU64<2>;
 	type LaunchPeriod = ConstU64<2>;
 	type VotingPeriod = ConstU64<2>;

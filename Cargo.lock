@@ -7525,6 +7525,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "orml-tokens",
+ "orml-traits",
  "pallet-balances",
  "pallet-scheduler",
  "parity-scale-codec",
