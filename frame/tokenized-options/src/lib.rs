@@ -91,7 +91,7 @@ pub mod pallet {
 	use codec::Codec;
 	use composable_support::validation::Validated;
 	use composable_traits::{
-		currency::{CurrencyFactory, RangeId},
+		currency::{CurrencyFactory, LocalAssets, RangeId},
 		defi::DeFiComposableConfig,
 		oracle::Oracle,
 		swap_bytes::{SwapBytes, Swapped},
@@ -165,6 +165,9 @@ pub mod pallet {
 
 		/// Stablecoin ID to use for cash operations
 		type StablecoinAssetId: Get<AssetIdOf<Self>>;
+
+		/// General asset type to retrieve decimal information of the asset
+		type LocalAssets: LocalAssets<AssetIdOf<Self>>;
 
 		/// Protocol Origin that can create vaults and options
 		type ProtocolOrigin: EnsureOrigin<Self::Origin>;
@@ -250,13 +253,23 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Emitted after a successful call to the [`create_asset_vault`](Pallet::create_asset_vault) extrinsic.
-		CreatedAssetVault { vault_id: VaultIdOf<T>, asset_id: AssetIdOf<T> },
+		CreatedAssetVault {
+			vault_id: VaultIdOf<T>,
+			asset_id: AssetIdOf<T>,
+		},
 
 		/// Emitted after a successful call to the [`create_option`](Pallet::create_option) extrinsic.
-		CreatedOption { option_id: OptionIdOf<T>, option_config: OptionConfigOf<T> },
+		CreatedOption {
+			option_id: OptionIdOf<T>,
+			option_config: OptionConfigOf<T>,
+		},
 
 		/// Emitted after a successful call to the [`sell_option`](Pallet::sell_option) extrinsic.
-		SellOption { seller: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
+		SellOption {
+			seller: AccountIdOf<T>,
+			option_amount: BalanceOf<T>,
+			option_id: OptionIdOf<T>,
+		},
 
 		/// Emitted after a successful call to the [`delete_sell_option`](Pallet::delete_sell_option) extrinsic.
 		DeleteSellOption {
@@ -266,7 +279,15 @@ pub mod pallet {
 		},
 
 		/// Emitted after a successful call to the [`buy_option`](Pallet::buy_option) extrinsic.
-		BuyOption { buyer: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
+		BuyOption {
+			buyer: AccountIdOf<T>,
+			option_amount: BalanceOf<T>,
+			option_id: OptionIdOf<T>,
+		},
+
+		SettleOptions {
+			timestamp: MomentOf<T>,
+		},
 
 		/// Emitted after a successful call to the [`exercise_option`](Pallet::exercise_option) extrinsic.
 		ExerciseOption {
@@ -276,19 +297,29 @@ pub mod pallet {
 		},
 
 		/// Emitted when the deposit phase for the reported option starts
-		OptionDepositStart { option_id: OptionIdOf<T> },
+		OptionDepositStart {
+			option_id: OptionIdOf<T>,
+		},
 
 		/// Emitted when the purchase phase for the reported option starts
-		OptionPurchaseStart { option_id: OptionIdOf<T> },
+		OptionPurchaseStart {
+			option_id: OptionIdOf<T>,
+		},
 
 		/// Emitted when the exercise phase for the reported option starts
-		OptionExerciseStart { option_id: OptionIdOf<T> },
+		OptionExerciseStart {
+			option_id: OptionIdOf<T>,
+		},
 
 		/// Emitted when the withdraw phase for the reported option starts
-		OptionWithdrawStart { option_id: OptionIdOf<T> },
+		OptionWithdrawStart {
+			option_id: OptionIdOf<T>,
+		},
 
 		/// Emitted when the reported option epoch ends
-		OptionEnd { option_id: OptionIdOf<T> },
+		OptionEnd {
+			option_id: OptionIdOf<T>,
+		},
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -665,6 +696,7 @@ pub mod pallet {
 		type AccountId = AccountIdOf<T>;
 		type OptionId = OptionIdOf<T>;
 		type Balance = BalanceOf<T>;
+		type Moment = MomentOf<T>;
 		type VaultId = VaultIdOf<T>;
 		type OptionConfig = OptionConfigOf<T>;
 		type VaultConfig = VaultConfigOf<T>;
@@ -898,6 +930,10 @@ pub mod pallet {
 				Some(option) => Self::do_buy_option(from, option_amount, option_id, option),
 				None => Err(Error::<T>::OptionDoesNotExists.into()),
 			})
+		}
+
+		fn settle_options(timestamp: Self::Moment) -> Result<(), DispatchError> {
+			Self::do_settle_options(timestamp)
 		}
 
 		fn exercise_option(
@@ -1235,6 +1271,26 @@ pub mod pallet {
 		}
 
 		#[transactional]
+		fn do_settle_options(timestamp: MomentOf<T>) -> Result<(), DispatchError> {
+			OptionIdToOption::<T>::iter().for_each(|(option_id, option)| {
+				// Check expiring date has passed
+				if timestamp < option.expiring_date {
+					return;
+				}
+
+				// Calculate payoff based on Put/Call and add to the total to swap
+				match option.option_type {
+					OptionType::Call => Self::settle_call_options(option_id, &option),
+					OptionType::Put => Self::settle_call_options(option_id, &option),
+				};
+			});
+
+			Self::deposit_event(Event::SettleOptions { timestamp });
+
+			Ok(())
+		}
+
+		#[transactional]
 		fn do_exercise_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
@@ -1245,8 +1301,6 @@ pub mod pallet {
 				option_amount != BalanceOf::<T>::zero(),
 				Error::<T>::CannotPassZeroOptionAmount
 			);
-
-			Self::settle_options(option.expiring_date);
 
 			Self::deposit_event(Event::ExerciseOption {
 				user: from.clone(),
@@ -1286,35 +1340,22 @@ pub mod pallet {
 			))
 		}
 
-		pub fn settle_options(timestamp: MomentOf<T>) -> Result<(), DispatchError> {
-			OptionIdToOption::<T>::iter().for_each(|(option_id, option)| {
-				// Check expiring date has passed
-				if timestamp < option.expiring_date {
-					return;
-				}
-
-				// Calculate payoff based on Put/Call and add to the total to swap
-				match option.option_type {
-					OptionType::Call => Self::settle_call_options(option_id, &option),
-					OptionType::Put => Self::settle_call_options(option_id, &option),
-				};
-			});
-
-			Ok(())
-		}
-
 		pub fn settle_call_options(
 			option_id: OptionIdOf<T>,
 			option: &OptionToken<T>,
 		) -> Result<(), DispatchError> {
+			// Get current asset's spot price
 			let base_asset_spot_price = Self::get_price(option.base_asset_id)?;
 
+			// Calculate amount of asset to reserve for buyers if the option is ITM
 			let collateral_for_buyers = if base_asset_spot_price >= option.base_asset_strike_price {
 				let diff = base_asset_spot_price
 					.checked_sub(&option.base_asset_strike_price)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				diff.checked_div(&base_asset_spot_price).ok_or(ArithmeticError::Overflow)?
+				let unit = T::LocalAssets::unit::<BalanceOf<T>>(option.base_asset_id)?;
+
+				Self::calculate_amount_for_buyers(diff, unit, base_asset_spot_price)?
 			} else {
 				// return Ok(BalanceOf::<T>::zero());
 				return Ok(());
@@ -1387,9 +1428,25 @@ pub mod pallet {
 		}
 
 		fn get_price(asset_id: AssetIdOf<T>) -> Result<BalanceOf<T>, DispatchError> {
-			OracleOf::<T>::get_price(asset_id, BalanceOf::<T>::one())
+			OracleOf::<T>::get_price(asset_id, 10u128.pow(12).into())
 				.map(|p| p.price)
 				.map_err(|_| Error::<T>::AssetPriceNotFound.into())
+		}
+
+		pub fn calculate_amount_for_buyers(
+			diff: BalanceOf<T>,
+			unit: BalanceOf<T>,
+			base_asset_spot_price: BalanceOf<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			let a = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(diff);
+			let b = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(unit);
+			let c = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(base_asset_spot_price);
+
+			let asset_amount =
+				multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
+
+			let asset_amount = <T::Convert as Convert<u128, BalanceOf<T>>>::convert(asset_amount);
+			Ok(asset_amount)
 		}
 
 		pub fn calculate_shares_to_burn(

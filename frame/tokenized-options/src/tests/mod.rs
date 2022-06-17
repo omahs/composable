@@ -98,12 +98,17 @@ pub trait VaultInitializer {
 
 impl VaultInitializer for sp_io::TestExternalities {
 	fn initialize_oracle_prices(mut self) -> Self {
-		let assets_prices: Vec<(AssetId, Balance)> =
-			Vec::from([(USDC, 1), (BTC, 50_000), (DOT, 100), (PICA, 1_000), (LAYR, 10_000)]);
+		let assets_prices: Vec<(AssetId, Balance)> = Vec::from([
+			(USDC, 1 * 10u128.pow(12)),
+			(BTC, 50_000 * 10u128.pow(12)),
+			(DOT, 100 * 10u128.pow(12)),
+			(PICA, 1 * 10u128.pow(9)),  // 0.001$ to test decimals interactions
+			(LAYR, 1 * 10u128.pow(11)), // 0.1$ to test decimals interactions
+		]);
 
 		self.execute_with(|| {
 			assets_prices.iter().for_each(|&(asset, price)| {
-				set_oracle_price(asset, price * 10u128.pow(12));
+				set_oracle_price(asset, price);
 			});
 		});
 
@@ -300,7 +305,7 @@ impl OptionInitializer for sp_io::TestExternalities {
 
 		assets.iter().for_each(|&asset| {
 			self.execute_with(|| {
-				let price = get_oracle_price(asset, 1);
+				let price = get_oracle_price(asset, 10u128.pow(12));
 
 				let config = OptionsConfigBuilder::default()
 					.base_asset_id(asset)

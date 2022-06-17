@@ -222,7 +222,7 @@ impl pallet_oracle::Config for MockRuntime {
 	type MaxHistory = MaxHistory;
 	type MaxPrePrices = MaxPrePrices;
 	type WeightInfo = ();
-	type LocalAssets = ();
+	type LocalAssets = LpTokenFactory;
 }
 
 pub fn set_oracle_price(asset_id: AssetId, balance: Balance) {
@@ -330,6 +330,7 @@ impl pallet_tokenized_options::Config for MockRuntime {
 	type Convert = ConvertInto;
 	type Time = Timestamp;
 	type StablecoinAssetId = StablecoinAssetId;
+	type LocalAssets = LpTokenFactory;
 	type ProtocolOrigin =
 		EnsureOneOf<EnsureSignedBy<RootAccount, AccountId>, EnsureRoot<AccountId>>;
 	type CurrencyFactory = LpTokenFactory;

@@ -4,6 +4,7 @@ use frame_support::pallet_prelude::*;
 pub trait TokenizedOptions {
 	type AccountId;
 	type Balance;
+	type Moment;
 	type OptionId;
 	type VaultId;
 	type OptionConfig;
@@ -30,6 +31,8 @@ pub trait TokenizedOptions {
 		option_amount: Self::Balance,
 		option: Self::OptionId,
 	) -> Result<(), DispatchError>;
+
+	fn settle_options(timestamp: Self::Moment) -> Result<(), DispatchError>;
 
 	fn exercise_option(
 		from: &Self::AccountId,

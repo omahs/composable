@@ -29,33 +29,12 @@ use sp_runtime::ArithmeticError;
 // ----------------------------------------------------------------------------------------------------
 pub fn exercise_option_success_checks(
 	option_hash: H256,
-	option_config: OptionConfig<AssetId, Balance, Moment>,
+	_option_config: OptionConfig<AssetId, Balance, Moment>,
 	option_amount: Balance,
 	who: Public,
 ) {
 	// Get info before extrinsic for checks
 	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
-
-	// // Different behaviors based on Call or Put option
-	// let (asset_id, asset_amount) = match option_config.option_type {
-	// 	OptionType::Call => {
-	// 		(option_config.base_asset_id, option_config.base_asset_amount_per_option)
-	// 	},
-	// 	OptionType::Put => (option_config.quote_asset_id, option_config.base_asset_strike_price),
-	// };
-
-	// let asset_amount = asset_amount * option_amount;
-	// let vault_id = AssetToVault::<MockRuntime>::get(asset_id).unwrap();
-	// let lp_token_id = <Vault as VaultTrait>::lp_asset_id(&vault_id).unwrap();
-	// let protocol_account = TokenizedOptions::account_id(asset_id);
-	// let shares_amount =
-	// 	<Vault as VaultTrait>::calculate_lp_tokens_to_mint(&vault_id, asset_amount).unwrap();
-
-	// let initial_issuance_seller =
-	// 	OptionIdToOption::<MockRuntime>::get(option_id).unwrap().total_issuance_seller;
-	// let initial_user_balance = Assets::balance(asset_id, &who);
-	// let initial_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
-	// let initial_user_position = Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or_default();
 
 	// Call extrinsic
 	assert_ok!(TokenizedOptions::exercise_option(Origin::signed(who), option_amount, option_id));
@@ -66,43 +45,6 @@ pub fn exercise_option_success_checks(
 		option_amount,
 		option_id,
 	}));
-
-	// // Check seller position is saved
-	// assert!(Sellers::<MockRuntime>::contains_key(option_id, who));
-
-	// // Check seller balance after sale is empty
-	// assert_eq!(Assets::balance(asset_id, &who), initial_user_balance - asset_amount);
-
-	// // Check vault balance after sale is correct
-	// assert_eq!(
-	// 	Assets::balance(asset_id, &Vault::account_id(&vault_id)),
-	// 	initial_vault_balance + asset_amount
-	// );
-
-	// // Check protocol owns all the issuance of lp_token
-	// assert_eq!(
-	// 	Assets::balance(lp_token_id, &protocol_account),
-	// 	Assets::total_issuance(lp_token_id)
-	// );
-
-	// // Check position is updated correctly
-	// let updated_user_position = Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or_default();
-
-	// assert_eq!(
-	// 	updated_user_position.option_amount,
-	// 	initial_user_position.option_amount + option_amount,
-	// );
-	// assert_eq!(
-	// 	updated_user_position.shares_amount,
-	// 	initial_user_position.shares_amount + shares_amount,
-	// );
-
-	// // Check position is updated correctly
-	// let updated_issuance_seller = OptionIdToOption::<MockRuntime>::try_get(option_id)
-	// 	.unwrap()
-	// 	.total_issuance_seller;
-
-	// assert_eq!(updated_issuance_seller, initial_issuance_seller + option_amount)
 }
 
 #[test]
@@ -167,7 +109,7 @@ fn test_exercise_option_with_initialization_success() {
 			set_oracle_price(option_config.base_asset_id, 55000u128 * 10u128.pow(12));
 
 			// Go to exercise window
-			run_to_block(7);
+			run_to_block(6);
 
 			// Exercise option
 			exercise_option_success_checks(option_hash, option_config, option_amount, ALICE);
