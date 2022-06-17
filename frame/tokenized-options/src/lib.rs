@@ -1372,7 +1372,7 @@ pub mod pallet {
 			)?;
 
 			// Update sellers positions if option is in profit for buyers (In the money)
-			Sellers::<T>::iter_prefix(option_id).map(
+			Sellers::<T>::iter_prefix(option_id).try_for_each(
 				|(from, position)| -> Result<(), DispatchError> {
 					Sellers::<T>::try_mutate(
 						option_id,
@@ -1403,7 +1403,7 @@ pub mod pallet {
 						},
 					)
 				},
-			);
+			)?;
 
 			let total_shares_amount = shares_amount
 				.checked_mul(&option.total_issuance_buyer)
