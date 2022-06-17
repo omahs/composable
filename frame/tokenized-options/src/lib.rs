@@ -1412,23 +1412,13 @@ pub mod pallet {
 			VaultOf::<T>::withdraw(&vault_id, &protocol_account, total_shares_amount)
 				.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
 
-			// let vault_account = VaultOf::<T>::account_id(&vault_id);
-
-			// // Transfer premium to protocol account
-			// AssetsOf::<T>::transfer(
-			// 	option.base_asset_id,
-			// 	&vault_account,
-			// 	&protocol_account,
-			// 	amount_to_swap,
-			// 	true,
-			// )
-			// .map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
-
 			Ok(())
 		}
 
 		fn get_price(asset_id: AssetIdOf<T>) -> Result<BalanceOf<T>, DispatchError> {
-			OracleOf::<T>::get_price(asset_id, 10u128.pow(12).into())
+			let unit = T::LocalAssets::unit::<BalanceOf<T>>(asset_id)?;
+
+			OracleOf::<T>::get_price(asset_id, unit)
 				.map(|p| p.price)
 				.map_err(|_| Error::<T>::AssetPriceNotFound.into())
 		}

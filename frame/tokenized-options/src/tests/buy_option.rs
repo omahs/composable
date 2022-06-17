@@ -81,10 +81,10 @@ pub fn buy_option_success_checks(
 fn test_buy_option_with_initialization_success() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 1 * 10u128.pow(12)),
-			(ALICE, USDC, 50000 * 10u128.pow(12)),
-			(BOB, BTC, 1 * 10u128.pow(12)),
-			(BOB, USDC, 50000 * 10u128.pow(12)),
+			(ALICE, BTC, 1 * UNIT),
+			(ALICE, USDC, 50000 * UNIT),
+			(BOB, BTC, 1 * UNIT),
+			(BOB, USDC, 50000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -141,10 +141,10 @@ fn test_buy_option_with_initialization_success() {
 fn test_buy_option_success() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 3 * 10u128.pow(12)),
-			(ALICE, USDC, 150000 * 10u128.pow(12)),
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
+			(ALICE, BTC, 3 * UNIT),
+			(ALICE, USDC, 150000 * UNIT),
+			(BOB, BTC, 5 * UNIT),
+			(BOB, USDC, 250000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -178,10 +178,10 @@ fn test_buy_option_success() {
 fn test_buy_option_multiple_times() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 5 * 10u128.pow(12)),
-			(ALICE, USDC, 250000 * 10u128.pow(12)),
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
+			(ALICE, BTC, 5 * UNIT),
+			(ALICE, USDC, 250000 * UNIT),
+			(BOB, BTC, 5 * UNIT),
+			(BOB, USDC, 250000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -225,12 +225,12 @@ fn test_buy_option_multiple_times() {
 fn test_buy_option_multiple_users() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 5 * 10u128.pow(12)),
-			(ALICE, USDC, 250000 * 10u128.pow(12)),
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-			(CHARLIE, BTC, 5 * 10u128.pow(12)),
-			(CHARLIE, USDC, 250000 * 10u128.pow(12)),
+			(ALICE, BTC, 5 * UNIT),
+			(ALICE, USDC, 250000 * UNIT),
+			(BOB, BTC, 5 * UNIT),
+			(BOB, USDC, 250000 * UNIT),
+			(CHARLIE, BTC, 5 * UNIT),
+			(CHARLIE, USDC, 250000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -289,10 +289,10 @@ fn test_buy_option_multiple_users() {
 fn test_buy_option_error_option_not_exists() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 5 * 10u128.pow(12)),
-			(ALICE, USDC, 250000 * 10u128.pow(12)),
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
+			(ALICE, BTC, 5 * UNIT),
+			(ALICE, USDC, 250000 * UNIT),
+			(BOB, BTC, 5 * UNIT),
+			(BOB, USDC, 250000 * UNIT),
 		]))
 		.build()
 		.execute_with(|| {
@@ -312,10 +312,10 @@ fn test_buy_option_error_option_not_exists() {
 fn test_buy_option_error_not_into_purchase_window() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 5 * 10u128.pow(12)),
-			(ALICE, USDC, 250000 * 10u128.pow(12)),
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
+			(ALICE, BTC, 5 * UNIT),
+			(ALICE, USDC, 250000 * UNIT),
+			(BOB, BTC, 5 * UNIT),
+			(BOB, USDC, 250000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -366,10 +366,10 @@ fn test_buy_option_error_not_into_purchase_window() {
 fn test_buy_option_error_user_has_not_enough_funds() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 3 * 10u128.pow(12)),
-			(ALICE, USDC, 3000 * 10u128.pow(12)),
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
+			(ALICE, BTC, 3 * UNIT),
+			(ALICE, USDC, 3000 * UNIT),
+			(BOB, BTC, 5 * UNIT),
+			(BOB, USDC, 250000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -415,10 +415,10 @@ fn test_buy_option_error_user_has_not_enough_funds() {
 fn test_buy_option_error_cannot_buy_zero_options() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 5 * 10u128.pow(12)),
-			(ALICE, USDC, 250000 * 10u128.pow(12)),
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
+			(ALICE, BTC, 5 * UNIT),
+			(ALICE, USDC, 250000 * UNIT),
+			(BOB, BTC, 5 * UNIT),
+			(BOB, USDC, 250000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -457,10 +457,10 @@ fn test_buy_option_error_cannot_buy_zero_options() {
 fn test_buy_option_error_overflow_asset_amount() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 5 * 10u128.pow(12)),
-			(ALICE, USDC, 250000 * 10u128.pow(12)),
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
+			(ALICE, BTC, 5 * UNIT),
+			(ALICE, USDC, 250000 * UNIT),
+			(BOB, BTC, 5 * UNIT),
+			(BOB, USDC, 250000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -506,10 +506,10 @@ fn test_buy_option_error_overflow_asset_amount() {
 fn test_buy_option_error_not_enough_options_for_sale() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 5 * 10u128.pow(12)),
-			(ALICE, USDC, 250000 * 10u128.pow(12)),
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
+			(ALICE, BTC, 5 * UNIT),
+			(ALICE, USDC, 250000 * UNIT),
+			(BOB, BTC, 5 * UNIT),
+			(BOB, USDC, 250000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()

@@ -109,10 +109,7 @@ pub fn delete_sell_option_success_checks(
 #[test]
 fn test_delete_sell_option_success() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 7 * 10u128.pow(12)),
-			(BOB, USDC, 350000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 7 * UNIT), (BOB, USDC, 350000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -154,10 +151,7 @@ fn test_delete_sell_option_success() {
 #[test]
 fn test_delete_sell_option_update_position() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * UNIT), (BOB, USDC, 250000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -218,10 +212,10 @@ fn test_delete_sell_option_update_position() {
 fn test_delete_sell_option_multiple_users() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 10 * 10u128.pow(12)),
-			(BOB, BTC, 7 * 10u128.pow(12)),
-			(ALICE, USDC, 500000 * 10u128.pow(12)),
-			(BOB, USDC, 350000 * 10u128.pow(12)),
+			(ALICE, BTC, 10 * UNIT),
+			(BOB, BTC, 7 * UNIT),
+			(ALICE, USDC, 500000 * UNIT),
+			(BOB, USDC, 350000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -310,10 +304,7 @@ fn test_delete_sell_option_multiple_users() {
 #[test]
 fn test_delete_sell_option_error_option_not_exists() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 1 * 10u128.pow(12)),
-			(BOB, USDC, 50000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 1 * UNIT), (BOB, USDC, 50000 * UNIT)]))
 		.build()
 		.execute_with(|| {
 			assert_noop!(
@@ -331,10 +322,7 @@ fn test_delete_sell_option_error_option_not_exists() {
 #[test]
 fn test_delete_sell_option_error_not_into_deposit_window() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * UNIT), (BOB, USDC, 250000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -372,10 +360,7 @@ fn test_delete_sell_option_error_not_into_deposit_window() {
 #[test]
 fn test_delete_sell_option_error_user_has_not_enough_collateral_to_withdraw() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * UNIT), (BOB, USDC, 250000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -409,10 +394,7 @@ fn test_delete_sell_option_error_user_has_not_enough_collateral_to_withdraw() {
 #[test]
 fn test_delete_sell_option_error_user_has_not_enough_collateral_to_withdraw_update_position() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * UNIT), (BOB, USDC, 250000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -448,10 +430,7 @@ fn test_delete_sell_option_error_user_has_not_enough_collateral_to_withdraw_upda
 #[test]
 fn test_delete_sell_option_error_user_does_not_have_position() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * UNIT), (BOB, USDC, 250000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -483,10 +462,7 @@ fn test_delete_sell_option_error_user_does_not_have_position() {
 #[test]
 fn test_delete_sell_option_error_cannot_delete_zero_options_sale() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * UNIT), (BOB, USDC, 250000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -520,10 +496,7 @@ fn test_delete_sell_option_error_cannot_delete_zero_options_sale() {
 #[test]
 fn test_delete_sell_option_error_overflow_asset_amount() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * UNIT), (BOB, USDC, 250000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -562,10 +535,7 @@ fn test_delete_sell_option_error_overflow_asset_amount() {
 #[test]
 fn test_delete_sell_option_error_withdrawals_not_allowed() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * UNIT), (BOB, USDC, 250000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -610,10 +580,7 @@ fn test_delete_sell_option_error_withdrawals_not_allowed() {
 #[test]
 fn test_delete_sell_option_error_withdrawals_not_allowed_update_position() {
 	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(BOB, BTC, 5 * 10u128.pow(12)),
-			(BOB, USDC, 250000 * 10u128.pow(12)),
-		]))
+		.initialize_balances(Vec::from([(BOB, BTC, 5 * UNIT), (BOB, USDC, 250000 * UNIT)]))
 		.build()
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
@@ -661,12 +628,12 @@ fn test_delete_sell_option_error_withdrawals_not_allowed_update_position() {
 fn test_delete_sell_option_shares_calculation_with_vault_value_accrual_success() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 10 * 10u128.pow(12)),
-			(BOB, BTC, 10 * 10u128.pow(12)),
-			(CHARLIE, BTC, 10 * 10u128.pow(12)),
-			(ALICE, USDC, 500000 * 10u128.pow(12)),
-			(BOB, USDC, 500000 * 10u128.pow(12)),
-			(CHARLIE, USDC, 500000 * 10u128.pow(12)),
+			(ALICE, BTC, 10 * UNIT),
+			(BOB, BTC, 10 * UNIT),
+			(CHARLIE, BTC, 10 * UNIT),
+			(ALICE, USDC, 500000 * UNIT),
+			(BOB, USDC, 500000 * UNIT),
+			(CHARLIE, USDC, 500000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -702,7 +669,7 @@ fn test_delete_sell_option_shares_calculation_with_vault_value_accrual_success()
 				Origin::signed(ADMIN),
 				option_config.base_asset_id,
 				vault_account,
-				2 * 10u128.pow(12),
+				2 * UNIT,
 			));
 
 			let bob_option_amount = 5u128;
@@ -713,7 +680,7 @@ fn test_delete_sell_option_shares_calculation_with_vault_value_accrual_success()
 				Origin::signed(ADMIN),
 				option_config.base_asset_id,
 				vault_account,
-				1 * 10u128.pow(12),
+				1 * UNIT,
 			));
 
 			let charlie_option_amount = 5u128;
@@ -729,7 +696,7 @@ fn test_delete_sell_option_shares_calculation_with_vault_value_accrual_success()
 				Origin::signed(ADMIN),
 				option_config.base_asset_id,
 				vault_account,
-				1 * 10u128.pow(12),
+				1 * UNIT,
 			));
 
 			let alice_option_amount = 4u128;

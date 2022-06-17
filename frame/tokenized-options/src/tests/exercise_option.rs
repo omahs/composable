@@ -51,10 +51,10 @@ pub fn exercise_option_success_checks(
 fn test_exercise_option_with_initialization_success() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 1 * 10u128.pow(12)),
-			(ALICE, USDC, 50000 * 10u128.pow(12)),
-			(BOB, BTC, 1 * 10u128.pow(12)),
-			(BOB, USDC, 50000 * 10u128.pow(12)),
+			(ALICE, BTC, 1 * UNIT),
+			(ALICE, USDC, 50000 * UNIT),
+			(BOB, BTC, 1 * UNIT),
+			(BOB, USDC, 50000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -106,7 +106,7 @@ fn test_exercise_option_with_initialization_success() {
 			buy_option_success_checks(option_hash, option_config.clone(), option_amount, ALICE);
 
 			// BTC price moves from 50k to 55k
-			set_oracle_price(option_config.base_asset_id, 55000u128 * 10u128.pow(12));
+			set_oracle_price(option_config.base_asset_id, 55000u128 * UNIT);
 
 			// Go to exercise window
 			run_to_block(6);

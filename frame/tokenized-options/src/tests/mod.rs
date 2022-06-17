@@ -40,6 +40,8 @@ pub mod sell_option;
 pub mod settle_options;
 mod time_management;
 
+pub const UNIT: u128 = 10u128.pow(12);
+
 // ----------------------------------------------------------------------------------------------------
 //		VaultConfigBuilder
 // ----------------------------------------------------------------------------------------------------
@@ -99,9 +101,9 @@ pub trait VaultInitializer {
 impl VaultInitializer for sp_io::TestExternalities {
 	fn initialize_oracle_prices(mut self) -> Self {
 		let assets_prices: Vec<(AssetId, Balance)> = Vec::from([
-			(USDC, 1 * 10u128.pow(12)),
-			(BTC, 50_000 * 10u128.pow(12)),
-			(DOT, 100 * 10u128.pow(12)),
+			(USDC, 1 * UNIT),
+			(BTC, 50_000 * UNIT),
+			(DOT, 100 * UNIT),
 			(PICA, 1 * 10u128.pow(9)),  // 0.001$ to test decimals interactions
 			(LAYR, 1 * 10u128.pow(11)), // 0.1$ to test decimals interactions
 		]);
@@ -184,13 +186,13 @@ impl Default for OptionsConfigBuilder {
 		OptionsConfigBuilder {
 			base_asset_id: BTC,
 			quote_asset_id: USDC,
-			base_asset_strike_price: 50000u128 * 10u128.pow(12),
-			quote_asset_strike_price: 1u128 * 10u128.pow(12),
+			base_asset_strike_price: 50000u128 * UNIT,
+			quote_asset_strike_price: 1u128 * UNIT,
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
 			expiring_date: 6000u64,
-			base_asset_amount_per_option: 1u128 * 10u128.pow(12),
-			quote_asset_amount_per_option: 1u128 * 10u128.pow(12),
+			base_asset_amount_per_option: 1u128 * UNIT,
+			quote_asset_amount_per_option: 1u128 * UNIT,
 			total_issuance_seller: 0u128,
 			total_issuance_buyer: 0u128,
 			epoch: Epoch {
@@ -305,7 +307,7 @@ impl OptionInitializer for sp_io::TestExternalities {
 
 		assets.iter().for_each(|&asset| {
 			self.execute_with(|| {
-				let price = get_oracle_price(asset, 10u128.pow(12));
+				let price = get_oracle_price(asset, UNIT);
 
 				let config = OptionsConfigBuilder::default()
 					.base_asset_id(asset)
