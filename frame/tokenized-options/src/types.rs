@@ -83,7 +83,6 @@ pub struct OptionToken<T: Config> {
 	pub base_asset_amount_per_option: T::Balance,
 	pub quote_asset_amount_per_option: T::Balance,
 	pub total_issuance_seller: T::Balance,
-	pub total_issuance_buyer: T::Balance,
 	pub epoch: Epoch<T::Moment>,
 }
 
@@ -114,7 +113,6 @@ pub struct OptionConfig<AssetId, Balance, Moment> {
 	pub base_asset_amount_per_option: Balance,
 	pub quote_asset_amount_per_option: Balance,
 	pub total_issuance_seller: Balance,
-	pub total_issuance_buyer: Balance,
 	pub epoch: Epoch<Moment>,
 }
 

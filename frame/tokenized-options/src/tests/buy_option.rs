@@ -39,8 +39,7 @@ pub fn buy_option_success_checks(
 
 	let protocol_account = TokenizedOptions::account_id(asset_id);
 
-	let initial_issuance_buyer =
-		OptionIdToOption::<MockRuntime>::get(option_id).unwrap().total_issuance_buyer;
+	let initial_issuance_buyer = Assets::total_issuance(option_id);
 	let initial_user_balance_options = Assets::balance(option_id, &who);
 	let initial_user_balance = Assets::balance(asset_id, &who);
 	let initial_protocol_balance = Assets::balance(asset_id, &protocol_account);
@@ -70,9 +69,7 @@ pub fn buy_option_success_checks(
 	assert_eq!(Assets::balance(option_id, &who), initial_user_balance_options + option_amount);
 
 	// Check position is updated correctly
-	let updated_issuance_buyer = OptionIdToOption::<MockRuntime>::try_get(option_id)
-		.unwrap()
-		.total_issuance_buyer;
+	let updated_issuance_buyer = Assets::total_issuance(option_id);
 
 	assert_eq!(updated_issuance_buyer, initial_issuance_buyer + option_amount)
 }

@@ -724,6 +724,7 @@ pub mod pallet {
 		/// but it already exists.
 		///
 		/// # Weight: O(TBD)
+		#[transactional]
 		fn create_asset_vault(
 			vault_config: Self::VaultConfig,
 		) -> Result<Self::VaultId, DispatchError> {
@@ -769,6 +770,7 @@ pub mod pallet {
 		/// but at least one of the option's attributes has an invalid value.
 		///
 		/// # Weight: O(TBD)
+		#[transactional]
 		fn create_option(
 			option_config: Self::OptionConfig,
 		) -> Result<Self::OptionId, DispatchError> {
@@ -825,6 +827,7 @@ pub mod pallet {
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
+		#[transactional]
 		fn sell_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
@@ -875,6 +878,7 @@ pub mod pallet {
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
+		#[transactional]
 		fn delete_sell_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
@@ -921,6 +925,7 @@ pub mod pallet {
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
+		#[transactional]
 		fn buy_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
@@ -932,10 +937,12 @@ pub mod pallet {
 			})
 		}
 
+		#[transactional]
 		fn settle_options(timestamp: Self::Moment) -> Result<(), DispatchError> {
 			Self::do_settle_options(timestamp)
 		}
 
+		#[transactional]
 		fn exercise_option(
 			from: &Self::AccountId,
 			option_amount: Self::Balance,
@@ -952,7 +959,6 @@ pub mod pallet {
 	//		Internal Pallet Functions
 	// ----------------------------------------------------------------------------------------------------
 	impl<T: Config> Pallet<T> {
-		#[transactional]
 		fn do_create_asset_vault(
 			config: Validated<
 				VaultConfigOf<T>,
@@ -984,7 +990,6 @@ pub mod pallet {
 			Ok(asset_vault_id)
 		}
 
-		#[transactional]
 		fn do_create_option(
 			option_config: Validated<
 				OptionConfigOf<T>,
@@ -1010,7 +1015,6 @@ pub mod pallet {
 				base_asset_amount_per_option: option_config.base_asset_amount_per_option,
 				quote_asset_amount_per_option: option_config.quote_asset_amount_per_option,
 				total_issuance_seller: option_config.total_issuance_seller,
-				total_issuance_buyer: option_config.total_issuance_buyer,
 				epoch: option_config.epoch,
 			};
 
@@ -1029,7 +1033,6 @@ pub mod pallet {
 			Ok(option_id)
 		}
 
-		#[transactional]
 		fn do_sell_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
@@ -1117,7 +1120,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[transactional]
 		fn do_delete_sell_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
@@ -1214,7 +1216,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[transactional]
 		fn do_buy_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
@@ -1246,17 +1247,16 @@ pub mod pallet {
 
 			let protocol_account = Self::account_id(stablecoin_id);
 
-			// Update buyer option availability
-			// Add option amount to total issuance
-			let new_total_issuance_buyer = option
-				.total_issuance_buyer
+			// Check option availability
+			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
+
+			let new_total_issuance_buyer = total_issuance_buyer
 				.checked_add(&option_amount)
 				.ok_or(ArithmeticError::Overflow)?;
 			// Check if there are enough options for sale
 			if new_total_issuance_buyer > option.total_issuance_seller {
 				return Err(DispatchError::from(Error::<T>::NotEnoughOptionsForSale));
 			}
-			option.total_issuance_buyer = new_total_issuance_buyer;
 
 			// Transfer premium to protocol account
 			AssetsOf::<T>::transfer(stablecoin_id, from, &protocol_account, option_premium, true)
@@ -1270,7 +1270,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[transactional]
 		fn do_settle_options(timestamp: MomentOf<T>) -> Result<(), DispatchError> {
 			OptionIdToOption::<T>::iter().for_each(|(option_id, option)| {
 				// Check expiring date has passed
@@ -1290,7 +1289,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[transactional]
 		fn do_exercise_option(
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
@@ -1405,8 +1403,10 @@ pub mod pallet {
 				},
 			)?;
 
+			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
+
 			let total_shares_amount = shares_amount
-				.checked_mul(&option.total_issuance_buyer)
+				.checked_mul(&total_issuance_buyer)
 				.ok_or(ArithmeticError::Overflow)?;
 
 			VaultOf::<T>::withdraw(&vault_id, &protocol_account, total_shares_amount)

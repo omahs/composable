@@ -172,18 +172,6 @@ fn test_create_option_error_initial_issuance_not_zero_ext() {
 				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config),
 				Error::<MockRuntime>::OptionAttributesAreInvalid
 			);
-
-			// Get default option config
-			let option_config = OptionsConfigBuilder::default().total_issuance_buyer(1u128).build();
-
-			// Create option with initial issuance buyer not zero and check error is raised
-			assert_noop!(
-				TokenizedOptions::create_option(Origin::signed(ADMIN), option_config),
-				Error::<MockRuntime>::OptionAttributesAreInvalid
-			);
-
-			// Check option has not been created
-			assert!(!OptionIdToOption::<MockRuntime>::contains_key(AssetId(100000000001u128)));
 		});
 }
 
