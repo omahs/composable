@@ -32,7 +32,7 @@ pub trait TokenizedOptions {
 		option: Self::OptionId,
 	) -> Result<(), DispatchError>;
 
-	fn settle_options(timestamp: Self::Moment) -> Result<(), DispatchError>;
+	fn settle_options() -> Result<(), DispatchError>;
 
 	fn exercise_option(
 		from: &Self::AccountId,

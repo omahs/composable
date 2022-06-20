@@ -938,8 +938,23 @@ pub mod pallet {
 		}
 
 		#[transactional]
-		fn settle_options(timestamp: Self::Moment) -> Result<(), DispatchError> {
-			Self::do_settle_options(timestamp)
+		fn settle_options() -> Result<(), DispatchError> {
+			let now = T::Time::now();
+
+			OptionIdToOption::<T>::iter().try_for_each(
+				|(option_id, option)| -> Result<(), DispatchError> {
+					// Check expiring date has passed
+					if now < option.expiring_date {
+						return Err(Error::<T>::OptionDoesNotExists.into()); //TODO
+					}
+
+					Self::do_settle_option(option_id, &option)
+				},
+			)?;
+
+			Self::deposit_event(Event::SettleOptions { timestamp: now });
+
+			Ok(())
 		}
 
 		#[transactional]
@@ -1270,99 +1285,29 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn do_settle_options(timestamp: MomentOf<T>) -> Result<(), DispatchError> {
-			OptionIdToOption::<T>::iter().for_each(|(option_id, option)| {
-				// Check expiring date has passed
-				if timestamp < option.expiring_date {
-					return;
-				}
-
-				// Calculate payoff based on Put/Call and add to the total to swap
-				match option.option_type {
-					OptionType::Call => Self::settle_call_options(option_id, &option),
-					OptionType::Put => Self::settle_call_options(option_id, &option),
-				};
-			});
-
-			Self::deposit_event(Event::SettleOptions { timestamp });
-
-			Ok(())
-		}
-
-		fn do_exercise_option(
-			from: &AccountIdOf<T>,
-			option_amount: BalanceOf<T>,
-			option_id: OptionIdOf<T>,
-			option: &mut OptionToken<T>,
-		) -> Result<(), DispatchError> {
-			ensure!(
-				option_amount != BalanceOf::<T>::zero(),
-				Error::<T>::CannotPassZeroOptionAmount
-			);
-
-			Self::deposit_event(Event::ExerciseOption {
-				user: from.clone(),
-				option_amount,
-				option_id,
-			});
-
-			Ok(())
-		}
-
-		// ----------------------------------------------------------------------------------------------------
-		//		Helper Functions
-		// ----------------------------------------------------------------------------------------------------
-		/// Protocol account for a particular asset
-		pub fn account_id(asset: AssetIdOf<T>) -> AccountIdOf<T> {
-			T::PalletId::get().into_sub_account(asset)
-		}
-
-		/// Calculate the hash of an option providing the required attributes
-		pub fn generate_id(
-			base_asset_id: AssetIdOf<T>,
-			quote_asset_id: AssetIdOf<T>,
-			base_asset_strike_price: BalanceOf<T>,
-			quote_asset_strike_price: BalanceOf<T>,
-			option_type: OptionType,
-			expiring_date: MomentOf<T>,
-			exercise_type: ExerciseType,
-		) -> H256 {
-			BlakeTwo256::hash_of(&(
-				base_asset_id,
-				quote_asset_id,
-				base_asset_strike_price,
-				quote_asset_strike_price,
-				option_type,
-				expiring_date,
-				exercise_type,
-			))
-		}
-
-		pub fn settle_call_options(
+		pub(crate) fn do_settle_option(
 			option_id: OptionIdOf<T>,
 			option: &OptionToken<T>,
 		) -> Result<(), DispatchError> {
 			// Get current asset's spot price
 			let base_asset_spot_price = Self::get_price(option.base_asset_id)?;
 
-			// Calculate amount of asset to reserve for buyers if the option is ITM
-			let collateral_for_buyers = if base_asset_spot_price >= option.base_asset_strike_price {
-				let diff = base_asset_spot_price
-					.checked_sub(&option.base_asset_strike_price)
-					.ok_or(ArithmeticError::Overflow)?;
-
-				let unit = T::LocalAssets::unit::<BalanceOf<T>>(option.base_asset_id)?;
-
-				Self::calculate_amount_for_buyers(diff, unit, base_asset_spot_price)?
-			} else {
-				// return Ok(BalanceOf::<T>::zero());
-				return Ok(());
+			// Different behaviors based on Call or Put option
+			let (asset_id, collateral_for_buyers) = match option.option_type {
+				OptionType::Call => (
+					option.base_asset_id,
+					Self::call_option_collateral_amount(base_asset_spot_price, &option)?,
+				),
+				OptionType::Put => (
+					option.quote_asset_id,
+					Self::put_option_collateral_amount(base_asset_spot_price, &option)?,
+				),
 			};
 
-			let protocol_account = Self::account_id(option.base_asset_id);
+			let protocol_account = Self::account_id(asset_id);
 
-			let vault_id = Self::asset_id_to_vault_id(option.base_asset_id)
-				.ok_or(Error::<T>::AssetVaultDoesNotExists)?;
+			let vault_id =
+				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
 			let shares_amount = VaultOf::<T>::calculate_lp_tokens_from_asset_amount(
 				&vault_id,
@@ -1415,22 +1360,100 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn get_price(asset_id: AssetIdOf<T>) -> Result<BalanceOf<T>, DispatchError> {
-			let unit = T::LocalAssets::unit::<BalanceOf<T>>(asset_id)?;
+		fn do_exercise_option(
+			from: &AccountIdOf<T>,
+			option_amount: BalanceOf<T>,
+			option_id: OptionIdOf<T>,
+			option: &mut OptionToken<T>,
+		) -> Result<(), DispatchError> {
+			ensure!(
+				option_amount != BalanceOf::<T>::zero(),
+				Error::<T>::CannotPassZeroOptionAmount
+			);
 
-			OracleOf::<T>::get_price(asset_id, unit)
-				.map(|p| p.price)
-				.map_err(|_| Error::<T>::AssetPriceNotFound.into())
+			Self::deposit_event(Event::ExerciseOption {
+				user: from.clone(),
+				option_amount,
+				option_id,
+			});
+
+			Ok(())
 		}
 
-		pub fn calculate_amount_for_buyers(
+		// ----------------------------------------------------------------------------------------------------
+		//		Helper Functions
+		// ----------------------------------------------------------------------------------------------------
+		/// Protocol account for a particular asset
+		pub fn account_id(asset_id: AssetIdOf<T>) -> AccountIdOf<T> {
+			T::PalletId::get().into_sub_account(asset_id)
+		}
+
+		/// Calculate the hash of an option providing the required attributes
+		pub fn generate_id(
+			base_asset_id: AssetIdOf<T>,
+			quote_asset_id: AssetIdOf<T>,
+			base_asset_strike_price: BalanceOf<T>,
+			quote_asset_strike_price: BalanceOf<T>,
+			option_type: OptionType,
+			expiring_date: MomentOf<T>,
+			exercise_type: ExerciseType,
+		) -> H256 {
+			BlakeTwo256::hash_of(&(
+				base_asset_id,
+				quote_asset_id,
+				base_asset_strike_price,
+				quote_asset_strike_price,
+				option_type,
+				expiring_date,
+				exercise_type,
+			))
+		}
+
+		pub fn call_option_collateral_amount(
+			base_asset_spot_price: BalanceOf<T>,
+			option: &OptionToken<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			// Calculate amount of asset to reserve for buyers if the option is ITM
+			let collateral_for_buyers = if base_asset_spot_price >= option.base_asset_strike_price {
+				let diff = base_asset_spot_price
+					.checked_sub(&option.base_asset_strike_price)
+					.ok_or(ArithmeticError::Overflow)?;
+
+				let unit = T::LocalAssets::unit::<BalanceOf<T>>(option.base_asset_id)?;
+
+				Self::calculate_amount_in_asset(diff, unit, base_asset_spot_price)?
+			} else {
+				BalanceOf::<T>::zero()
+			};
+
+			Ok(collateral_for_buyers)
+		}
+
+		pub fn put_option_collateral_amount(
+			base_asset_spot_price: BalanceOf<T>,
+			option: &OptionToken<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			// Calculate amount of asset to reserve for buyers if the option is ITM
+			let collateral_for_buyers = if option.base_asset_strike_price >= base_asset_spot_price {
+				option
+					.base_asset_strike_price
+					.checked_sub(&base_asset_spot_price)
+					.ok_or(ArithmeticError::Overflow)?
+			} else {
+				BalanceOf::<T>::zero()
+			};
+
+			Ok(collateral_for_buyers)
+		}
+
+		pub fn calculate_amount_in_asset(
 			diff: BalanceOf<T>,
 			unit: BalanceOf<T>,
-			base_asset_spot_price: BalanceOf<T>,
+			asset_spot_price: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			let a = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(diff);
 			let b = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(unit);
-			let c = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(base_asset_spot_price);
+			let c = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(asset_spot_price);
 
 			let asset_amount =
 				multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
@@ -1454,6 +1477,14 @@ pub mod pallet {
 
 			let shares_amount = <T::Convert as Convert<u128, BalanceOf<T>>>::convert(shares_amount);
 			Ok(shares_amount)
+		}
+
+		fn get_price(asset_id: AssetIdOf<T>) -> Result<BalanceOf<T>, DispatchError> {
+			let unit = T::LocalAssets::unit::<BalanceOf<T>>(asset_id)?;
+
+			OracleOf::<T>::get_price(asset_id, unit)
+				.map(|p| p.price)
+				.map_err(|_| Error::<T>::AssetPriceNotFound.into())
 		}
 
 		fn schedule_option(epoch: Epoch<MomentOf<T>>, option_id: OptionIdOf<T>) {
