@@ -28,34 +28,100 @@ use sp_runtime::ArithmeticError;
 //		Settle Options Tests
 // ----------------------------------------------------------------------------------------------------
 
-pub fn settle_options_success_checks(
-	option_hash: H256,
-	option_config: OptionConfig<AssetId, Balance, Moment>,
-	option_amount: Balance,
-	who: Public,
-) {
-	// Get info before extrinsic for checks
-	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+pub fn settle_options_success_checks(whos: &Vec<(Public, Balance)>) {
+	// let now = Timestamp::get();
 
-	// Call extrinsic
-	let now = Timestamp::get();
+	// let option_n = OptionIdToOption::<MockRuntime>::iter().count();
 
-	assert_ok!(<TokenizedOptions as TokenizedOptionsTrait>::settle_options(now));
+	for (option_id, option) in OptionIdToOption::<MockRuntime>::iter() {
+		// If option has not been sold, skip the check
+		// do_settle_option panics when trying to withdraw 0 from the vault
+		if option.total_issuance_seller == 0 {
+			continue;
+		}
 
-	// Check correct event
-	System::assert_last_event(Event::TokenizedOptions(pallet::Event::SettleOptions {
-		timestamp: now,
-	}));
+		let base_asset_spot_price = get_oracle_price(option.base_asset_id, UNIT);
+
+		let (asset_id, collateral_for_buyers) = match option.option_type {
+			OptionType::Call => (
+				option.base_asset_id,
+				TokenizedOptions::call_option_collateral_amount(base_asset_spot_price, &option)
+					.unwrap(),
+			),
+			OptionType::Put => (
+				option.quote_asset_id,
+				TokenizedOptions::put_option_collateral_amount(base_asset_spot_price, &option)
+					.unwrap(),
+			),
+		};
+
+		let total_collateral_for_buyers = collateral_for_buyers * Assets::total_issuance(option_id);
+		let protocol_account = TokenizedOptions::account_id(asset_id);
+		let initial_protocol_balance = Assets::balance(asset_id, &protocol_account);
+		let vault_id = AssetToVault::<MockRuntime>::get(asset_id).unwrap();
+		let initial_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
+		let shares_amount =
+			Vault::calculate_lp_tokens_from_asset_amount(&vault_id, collateral_for_buyers).unwrap();
+		let mut initial_user_positions: Vec<(Public, Balance)> = vec![];
+		for (user, _) in whos {
+			initial_user_positions.push((
+				*user,
+				Sellers::<MockRuntime>::try_get(option_id, user)
+					.unwrap_or_default()
+					.shares_amount,
+			));
+		}
+
+		// Call function
+		assert_ok!(TokenizedOptions::do_settle_option(option_id, &option));
+
+		// // Check correct event
+		// System::assert_last_event(Event::TokenizedOptions(pallet::Event::SettleOptions {
+		// 	timestamp: now,
+		// }));
+
+		let updated_protocol_balance = Assets::balance(asset_id, &protocol_account);
+		let updated_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
+		let mut updated_user_positions: Vec<(Public, Balance)> = vec![];
+		for (user, _) in whos {
+			updated_user_positions.push((
+				*user,
+				Sellers::<MockRuntime>::try_get(option_id, user)
+					.unwrap_or_default()
+					.shares_amount,
+			));
+		}
+
+		assert_eq!(
+			updated_protocol_balance,
+			initial_protocol_balance + total_collateral_for_buyers,
+		);
+
+		assert_eq!(updated_vault_balance, initial_vault_balance - total_collateral_for_buyers);
+
+		for (i, (user, user_option_amount)) in whos.iter().enumerate() {
+			assert_eq!(initial_user_positions[i].0, *user);
+			assert_eq!(updated_user_positions[i].0, *user);
+			assert_eq!(
+				updated_user_positions[i].1,
+				initial_user_positions[i].1 - shares_amount * user_option_amount
+			);
+		}
+	}
 }
 
 #[test]
 fn test_settle_options_with_initialization_success() {
 	ExtBuilder::default()
 		.initialize_balances(Vec::from([
-			(ALICE, BTC, 1 * 10u128.pow(12)),
-			(ALICE, USDC, 50000 * 10u128.pow(12)),
-			(BOB, BTC, 1 * 10u128.pow(12)),
-			(BOB, USDC, 50000 * 10u128.pow(12)),
+			(ALICE, BTC, 10 * UNIT),
+			(ALICE, USDC, 500000 * UNIT),
+			(BOB, BTC, 10 * UNIT),
+			(BOB, USDC, 500000 * UNIT),
+			(CHARLIE, BTC, 10 * UNIT),
+			(CHARLIE, USDC, 500000 * UNIT),
+			(DAVE, BTC, 10 * UNIT),
+			(DAVE, USDC, 500000 * UNIT),
 		]))
 		.build()
 		.initialize_oracle_prices()
@@ -97,22 +163,165 @@ fn test_settle_options_with_initialization_success() {
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
 			// Sell option and make checks
-			let option_amount = 1u128;
-			sell_option_success_checks(option_hash, option_config.clone(), option_amount, BOB);
+			let alice_option_amount = 5u128;
+			let bob_option_amount = 4u128;
+			let charlie_option_amount = 3u128;
+			let dave_option_amount = 6u128;
+
+			sell_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				alice_option_amount,
+				ALICE,
+			);
+
+			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
 
 			// Go to purchase window
 			run_to_block(3);
 
 			// Buy option
-			buy_option_success_checks(option_hash, option_config.clone(), option_amount, ALICE);
+			buy_option_success_checks(
+				option_hash,
+				option_config.clone(),
+				charlie_option_amount,
+				CHARLIE,
+			);
 
-			// BTC price moves from 50k to 55k
-			set_oracle_price(option_config.base_asset_id, 55000u128 * 10u128.pow(12));
+			buy_option_success_checks(option_hash, option_config.clone(), dave_option_amount, DAVE);
+
+			// BTC price moves from 50k to 55k, buyers are in profit
+			set_oracle_price(option_config.base_asset_id, 55000u128 * UNIT);
 
 			// Go to exercise window (option has expired so settlement can start)
 			run_to_block(6);
 
+			let whos = vec![(ALICE, alice_option_amount), (BOB, bob_option_amount)];
 			// Settle options
-			settle_options_success_checks(option_hash, option_config, option_amount, ALICE);
+			settle_options_success_checks(&whos);
+		});
+}
+
+#[test]
+fn test_settle_options_success_multiple_options() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 30 * UNIT),
+			(ALICE, USDC, 1500000 * UNIT),
+			(BOB, BTC, 30 * UNIT),
+			(BOB, USDC, 1500000 * UNIT),
+			(CHARLIE, BTC, 30 * UNIT),
+			(CHARLIE, USDC, 1500000 * UNIT),
+			(DAVE, BTC, 30 * UNIT),
+			(DAVE, USDC, 1500000 * UNIT),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			// Create default BTC option
+			let option_config_1 = OptionsConfigBuilder::default().build();
+			let option_config_2 = OptionsConfigBuilder::default()
+				.base_asset_strike_price(55000u128 * UNIT)
+				.build();
+
+			let option_hash_1 = TokenizedOptions::generate_id(
+				option_config_1.base_asset_id,
+				option_config_1.quote_asset_id,
+				option_config_1.base_asset_strike_price,
+				option_config_1.quote_asset_strike_price,
+				option_config_1.option_type,
+				option_config_1.expiring_date,
+				option_config_1.exercise_type,
+			);
+
+			let option_hash_2 = TokenizedOptions::generate_id(
+				option_config_2.base_asset_id,
+				option_config_2.quote_asset_id,
+				option_config_2.base_asset_strike_price,
+				option_config_2.quote_asset_strike_price,
+				option_config_2.option_type,
+				option_config_2.expiring_date,
+				option_config_2.exercise_type,
+			);
+
+			// Sell option and make checks
+			let alice_option_amount = 7u128;
+			let bob_option_amount = 9u128;
+			let charlie_option_amount = 1u128;
+			let dave_option_amount = 15u128;
+
+			sell_option_success_checks(
+				option_hash_1,
+				option_config_1.clone(),
+				alice_option_amount,
+				ALICE,
+			);
+
+			sell_option_success_checks(
+				option_hash_1,
+				option_config_1.clone(),
+				bob_option_amount,
+				BOB,
+			);
+
+			sell_option_success_checks(
+				option_hash_2,
+				option_config_2.clone(),
+				alice_option_amount,
+				ALICE,
+			);
+
+			sell_option_success_checks(
+				option_hash_2,
+				option_config_2.clone(),
+				bob_option_amount,
+				BOB,
+			);
+
+			// Go to purchase window
+			run_to_block(3);
+
+			// Buy option
+			buy_option_success_checks(
+				option_hash_1,
+				option_config_1.clone(),
+				charlie_option_amount,
+				CHARLIE,
+			);
+
+			buy_option_success_checks(
+				option_hash_1,
+				option_config_1.clone(),
+				dave_option_amount,
+				DAVE,
+			);
+
+			// Buy option
+			buy_option_success_checks(
+				option_hash_2,
+				option_config_2.clone(),
+				charlie_option_amount,
+				CHARLIE,
+			);
+
+			buy_option_success_checks(
+				option_hash_2,
+				option_config_2.clone(),
+				dave_option_amount,
+				DAVE,
+			);
+
+			// BTC price moves from 50k to 60k, all buyers are in profit
+			set_oracle_price(option_config_1.base_asset_id, 60000u128 * UNIT);
+			set_oracle_price(PICA, 2u128 * UNIT);
+
+			// Go to exercise window (option has expired so settlement can start)
+			run_to_block(6);
+
+			let whos = vec![(ALICE, alice_option_amount), (BOB, bob_option_amount)];
+			// Settle options
+			settle_options_success_checks(&whos);
 		});
 }

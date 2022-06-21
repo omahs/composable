@@ -731,13 +731,9 @@ pub mod pallet {
 			match Validated::new(vault_config) {
 				Ok(validated_vault_config) => Self::do_create_asset_vault(validated_vault_config),
 				Err(error) => match error {
-					"ValidateVaultDoesNotExist" => {
-						Err(DispatchError::from(Error::<T>::AssetVaultAlreadyExists))
-					},
-					"ValidateAssetIsSupported" => {
-						Err(DispatchError::from(Error::<T>::AssetIsNotSupported))
-					},
-					_ => Err(DispatchError::from(Error::<T>::UnexpectedError)),
+					"ValidateVaultDoesNotExist" => Err(Error::<T>::AssetVaultAlreadyExists.into()),
+					"ValidateAssetIsSupported" => Err(Error::<T>::AssetIsNotSupported.into()),
+					_ => Err(Error::<T>::UnexpectedError.into()),
 				},
 			}
 		}
@@ -777,16 +773,14 @@ pub mod pallet {
 			match Validated::new(option_config) {
 				Ok(validated_option_config) => Self::do_create_option(validated_option_config),
 				Err(error) => match error {
-					"ValidateOptionDoesNotExist" => {
-						Err(DispatchError::from(Error::<T>::OptionAlreadyExists))
-					},
+					"ValidateOptionDoesNotExist" => Err(Error::<T>::OptionAlreadyExists.into()),
 					"ValidateOptionAssetVaultsExist" => {
-						Err(DispatchError::from(Error::<T>::OptionAssetVaultsDoNotExist))
+						Err(Error::<T>::OptionAssetVaultsDoNotExist.into())
 					},
 					"ValidateOptionAttributes" => {
-						Err(DispatchError::from(Error::<T>::OptionAttributesAreInvalid))
+						Err(Error::<T>::OptionAttributesAreInvalid.into())
 					},
-					_ => Err(DispatchError::from(Error::<T>::UnexpectedError)),
+					_ => Err(Error::<T>::UnexpectedError.into()),
 				},
 			}
 		}
