@@ -192,7 +192,7 @@ fn external_and_public_interleaving_works() {
 			Origin::signed(2),
 			set_balance_proposal_hash_and_note(1),
 		));
-		assert_ok!(propose_set_balance_and_note(6, 2, 2));
+		assert_ok!(propose_set_balance_and_note(6, 2, BTC, 2));
 
 		fast_forward_to(2);
 
@@ -265,7 +265,7 @@ fn external_and_public_interleaving_works() {
 			Origin::signed(2),
 			set_balance_proposal_hash_and_note(7),
 		));
-		assert_ok!(propose_set_balance_and_note(6, 4, 2));
+		assert_ok!(propose_set_balance_and_note(6, 4, BTC, 2));
 
 		fast_forward_to(10);
 
@@ -281,7 +281,7 @@ fn external_and_public_interleaving_works() {
 			})
 		);
 		// replenish public again
-		assert_ok!(propose_set_balance_and_note(6, 6, 2));
+		assert_ok!(propose_set_balance_and_note(6, 6, BTC, 2));
 		// cancel external
 		let h = set_balance_proposal_hash_and_note(7);
 		assert_ok!(Democracy::veto_external(Origin::signed(3), h));

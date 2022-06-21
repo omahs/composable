@@ -18,7 +18,7 @@
 //! The crate's tests.
 
 use super::*;
-use crate as pallet_democracy;
+use crate as pallet_multitenant_democracy;
 use codec::Encode;
 use frame_support::{
 	assert_noop, assert_ok, ord_parameter_types, parameter_types,
@@ -55,6 +55,8 @@ const BIG_NAY: Vote = Vote { aye: false, conviction: Conviction::Locked1x };
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
+pub(crate) const BTC: u64 = 1;
+
 frame_support::construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -64,7 +66,8 @@ frame_support::construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Democracy: pallet_multitenant_democracy::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Tokens: orml_tokens::{Pallet, Call, Storage, Config<T>, Event<T>},
 	}
 );
 
@@ -138,26 +141,26 @@ impl pallet_scheduler::Config for Test {
 // 	type WeightInfo = ();
 // }
 
-// parameter_type_with_key! {
-// 	pub ExistentialDeposits: |_currency_id: u64| -> Balance {
-// 		Zero::zero()
-// 	};
-// }
+orml_traits::parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: u64| -> u64 {
+		Zero::zero()
+	};
+}
 
-// type ReserveIdentifier = [u8; 8];
-// impl orml_tokens::Config for Test {
-// 	type Event = Event;
-// 	type Balance = Balance;
-// 	type Amount = i128;
-// 	type CurrencyId = u64;
-// 	type WeightInfo = ();
-// 	type ExistentialDeposits = ExistentialDeposits;
-// 	type OnDust = ();
-// 	type MaxLocks = MaxLocks;
-// 	type ReserveIdentifier = ReserveIdentifier;
-// 	type MaxReserves = frame_support::traits::ConstU32<2>;
-// 	type DustRemovalWhitelist = Everything;
-// }
+// type ReserveIdentifier = ;
+impl orml_tokens::Config for Test {
+	type Event = Event;
+	type Balance = u64;
+	type Amount = i128;
+	type CurrencyId = u64;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = ();
+	type MaxLocks = ConstU32<10>;
+	type ReserveIdentifier = [u8; 8];
+	type MaxReserves = ConstU32<2>;
+	type DustRemovalWhitelist = frame_support::traits::Everything;
+}
 
 // parameter_types! {
 // 	pub const ExistentialDeposit: Balance = 1;
@@ -199,7 +202,8 @@ impl SortedMembers<u64> for OneToFive {
 impl Config for Test {
 	type Proposal = Call;
 	type Event = Event;
-	type MultiCurrency = pallet_balances::Pallet<Self>;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = Balances;
 	type EnactmentPeriod = ConstU64<2>;
 	type LaunchPeriod = ConstU64<2>;
 	type VotingPeriod = ConstU64<2>;
@@ -234,7 +238,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
-	pallet_democracy::GenesisConfig::<Test>::default()
+	pallet_multitenant_democracy::GenesisConfig::<Test>::default()
 		.assimilate_storage(&mut t)
 		.unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
@@ -285,12 +289,17 @@ fn set_balance_proposal_hash_and_note(value: u64) -> H256 {
 	h
 }
 
-fn propose_set_balance(who: u64, value: u64, delay: u64) -> DispatchResult {
-	Democracy::propose(Origin::signed(who), set_balance_proposal_hash(value), delay)
+fn propose_set_balance(who: u64, value: u64, asset_id: u64, delay: u64) -> DispatchResult {
+	Democracy::propose(Origin::signed(who), set_balance_proposal_hash(value), asset_id, delay)
 }
 
-fn propose_set_balance_and_note(who: u64, value: u64, delay: u64) -> DispatchResult {
-	Democracy::propose(Origin::signed(who), set_balance_proposal_hash_and_note(value), delay)
+fn propose_set_balance_and_note(who: u64, value: u64, asset_id: u64, delay: u64) -> DispatchResult {
+	Democracy::propose(
+		Origin::signed(who),
+		set_balance_proposal_hash_and_note(value),
+		asset_id,
+		delay,
+	)
 }
 
 fn next_block() {
@@ -307,7 +316,7 @@ fn fast_forward_to(n: u64) {
 
 fn begin_referendum() -> ReferendumIndex {
 	System::set_block_number(0);
-	assert_ok!(propose_set_balance_and_note(1, 2, 1));
+	assert_ok!(propose_set_balance_and_note(1, 2, BTC, 1));
 	fast_forward_to(2);
 	0
 }

@@ -51,7 +51,7 @@ fn split_vote_cancellation_should_work() {
 		assert_ok!(Democracy::vote(Origin::signed(5), r, v));
 		assert_ok!(Democracy::remove_vote(Origin::signed(5), r));
 		assert_eq!(tally(r), Tally { ayes: 0, nays: 0, turnout: 0 });
-		assert_ok!(Democracy::unlock(Origin::signed(5), 5));
+		assert_ok!(Democracy::unlock(Origin::signed(5), 5, BTC));
 		assert_eq!(Balances::locks(5), vec![]);
 	});
 }
@@ -60,7 +60,7 @@ fn split_vote_cancellation_should_work() {
 fn single_proposal_should_work() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		assert_ok!(propose_set_balance_and_note(1, 2, 1));
+		assert_ok!(propose_set_balance_and_note(1, 2, BTC, 1));
 		let r = 0;
 		assert!(Democracy::referendum_info(r).is_none());
 

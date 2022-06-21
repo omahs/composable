@@ -28,9 +28,20 @@ use frame_support::{
 	},
 };
 use frame_system::{Pallet as System, RawOrigin};
+use orml_traits::{
+	MultiCurrency as _, MultiCurrencyExtended as _, MultiLockableCurrency as _,
+	MultiReservableCurrency as _,
+};
 use sp_runtime::traits::{BadOrigin, Bounded, One};
 
 use crate::Pallet as Democracy;
+
+fn BTC<T: Config>() -> CurrencyIdOf<T>
+where
+	CurrencyIdOf<T>: One,
+{
+	CurrencyIdOf::<T>::one()
+}
 
 const SEED: u32 = 0;
 const MAX_REFERENDUMS: u32 = 99;
@@ -41,18 +52,23 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
-fn funded_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
+fn funded_account<T: Config>(
+	name: &'static str,
+	index: u32,
+	asset_id: CurrencyIdOf<T>,
+) -> T::AccountId {
 	let caller: T::AccountId = account(name, index, SEED);
-	T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+	T::NativeCurrency::make_free_balance_be(&caller, NativeBalanceOf::<T>::max_value());
+	T::MultiCurrency::deposit(asset_id, &caller, BalanceOf::<T>::max_value());
 	caller
 }
 
-fn add_proposal<T: Config>(n: u32) -> Result<T::Hash, &'static str> {
-	let other = funded_account::<T>("proposer", n);
+fn add_proposal<T: Config>(n: u32, asset_id: CurrencyIdOf<T>) -> Result<T::Hash, &'static str> {
+	let other = funded_account::<T>("proposer", n, asset_id);
 	let value = T::MinimumDeposit::get();
 	let proposal_hash: T::Hash = T::Hashing::hash_of(&n);
 
-	Democracy::<T>::propose(RawOrigin::Signed(other).into(), proposal_hash, value)?;
+	Democracy::<T>::propose(RawOrigin::Signed(other).into(), proposal_hash, asset_id, value)?;
 
 	Ok(proposal_hash)
 }
@@ -87,18 +103,24 @@ fn account_vote<T: Config>(b: BalanceOf<T>) -> AccountVote<BalanceOf<T>> {
 }
 
 benchmarks! {
+	where_clause {
+		where
+			T: Config,
+			CurrencyIdOf<T>: One,
+	}
+
 	propose {
 		let p = T::MaxProposals::get();
 
 		for i in 0 .. (p - 1) {
-			add_proposal::<T>(i)?;
+			add_proposal::<T>(i, BTC::<T>())?;
 		}
 
-		let caller = funded_account::<T>("caller", 0);
-		let proposal_hash: T::Hash = T::Hashing::hash_of(&0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
+		let proposal_hash: T::Hash = T::Hashing::hash_of(&0_u32);
 		let value = T::MinimumDeposit::get();
 		whitelist_account!(caller);
-	}: _(RawOrigin::Signed(caller), proposal_hash, value)
+	}: _(RawOrigin::Signed(caller), proposal_hash, BTC::<T>(), value)
 	verify {
 		assert_eq!(Democracy::<T>::public_props().len(), p as usize, "Proposals not created.");
 	}
@@ -106,12 +128,12 @@ benchmarks! {
 	second {
 		let s in 0 .. MAX_SECONDERS;
 
-		let caller = funded_account::<T>("caller", 0);
-		let proposal_hash = add_proposal::<T>(s)?;
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
+		let proposal_hash = add_proposal::<T>(s, BTC::<T>())?;
 
 		// Create s existing "seconds"
 		for i in 0 .. s {
-			let seconder = funded_account::<T>("seconder", i);
+			let seconder = funded_account::<T>("seconder", i, BTC::<T>());
 			Democracy::<T>::second(RawOrigin::Signed(seconder).into(), 0, u32::MAX)?;
 		}
 
@@ -127,7 +149,7 @@ benchmarks! {
 	vote_new {
 		let r in 1 .. MAX_REFERENDUMS;
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		let account_vote = account_vote::<T>(100u32.into());
 
 		// We need to create existing direct votes
@@ -155,7 +177,7 @@ benchmarks! {
 	vote_existing {
 		let r in 1 .. MAX_REFERENDUMS;
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		let account_vote = account_vote::<T>(100u32.into());
 
 		// We need to create existing direct votes
@@ -210,7 +232,7 @@ benchmarks! {
 
 		// Place our proposal at the end to make sure it's worst case.
 		for i in 0 .. p - 1 {
-			add_proposal::<T>(i)?;
+			add_proposal::<T>(i, BTC::<T>())?;
 		}
 		// We should really add a lot of seconds here, but we're not doing it elsewhere.
 
@@ -316,7 +338,7 @@ benchmarks! {
 
 		// Place our proposal at the end to make sure it's worst case.
 		for i in 0 .. p {
-			add_proposal::<T>(i)?;
+			add_proposal::<T>(i, BTC::<T>())?;
 		}
 	}: _(RawOrigin::Root, 0)
 
@@ -388,7 +410,7 @@ benchmarks! {
 		assert_eq!(Democracy::<T>::referendum_count(), r, "referenda not created");
 
 		// Launch public
-		assert!(add_proposal::<T>(r).is_ok(), "proposal not created");
+		assert!(add_proposal::<T>(r, BTC::<T>()).is_ok(), "proposal not created");
 		LastTabledWasExternal::<T>::put(true);
 
 		let block_number = T::LaunchPeriod::get();
@@ -478,14 +500,15 @@ benchmarks! {
 		let initial_balance: BalanceOf<T> = 100u32.into();
 		let delegated_balance: BalanceOf<T> = 1000u32.into();
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		// Caller will initially delegate to `old_delegate`
-		let old_delegate: T::AccountId = funded_account::<T>("old_delegate", r);
+		let old_delegate: T::AccountId = funded_account::<T>("old_delegate", r, BTC::<T>());
 		Democracy::<T>::delegate(
 			RawOrigin::Signed(caller.clone()).into(),
 			old_delegate.clone(),
 			Conviction::Locked1x,
 			delegated_balance,
+			BTC::<T>()
 		)?;
 		let (target, balance) = match VotingOf::<T>::get(&caller) {
 			Voting::Delegating { target, balance, .. } => (target, balance),
@@ -494,7 +517,7 @@ benchmarks! {
 		assert_eq!(target, old_delegate, "delegation target didn't work");
 		assert_eq!(balance, delegated_balance, "delegation balance didn't work");
 		// Caller will now switch to `new_delegate`
-		let new_delegate: T::AccountId = funded_account::<T>("new_delegate", r);
+		let new_delegate: T::AccountId = funded_account::<T>("new_delegate", r, BTC::<T>());
 		let account_vote = account_vote::<T>(initial_balance);
 		// We need to create existing direct votes for the `new_delegate`
 		for i in 0..r {
@@ -507,7 +530,7 @@ benchmarks! {
 		};
 		assert_eq!(votes.len(), r as usize, "Votes were not recorded.");
 		whitelist_account!(caller);
-	}: _(RawOrigin::Signed(caller.clone()), new_delegate.clone(), Conviction::Locked1x, delegated_balance)
+	}: _(RawOrigin::Signed(caller.clone()), new_delegate.clone(), Conviction::Locked1x, delegated_balance, BTC::<T>())
 	verify {
 		let (target, balance) = match VotingOf::<T>::get(&caller) {
 			Voting::Delegating { target, balance, .. } => (target, balance),
@@ -528,14 +551,15 @@ benchmarks! {
 		let initial_balance: BalanceOf<T> = 100u32.into();
 		let delegated_balance: BalanceOf<T> = 1000u32.into();
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		// Caller will delegate
-		let the_delegate: T::AccountId = funded_account::<T>("delegate", r);
+		let the_delegate: T::AccountId = funded_account::<T>("delegate", r, BTC::<T>());
 		Democracy::<T>::delegate(
 			RawOrigin::Signed(caller.clone()).into(),
 			the_delegate.clone(),
 			Conviction::Locked1x,
-			delegated_balance,
+			delegated_balance
+			, BTC::<T>()
 		)?;
 		let (target, balance) = match VotingOf::<T>::get(&caller) {
 			Voting::Delegating { target, balance, .. } => (target, balance),
@@ -569,7 +593,7 @@ benchmarks! {
 	}
 
 	clear_public_proposals {
-		add_proposal::<T>(0)?;
+		add_proposal::<T>(0, BTC::<T>())?;
 
 	}: _(RawOrigin::Root)
 
@@ -577,7 +601,7 @@ benchmarks! {
 		// Num of bytes in encoded proposal
 		let b in 0 .. MAX_BYTES;
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		let encoded_proposal = vec![1; b as usize];
 		whitelist_account!(caller);
 	}: _(RawOrigin::Signed(caller), encoded_proposal.clone())
@@ -599,7 +623,7 @@ benchmarks! {
 		let block_number = T::BlockNumber::one();
 		Preimages::<T>::insert(&proposal_hash, PreimageStatus::Missing(block_number));
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		let encoded_proposal = vec![1; b as usize];
 		whitelist_account!(caller);
 	}: _(RawOrigin::Signed(caller), encoded_proposal.clone())
@@ -618,7 +642,7 @@ benchmarks! {
 		let encoded_proposal = vec![1; b as usize];
 		let proposal_hash = T::Hashing::hash(&encoded_proposal[..]);
 
-		let submitter = funded_account::<T>("submitter", b);
+		let submitter = funded_account::<T>("submitter", b, BTC::<T>());
 		Democracy::<T>::note_preimage(RawOrigin::Signed(submitter).into(), encoded_proposal.clone())?;
 
 		// We need to set this otherwise we get `Early` error.
@@ -627,7 +651,7 @@ benchmarks! {
 
 		assert!(Preimages::<T>::contains_key(proposal_hash));
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		whitelist_account!(caller);
 	}: _(RawOrigin::Signed(caller), proposal_hash, u32::MAX)
 	verify {
@@ -639,7 +663,7 @@ benchmarks! {
 	unlock_remove {
 		let r in 1 .. MAX_REFERENDUMS;
 
-		let locker = funded_account::<T>("locker", 0);
+		let locker = funded_account::<T>("locker", 0, BTC::<T>());
 		// Populate votes so things are locked
 		let base_balance: BalanceOf<T> = 100u32.into();
 		let small_vote = account_vote::<T>(base_balance);
@@ -650,9 +674,9 @@ benchmarks! {
 			Democracy::<T>::remove_vote(RawOrigin::Signed(locker.clone()).into(), ref_idx)?;
 		}
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		whitelist_account!(caller);
-	}: unlock(RawOrigin::Signed(caller), locker.clone())
+	}: unlock(RawOrigin::Signed(caller), locker.clone(), BTC::<T>())
 	verify {
 		// Note that we may want to add a `get_lock` api to actually verify
 		let voting = VotingOf::<T>::get(&locker);
@@ -663,7 +687,7 @@ benchmarks! {
 	unlock_set {
 		let r in 1 .. MAX_REFERENDUMS;
 
-		let locker = funded_account::<T>("locker", 0);
+		let locker = funded_account::<T>("locker", 0, BTC::<T>());
 		// Populate votes so things are locked
 		let base_balance: BalanceOf<T> = 100u32.into();
 		let small_vote = account_vote::<T>(base_balance);
@@ -688,9 +712,9 @@ benchmarks! {
 
 		Democracy::<T>::remove_vote(RawOrigin::Signed(locker.clone()).into(), referendum_index)?;
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		whitelist_account!(caller);
-	}: unlock(RawOrigin::Signed(caller), locker.clone())
+	}: unlock(RawOrigin::Signed(caller), locker.clone(), BTC::<T>())
 	verify {
 		let votes = match VotingOf::<T>::get(&locker) {
 			Voting::Direct { votes, .. } => votes,
@@ -706,7 +730,7 @@ benchmarks! {
 	remove_vote {
 		let r in 1 .. MAX_REFERENDUMS;
 
-		let caller = funded_account::<T>("caller", 0);
+		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		let account_vote = account_vote::<T>(100u32.into());
 
 		for i in 0 .. r {
@@ -735,7 +759,7 @@ benchmarks! {
 	remove_other_vote {
 		let r in 1 .. MAX_REFERENDUMS;
 
-		let caller = funded_account::<T>("caller", r);
+		let caller = funded_account::<T>("caller", r, BTC::<T>());
 		let account_vote = account_vote::<T>(100u32.into());
 
 		for i in 0 .. r {
@@ -765,7 +789,7 @@ benchmarks! {
 		// Num of bytes in encoded proposal
 		let b in 0 .. MAX_BYTES;
 
-		let proposer = funded_account::<T>("proposer", 0);
+		let proposer = funded_account::<T>("proposer", 0, BTC::<T>());
 		let raw_call = Call::note_preimage { encoded_proposal: vec![1; b as usize] };
 		let generic_call: T::Proposal = raw_call.into();
 		let encoded_proposal = generic_call.encode();
@@ -787,7 +811,7 @@ benchmarks! {
 		// Num of bytes in encoded proposal
 		let b in 0 .. MAX_BYTES;
 
-		let proposer = funded_account::<T>("proposer", 0);
+		let proposer = funded_account::<T>("proposer", 0, BTC::<T>());
 		// Random invalid bytes
 		let encoded_proposal = vec![200; b as usize];
 		let proposal_hash = T::Hashing::hash(&encoded_proposal[..]);

@@ -24,26 +24,26 @@ fn single_proposal_should_work_with_delegation() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
 
-		assert_ok!(propose_set_balance_and_note(1, 2, 1));
+		assert_ok!(propose_set_balance_and_note(1, 2, BTC, 1));
 
 		fast_forward_to(2);
 
 		// Delegate first vote.
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20, BTC));
 		let r = 0;
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 		assert_eq!(tally(r), Tally { ayes: 3, nays: 0, turnout: 30 });
 
 		// Delegate a second vote.
-		assert_ok!(Democracy::delegate(Origin::signed(3), 1, Conviction::None, 30));
+		assert_ok!(Democracy::delegate(Origin::signed(3), 1, Conviction::None, 30, BTC));
 		assert_eq!(tally(r), Tally { ayes: 6, nays: 0, turnout: 60 });
 
 		// Reduce first vote.
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 10));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 10, BTC));
 		assert_eq!(tally(r), Tally { ayes: 5, nays: 0, turnout: 50 });
 
 		// Second vote delegates to first; we don't do tiered delegation, so it doesn't get used.
-		assert_ok!(Democracy::delegate(Origin::signed(3), 2, Conviction::None, 30));
+		assert_ok!(Democracy::delegate(Origin::signed(3), 2, Conviction::None, 30, BTC));
 		assert_eq!(tally(r), Tally { ayes: 2, nays: 0, turnout: 20 });
 
 		// Main voter cancels their vote
@@ -51,7 +51,7 @@ fn single_proposal_should_work_with_delegation() {
 		assert_eq!(tally(r), Tally { ayes: 0, nays: 0, turnout: 0 });
 
 		// First delegator delegates half funds with conviction; nothing changes yet.
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::Locked1x, 10));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::Locked1x, 10, BTC));
 		assert_eq!(tally(r), Tally { ayes: 0, nays: 0, turnout: 0 });
 
 		// Main voter reinstates their vote
@@ -64,7 +64,7 @@ fn single_proposal_should_work_with_delegation() {
 fn self_delegation_not_allowed() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Democracy::delegate(Origin::signed(1), 1, Conviction::None, 10),
+			Democracy::delegate(Origin::signed(1), 1, Conviction::None, 10, BTC),
 			Error::<Test>::Nonsense,
 		);
 	});
@@ -75,14 +75,14 @@ fn cyclic_delegation_should_unwind() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
 
-		assert_ok!(propose_set_balance_and_note(1, 2, 1));
+		assert_ok!(propose_set_balance_and_note(1, 2, BTC, 1));
 
 		fast_forward_to(2);
 
 		// Check behavior with cycle.
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20));
-		assert_ok!(Democracy::delegate(Origin::signed(3), 2, Conviction::None, 30));
-		assert_ok!(Democracy::delegate(Origin::signed(1), 3, Conviction::None, 10));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20, BTC));
+		assert_ok!(Democracy::delegate(Origin::signed(3), 2, Conviction::None, 30, BTC));
+		assert_ok!(Democracy::delegate(Origin::signed(1), 3, Conviction::None, 10, BTC));
 		let r = 0;
 		assert_ok!(Democracy::undelegate(Origin::signed(3)));
 		assert_ok!(Democracy::vote(Origin::signed(3), r, aye(3)));
@@ -100,7 +100,7 @@ fn single_proposal_should_work_with_vote_and_delegation() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
 
-		assert_ok!(propose_set_balance_and_note(1, 2, 1));
+		assert_ok!(propose_set_balance_and_note(1, 2, BTC, 1));
 
 		fast_forward_to(2);
 
@@ -111,7 +111,7 @@ fn single_proposal_should_work_with_vote_and_delegation() {
 
 		// Delegate vote.
 		assert_ok!(Democracy::remove_vote(Origin::signed(2), r));
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20, BTC));
 		// Delegated vote replaces the explicit vote.
 		assert_eq!(tally(r), Tally { ayes: 3, nays: 0, turnout: 30 });
 	});
@@ -122,10 +122,10 @@ fn single_proposal_should_work_with_undelegation() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
 
-		assert_ok!(propose_set_balance_and_note(1, 2, 1));
+		assert_ok!(propose_set_balance_and_note(1, 2, BTC, 1));
 
 		// Delegate and undelegate vote.
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20, BTC));
 		assert_ok!(Democracy::undelegate(Origin::signed(2)));
 
 		fast_forward_to(2);
@@ -144,7 +144,7 @@ fn single_proposal_should_work_with_delegation_and_vote() {
 		let r = begin_referendum();
 		// Delegate, undelegate and vote.
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::None, 20, BTC));
 		assert_eq!(tally(r), Tally { ayes: 3, nays: 0, turnout: 30 });
 		assert_ok!(Democracy::undelegate(Origin::signed(2)));
 		assert_ok!(Democracy::vote(Origin::signed(2), r, aye(2)));
@@ -159,7 +159,7 @@ fn conviction_should_be_honored_in_delegation() {
 	new_test_ext().execute_with(|| {
 		let r = begin_referendum();
 		// Delegate and vote.
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::Locked6x, 20));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::Locked6x, 20, BTC));
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 		// Delegated vote is huge.
 		assert_eq!(tally(r), Tally { ayes: 121, nays: 0, turnout: 30 });
@@ -171,7 +171,7 @@ fn split_vote_delegation_should_be_ignored() {
 	// If transactor voted, delegated vote is overwritten.
 	new_test_ext().execute_with(|| {
 		let r = begin_referendum();
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::Locked6x, 20));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::Locked6x, 20, BTC));
 		assert_ok!(Democracy::vote(Origin::signed(1), r, AccountVote::Split { aye: 10, nay: 0 }));
 		// Delegated vote is huge.
 		assert_eq!(tally(r), Tally { ayes: 1, nays: 0, turnout: 10 });
@@ -184,7 +184,7 @@ fn redelegation_keeps_lock() {
 	new_test_ext().execute_with(|| {
 		let r = begin_referendum();
 		// Delegate and vote.
-		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::Locked6x, 20));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 1, Conviction::Locked6x, 20, BTC));
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 		// Delegated vote is huge.
 		assert_eq!(tally(r), Tally { ayes: 121, nays: 0, turnout: 30 });
@@ -196,14 +196,14 @@ fn redelegation_keeps_lock() {
 		assert_eq!(VotingOf::<Test>::get(2).prior(), &prior_lock);
 
 		// Delegate someone else at a lower conviction and amount
-		assert_ok!(Democracy::delegate(Origin::signed(2), 3, Conviction::None, 10));
+		assert_ok!(Democracy::delegate(Origin::signed(2), 3, Conviction::None, 10, BTC));
 
 		// 6x prior should appear w/ locked balance.
 		prior_lock.accumulate(98, 20);
 		assert_eq!(VotingOf::<Test>::get(2).prior(), &prior_lock);
 		assert_eq!(VotingOf::<Test>::get(2).locked_balance(), 20);
 		// Unlock shouldn't work
-		assert_ok!(Democracy::unlock(Origin::signed(2), 2));
+		assert_ok!(Democracy::unlock(Origin::signed(2), 2, BTC));
 		assert_eq!(VotingOf::<Test>::get(2).prior(), &prior_lock);
 		assert_eq!(VotingOf::<Test>::get(2).locked_balance(), 20);
 
@@ -211,7 +211,7 @@ fn redelegation_keeps_lock() {
 
 		// Now unlock can remove the prior lock and reduce the locked amount.
 		assert_eq!(VotingOf::<Test>::get(2).prior(), &prior_lock);
-		assert_ok!(Democracy::unlock(Origin::signed(2), 2));
+		assert_ok!(Democracy::unlock(Origin::signed(2), 2, BTC));
 		assert_eq!(VotingOf::<Test>::get(2).prior(), &vote::PriorLock::default());
 		assert_eq!(VotingOf::<Test>::get(2).locked_balance(), 10);
 	});

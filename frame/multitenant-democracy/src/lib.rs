@@ -163,7 +163,7 @@ use frame_support::{
 	},
 	weights::Weight,
 };
-use orml_traits::MultiCurrency;
+use orml_traits::{MultiCurrency, MultiLockableCurrency, MultiReservableCurrency};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Bounded, Dispatchable, Hash, Saturating, Zero},
@@ -252,6 +252,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use orml_traits::{MultiLockableCurrency, MultiReservableCurrency};
+	use sp_runtime::traits::One;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -407,7 +408,7 @@ pub mod pallet {
 	///
 	/// TWOX-NOTE: Safe, as increasing integer keys are safe.
 	#[pallet::storage]
-	#[pallet::getter(fn deposit_of)]
+	#[pallet::getter(fn native_deposit_of)]
 	pub type NativeDepositOf<T: Config> =
 		StorageMap<_, Twox64Concat, PropIndex, (T::AccountId, NativeBalanceOf<T>)>;
 
@@ -1136,13 +1137,7 @@ pub mod pallet {
 			);
 			ensure!(expiry.map_or(true, |e| now > e), Error::<T>::Imminent);
 
-			let (proposal_index, ..) = PublicProps::<T>::get()
-				.iter()
-				.find(|proposal| proposal.1 == proposal_hash)
-				.ok_or(Error::<T>::ProposalMissing)?;
-
-			let asset_id =
-				AssetForProposal::<T>::get(proposal_index).ok_or(Error::<T>::ProposalMissing)?;
+			let asset_id = Self::asset_for_proposal_hash(proposal_hash)?;
 
 			let res = T::MultiCurrency::repatriate_reserved(
 				asset_id,
@@ -1173,9 +1168,13 @@ pub mod pallet {
 			T::WeightInfo::unlock_set(T::MaxVotes::get())
 				.max(T::WeightInfo::unlock_remove(T::MaxVotes::get()))
 		)]
-		pub fn unlock(origin: OriginFor<T>, target: T::AccountId) -> DispatchResult {
+		pub fn unlock(
+			origin: OriginFor<T>,
+			target: T::AccountId,
+			asset_id: CurrencyIdOf<T>,
+		) -> DispatchResult {
 			ensure_signed(origin)?;
-			Self::update_lock(&target);
+			Self::update_lock(&target, asset_id);
 			Ok(())
 		}
 
@@ -1281,6 +1280,8 @@ pub mod pallet {
 			PublicProps::<T>::mutate(|props| {
 				if let Some(index) = props.iter().position(|p| p.1 == proposal_hash) {
 					let (prop_index, _, proposer) = props.remove(index);
+
+					// slash the depositors
 					if let Some((whos, amount)) = DepositOf::<T>::take(prop_index) {
 						let asset_id = AssetForProposal::<T>::get(prop_index)
 							.ok_or(Error::<T>::ProposalMissing)?;
@@ -1288,14 +1289,17 @@ pub mod pallet {
 						for who in whos.into_iter() {
 							T::MultiCurrency::slash_reserved(asset_id, &who, amount);
 						}
-						// slash the proposer in the native token they staked
+					}
+
+					// slash the proposer in the native token they staked
+					if let Some((who, native_deposit)) = NativeDepositOf::<T>::take(prop_index) {
 						T::Slash::on_unbalanced(
-							T::NativeCurrency::slash_reserved(&proposer, amount).0,
+							T::NativeCurrency::slash_reserved(&who, native_deposit).0,
 						);
 					}
 				}
 
-				Ok(())
+				Ok::<_, Error<T>>(())
 			})?;
 
 			// Remove the external queued referendum, if it's there.
@@ -1332,9 +1336,15 @@ pub mod pallet {
 
 			PublicProps::<T>::mutate(|props| props.retain(|p| p.0 != prop_index));
 			if let Some((whos, amount)) = DepositOf::<T>::take(prop_index) {
+				let asset_id =
+					AssetForProposal::<T>::get(prop_index).ok_or(Error::<T>::ProposalMissing)?;
 				for who in whos.into_iter() {
-					T::Slash::on_unbalanced(T::MultiCurrency::slash_reserved(&who, amount).0);
+					T::MultiCurrency::slash_reserved(asset_id, &who, amount);
 				}
+			}
+
+			if let Some((who, amount)) = NativeDepositOf::<T>::take(prop_index) {
+				T::NativeCurrency::slash_reserved(&who, amount);
 			}
 
 			Ok(())
@@ -1344,6 +1354,20 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	// exposed immutables.
+
+	pub fn asset_for_proposal_hash(
+		proposal_hash: T::Hash,
+	) -> Result<CurrencyIdOf<T>, DispatchError> {
+		let (proposal_index, ..) = PublicProps::<T>::get()
+			.into_iter()
+			.find(|proposal| proposal.1 == proposal_hash)
+			.ok_or(Error::<T>::ProposalMissing)?;
+
+		let asset_id =
+			AssetForProposal::<T>::get(proposal_index).ok_or(Error::<T>::ProposalMissing)?;
+
+		Ok(asset_id)
+	}
 
 	/// Get the amount locked in support of `proposal`; `None` if proposal isn't a valid proposal
 	/// index.
@@ -1423,8 +1447,10 @@ impl<T: Config> Pallet<T> {
 		vote: AccountVote<BalanceOf<T>>,
 	) -> DispatchResult {
 		let mut status = Self::referendum_status(ref_index)?;
+		let asset_id =
+			AssetForReferendum::<T>::get(ref_index).ok_or(Error::<T>::ProposalMissing)?;
 		ensure!(
-			vote.balance() <= T::MultiCurrency::free_balance(who),
+			vote.balance() <= T::MultiCurrency::free_balance(asset_id, who),
 			Error::<T>::InsufficientFunds
 		);
 		VotingOf::<T>::try_mutate(who, |voting| -> DispatchResult {
@@ -1457,9 +1483,12 @@ impl<T: Config> Pallet<T> {
 				Err(Error::<T>::AlreadyDelegating.into())
 			}
 		})?;
+
+		let asset_id =
+			AssetForReferendum::<T>::get(ref_index).ok_or(Error::<T>::ReferendumInvalid)?;
 		// Extend the lock to `balance` (rather than setting it) since we don't know what other
 		// votes are in place.
-		T::MultiCurrency::extend_lock(DEMOCRACY_ID, who, vote.balance(), WithdrawReasons::TRANSFER);
+		T::MultiCurrency::extend_lock(DEMOCRACY_ID, asset_id, who, vote.balance());
 		ReferendumInfoOf::<T>::insert(ref_index, ReferendumInfo::Ongoing(status));
 		Ok(())
 	}
@@ -1609,7 +1638,7 @@ impl<T: Config> Pallet<T> {
 			let votes = Self::increase_upstream_delegation(&target, conviction.votes(balance));
 			// Extend the lock to `balance` (rather than setting it) since we don't know what other
 			// votes are in place.
-			T::MultiCurrency::extend_lock(DEMOCRACY_ID, &who, balance, WithdrawReasons::TRANSFER);
+			T::MultiCurrency::extend_lock(DEMOCRACY_ID, asset_id, &who, balance);
 			Ok(votes)
 		})?;
 		Self::deposit_event(Event::<T>::Delegated { who, target });
@@ -1646,15 +1675,15 @@ impl<T: Config> Pallet<T> {
 
 	/// Rejig the lock on an account. It will never get more stringent (since that would indicate
 	/// a security hole) but may be reduced from what they are currently.
-	fn update_lock(who: &T::AccountId) {
+	fn update_lock(who: &T::AccountId, asset_id: CurrencyIdOf<T>) {
 		let lock_needed = VotingOf::<T>::mutate(who, |voting| {
 			voting.rejig(frame_system::Pallet::<T>::block_number());
 			voting.locked_balance()
 		});
 		if lock_needed.is_zero() {
-			T::MultiCurrency::remove_lock(DEMOCRACY_ID, who);
+			T::MultiCurrency::remove_lock(DEMOCRACY_ID, asset_id, who);
 		} else {
-			T::MultiCurrency::set_lock(DEMOCRACY_ID, who, lock_needed, WithdrawReasons::TRANSFER);
+			T::MultiCurrency::set_lock(DEMOCRACY_ID, asset_id, who, lock_needed);
 		}
 	}
 
@@ -1717,11 +1746,14 @@ impl<T: Config> Pallet<T> {
 					AssetForProposal::<T>::get(prop_index).ok_or(Error::<T>::ProposalMissing)?;
 
 				// refund depositors
-				for who in whos.into_iter() {
-					T::MultiCurrency::unreserve(asset_id, &who, amount);
+				for who in depositors.iter() {
+					T::MultiCurrency::unreserve(asset_id, who, deposit);
 				}
-				// refund the proposer in the native token they staked
-				T::NativeCurrency::unreserve(&proposer, amount);
+
+				if let Some((who, native_deposit)) = NativeDepositOf::<T>::take(prop_index) {
+					// refund the proposer in the native token they staked
+					T::NativeCurrency::unreserve(&who, native_deposit);
+				}
 				Self::deposit_event(Event::<T>::Tabled {
 					proposal_index: prop_index,
 					deposit,
@@ -1744,7 +1776,8 @@ impl<T: Config> Pallet<T> {
 		let preimage = <Preimages<T>>::take(&proposal_hash);
 		if let Some(PreimageStatus::Available { data, provider, deposit, .. }) = preimage {
 			if let Ok(proposal) = T::Proposal::decode(&mut &data[..]) {
-				let err_amount = T::MultiCurrency::unreserve(&provider, deposit);
+				let asset_id = Self::asset_for_proposal_hash(proposal_hash)?;
+				let err_amount = T::MultiCurrency::unreserve(asset_id, &provider, deposit);
 				debug_assert!(err_amount.is_zero());
 				Self::deposit_event(Event::<T>::PreimageUsed { proposal_hash, provider, deposit });
 
@@ -1757,10 +1790,9 @@ impl<T: Config> Pallet<T> {
 				Ok(())
 			} else {
 				let asset_id =
-					AssetForProposal::<T>::get(prop_index).ok_or(Error::<T>::ProposalMissing)?;
+					AssetForReferendum::<T>::get(index).ok_or(Error::<T>::ProposalMissing)?;
 
-				T::MultiCurrency::slash_reserved(asset_id, &who, amount);
-				T::Slash::on_unbalanced(T::MultiCurrency::slash_reserved(&provider, deposit).0);
+				T::MultiCurrency::slash_reserved(asset_id, &provider, deposit);
 				Self::deposit_event(Event::<T>::PreimageInvalid {
 					proposal_hash,
 					ref_index: index,
@@ -1854,9 +1886,14 @@ impl<T: Config> Pallet<T> {
 
 		// tally up votes for any expiring referenda.
 		for (index, info) in Self::maturing_referenda_at_inner(now, next..last).into_iter() {
-			let approved = Self::bake_referendum(now, index, info);
-			ReferendumInfoOf::<T>::insert(index, ReferendumInfo::Finished { end: now, approved });
-			weight = max_block_weight;
+			// REVIEW(benluelo): Error handling here?
+			if let Ok(approved) = Self::bake_referendum(now, index, info) {
+				ReferendumInfoOf::<T>::insert(
+					index,
+					ReferendumInfo::Finished { end: now, approved },
+				);
+				weight = max_block_weight;
+			}
 		}
 
 		// Notes:
@@ -1955,7 +1992,10 @@ impl<T: Config> Pallet<T> {
 
 		let deposit = <BalanceOf<T>>::from(encoded_proposal.len() as u32)
 			.saturating_mul(T::PreimageByteDeposit::get());
-		T::MultiCurrency::reserve(&who, deposit)?;
+		dbg!();
+		let asset_id = Self::asset_for_proposal_hash(proposal_hash)?;
+		dbg!();
+		T::MultiCurrency::reserve(asset_id, &who, deposit)?;
 
 		let now = <frame_system::Pallet<T>>::block_number();
 		let a = PreimageStatus::Available {
