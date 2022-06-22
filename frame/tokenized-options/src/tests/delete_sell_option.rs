@@ -30,10 +30,11 @@ pub fn delete_sell_option_success_checks(
 	option_amount: Balance,
 	who: Public,
 ) {
-	// Get info before extrinsic for checks
 	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
-	// Different behaviors based on Call or Put option
+	// ---------------------------
+	// |  Data before extrinsic  |
+	// ---------------------------
 	let asset_id = match option_config.option_type {
 		OptionType::Call => option_config.base_asset_id,
 		OptionType::Put => option_config.quote_asset_id,
@@ -54,15 +55,18 @@ pub fn delete_sell_option_success_checks(
 
 	let asset_amount = Vault::lp_share_value(&vault_id, shares_amount).unwrap();
 
-	// Call exstrinsic
+	// Call exstrinsic and check event
 	assert_ok!(TokenizedOptions::delete_sell_option(Origin::signed(who), option_amount, option_id));
 
-	// Check correct event
 	System::assert_last_event(Event::TokenizedOptions(pallet::Event::DeleteSellOption {
 		seller: who,
 		option_amount,
 		option_id,
 	}));
+
+	// ---------------------------
+	// |  Data after extrinsic  |
+	// ---------------------------
 
 	// Check seller position is saved
 	if shares_amount == initial_user_position.shares_amount {

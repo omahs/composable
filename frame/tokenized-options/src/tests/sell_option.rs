@@ -30,10 +30,11 @@ pub fn sell_option_success_checks(
 	option_amount: Balance,
 	who: Public,
 ) {
-	// Get info before extrinsic for checks
 	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
-	// Different behaviors based on Call or Put option
+	// ---------------------------
+	// |  Data before extrinsic  |
+	// ---------------------------
 	let (asset_id, asset_amount) = match option_config.option_type {
 		OptionType::Call => {
 			(option_config.base_asset_id, option_config.base_asset_amount_per_option)
@@ -41,28 +42,31 @@ pub fn sell_option_success_checks(
 		OptionType::Put => (option_config.quote_asset_id, option_config.base_asset_strike_price),
 	};
 
-	let asset_amount = asset_amount * option_amount;
 	let vault_id = AssetToVault::<MockRuntime>::get(asset_id).unwrap();
 	let lp_token_id = <Vault as VaultTrait>::lp_asset_id(&vault_id).unwrap();
 	let protocol_account = TokenizedOptions::account_id(asset_id);
-	let shares_amount =
-		<Vault as VaultTrait>::calculate_lp_tokens_to_mint(&vault_id, asset_amount).unwrap();
-
 	let initial_issuance_seller =
 		OptionIdToOption::<MockRuntime>::get(option_id).unwrap().total_issuance_seller;
 	let initial_user_balance = Assets::balance(asset_id, &who);
 	let initial_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
 	let initial_user_position = Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or_default();
 
-	// Call extrinsic
+	let asset_amount = asset_amount * option_amount;
+	let shares_amount =
+		<Vault as VaultTrait>::calculate_lp_tokens_to_mint(&vault_id, asset_amount).unwrap();
+
+	// Call extrinsic and check event
 	assert_ok!(TokenizedOptions::sell_option(Origin::signed(who), option_amount, option_id));
 
-	// Check correct event
 	System::assert_last_event(Event::TokenizedOptions(pallet::Event::SellOption {
 		seller: who,
 		option_amount,
 		option_id,
 	}));
+
+	// ---------------------------
+	// |  Data after extrinsic  |
+	// ---------------------------
 
 	// Check seller position is saved
 	assert!(Sellers::<MockRuntime>::contains_key(option_id, who));
@@ -147,6 +151,7 @@ fn test_sell_option_with_initialization_success() {
 
 			// Perform extrinsic and make checks
 			let option_amount = 1u128;
+
 			sell_option_success_checks(option_hash, option_config, option_amount, BOB);
 		});
 }
@@ -174,7 +179,7 @@ fn test_sell_option_success() {
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
-			let option_amount = 7u128; // Same as BOB's balance
+			let option_amount = 7u128;
 
 			sell_option_success_checks(option_hash, option_config, option_amount, BOB);
 		});

@@ -33,29 +33,31 @@ pub fn buy_option_success_checks(
 	option_amount: Balance,
 	who: Public,
 ) {
-	// Get info before extrinsic for checks
 	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 	let asset_id = USDC;
+	let option_premium = TokenizedOptions::fake_option_price().unwrap() * option_amount;
 
+	// ---------------------------
+	// |  Data before extrinsic  |
+	// ---------------------------
 	let protocol_account = TokenizedOptions::account_id(asset_id);
-
 	let initial_issuance_buyer = Assets::total_issuance(option_id);
 	let initial_user_balance_options = Assets::balance(option_id, &who);
 	let initial_user_balance = Assets::balance(asset_id, &who);
 	let initial_protocol_balance = Assets::balance(asset_id, &protocol_account);
 
-	// Call extrinsic
+	// Call extrinsic and check event
 	assert_ok!(TokenizedOptions::buy_option(Origin::signed(who), option_amount, option_id));
 
-	// Check correct event
 	System::assert_last_event(Event::TokenizedOptions(pallet::Event::BuyOption {
 		buyer: who,
 		option_amount,
 		option_id,
 	}));
 
-	let option_premium = TokenizedOptions::fake_option_price().unwrap() * option_amount;
-
+	// ---------------------------
+	// |  Data after extrinsic  |
+	// ---------------------------
 	// Check buyer balance after sale has premium subtracted
 	assert_eq!(Assets::balance(asset_id, &who), initial_user_balance - option_premium);
 
@@ -70,7 +72,6 @@ pub fn buy_option_success_checks(
 
 	// Check position is updated correctly
 	let updated_issuance_buyer = Assets::total_issuance(option_id);
-
 	assert_eq!(updated_issuance_buyer, initial_issuance_buyer + option_amount)
 }
 

@@ -318,9 +318,30 @@ impl OptionInitializer for sp_io::TestExternalities {
 					.base_asset_strike_price(price3)
 					.build();
 
+				let config4 = OptionsConfigBuilder::default()
+					.option_type(OptionType::Put)
+					.base_asset_id(asset)
+					.base_asset_strike_price(price)
+					.build();
+
+				let config5 = OptionsConfigBuilder::default()
+					.option_type(OptionType::Put)
+					.base_asset_id(asset)
+					.base_asset_strike_price(price2)
+					.build();
+
+				let config6 = OptionsConfigBuilder::default()
+					.option_type(OptionType::Put)
+					.base_asset_id(asset)
+					.base_asset_strike_price(price3)
+					.build();
+
 				TokenizedOptions::create_option(Origin::signed(ADMIN), config).ok();
 				TokenizedOptions::create_option(Origin::signed(ADMIN), config2).ok();
 				TokenizedOptions::create_option(Origin::signed(ADMIN), config3).ok();
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config4).ok();
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config5).ok();
+				TokenizedOptions::create_option(Origin::signed(ADMIN), config6).ok();
 			});
 		});
 
