@@ -1298,6 +1298,15 @@ pub mod pallet {
 				),
 			};
 
+			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
+
+			// Option is out of money or has not been sold
+			if collateral_for_buyers == BalanceOf::<T>::zero()
+				|| total_issuance_buyer == BalanceOf::<T>::zero()
+			{
+				return Ok(());
+			}
+
 			let protocol_account = Self::account_id(asset_id);
 
 			let vault_id =
