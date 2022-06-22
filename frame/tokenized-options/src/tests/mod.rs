@@ -177,6 +177,7 @@ struct OptionsConfigBuilder {
 	pub base_asset_amount_per_option: Balance,
 	pub quote_asset_amount_per_option: Balance,
 	pub total_issuance_seller: Balance,
+	pub total_premium_paid: Balance,
 	pub epoch: Epoch<Moment>,
 }
 
@@ -193,6 +194,7 @@ impl Default for OptionsConfigBuilder {
 			base_asset_amount_per_option: 1u128 * UNIT,
 			quote_asset_amount_per_option: 1u128 * UNIT,
 			total_issuance_seller: 0u128,
+			total_premium_paid: 0u128,
 			epoch: Epoch {
 				deposit: 0u64,
 				purchase: 3000u64,
@@ -217,6 +219,7 @@ impl OptionsConfigBuilder {
 			base_asset_amount_per_option: self.base_asset_amount_per_option,
 			quote_asset_amount_per_option: self.quote_asset_amount_per_option,
 			total_issuance_seller: self.total_issuance_seller,
+			total_premium_paid: self.total_premium_paid,
 			epoch: self.epoch,
 		}
 	}
@@ -258,6 +261,11 @@ impl OptionsConfigBuilder {
 
 	fn total_issuance_seller(mut self, total_issuance_seller: Balance) -> Self {
 		self.total_issuance_seller = total_issuance_seller;
+		self
+	}
+
+	fn total_premium_paid(mut self, total_premium_paid: Balance) -> Self {
+		self.total_premium_paid = total_premium_paid;
 		self
 	}
 

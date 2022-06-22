@@ -24,22 +24,15 @@ use sp_runtime::ArithmeticError;
 //		Sell Options Tests
 // ----------------------------------------------------------------------------------------------------
 
-pub fn sell_option_success_checks(
-	option_hash: H256,
-	option_config: OptionConfig<AssetId, Balance, Moment>,
-	option_amount: Balance,
-	who: Public,
-) {
-	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+pub fn sell_option_success_checks(option_id: AssetId, option_amount: Balance, who: Public) {
+	let option = OptionIdToOption::<MockRuntime>::get(option_id).unwrap();
 
 	// ---------------------------
 	// |  Data before extrinsic  |
 	// ---------------------------
-	let (asset_id, asset_amount) = match option_config.option_type {
-		OptionType::Call => {
-			(option_config.base_asset_id, option_config.base_asset_amount_per_option)
-		},
-		OptionType::Put => (option_config.quote_asset_id, option_config.base_asset_strike_price),
+	let (asset_id, asset_amount) = match option.option_type {
+		OptionType::Call => (option.base_asset_id, option.base_asset_amount_per_option),
+		OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
 	};
 
 	let vault_id = AssetToVault::<MockRuntime>::get(asset_id).unwrap();
@@ -149,10 +142,12 @@ fn test_sell_option_with_initialization_success() {
 			// Check creation ended correctly
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
 			// Perform extrinsic and make checks
 			let option_amount = 1u128;
 
-			sell_option_success_checks(option_hash, option_config, option_amount, BOB);
+			sell_option_success_checks(option_id, option_amount, BOB);
 		});
 }
 
@@ -179,9 +174,11 @@ fn test_sell_option_success() {
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
 			let option_amount = 7u128;
 
-			sell_option_success_checks(option_hash, option_config, option_amount, BOB);
+			sell_option_success_checks(option_id, option_amount, BOB);
 		});
 }
 
@@ -208,13 +205,15 @@ fn test_sell_option_update_position() {
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
 			let option_amount = 3u128;
 
-			sell_option_success_checks(option_hash, option_config.clone(), option_amount, BOB);
+			sell_option_success_checks(option_id, option_amount, BOB);
 
 			let option_amount = 1u128;
 
-			sell_option_success_checks(option_hash, option_config, option_amount, BOB);
+			sell_option_success_checks(option_id, option_amount, BOB);
 		});
 }
 
@@ -245,27 +244,19 @@ fn test_sell_option_multiple_users() {
 			);
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
 			let alice_option_amount = 7u128;
-			sell_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				alice_option_amount,
-				ALICE,
-			);
+			sell_option_success_checks(option_id, alice_option_amount, ALICE);
 
 			let bob_option_amount = 4u128;
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 
 			let alice_option_amount = 2u128;
-			sell_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				alice_option_amount,
-				ALICE,
-			);
+			sell_option_success_checks(option_id, alice_option_amount, ALICE);
 
 			let bob_option_amount = 3u128;
-			sell_option_success_checks(option_hash, option_config, bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 		});
 }
 
@@ -575,13 +566,10 @@ fn test_sell_option_shares_calculation_with_vault_value_accrual_success() {
 			);
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
 			let alice_option_amount = 5u128;
-			sell_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				alice_option_amount,
-				ALICE,
-			);
+			sell_option_success_checks(option_id, alice_option_amount, ALICE);
 
 			// Add 1 BTC to the vault to simulate vault value accrual
 			let vault_id = AssetToVault::<MockRuntime>::get(option_config.base_asset_id).unwrap();
@@ -594,7 +582,7 @@ fn test_sell_option_shares_calculation_with_vault_value_accrual_success() {
 			));
 
 			let bob_option_amount = 5u128;
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 
 			// Remove 2 BTC from the vault to simulate vault value loss
 			assert_ok!(Assets::burn_from(
@@ -605,12 +593,7 @@ fn test_sell_option_shares_calculation_with_vault_value_accrual_success() {
 			));
 
 			let charlie_option_amount = 5u128;
-			sell_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				charlie_option_amount,
-				CHARLIE,
-			);
+			sell_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 
 			// Remove 2 BTC from the vault to simulate vault value loss
 			assert_ok!(Assets::burn_from(
@@ -621,12 +604,7 @@ fn test_sell_option_shares_calculation_with_vault_value_accrual_success() {
 			));
 
 			let alice_option_amount = 5u128;
-			sell_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				alice_option_amount,
-				ALICE,
-			);
+			sell_option_success_checks(option_id, alice_option_amount, ALICE);
 
 			assert_ok!(Assets::mint_into(
 				Origin::signed(ADMIN),
@@ -636,7 +614,7 @@ fn test_sell_option_shares_calculation_with_vault_value_accrual_success() {
 			));
 
 			let bob_option_amount = 5u128;
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 
 			assert_ok!(Assets::mint_into(
 				Origin::signed(ADMIN),
@@ -646,6 +624,6 @@ fn test_sell_option_shares_calculation_with_vault_value_accrual_success() {
 			));
 
 			let charlie_option_amount = 5u128;
-			sell_option_success_checks(option_hash, option_config, charlie_option_amount, CHARLIE);
+			sell_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 		});
 }

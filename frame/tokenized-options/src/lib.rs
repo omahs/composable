@@ -1024,6 +1024,7 @@ pub mod pallet {
 				base_asset_amount_per_option: option_config.base_asset_amount_per_option,
 				quote_asset_amount_per_option: option_config.quote_asset_amount_per_option,
 				total_issuance_seller: option_config.total_issuance_seller,
+				total_premium_paid: option_config.total_premium_paid,
 				epoch: option_config.epoch,
 			};
 
@@ -1262,10 +1263,18 @@ pub mod pallet {
 			let new_total_issuance_buyer = total_issuance_buyer
 				.checked_add(&option_amount)
 				.ok_or(ArithmeticError::Overflow)?;
+
 			// Check if there are enough options for sale
 			if new_total_issuance_buyer > option.total_issuance_seller {
 				return Err(DispatchError::from(Error::<T>::NotEnoughOptionsForSale));
 			}
+
+			let new_total_premium_paid = option
+				.total_premium_paid
+				.checked_add(&option_premium)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			option.total_premium_paid = new_total_premium_paid;
 
 			// Transfer premium to protocol account
 			AssetsOf::<T>::transfer(stablecoin_id, from, &protocol_account, option_premium, true)

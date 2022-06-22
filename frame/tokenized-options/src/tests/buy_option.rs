@@ -27,13 +27,9 @@ use sp_runtime::ArithmeticError;
 //		Buy Options Tests
 // ----------------------------------------------------------------------------------------------------
 
-pub fn buy_option_success_checks(
-	option_hash: H256,
-	_option_config: OptionConfig<AssetId, Balance, Moment>,
-	option_amount: Balance,
-	who: Public,
-) {
-	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+pub fn buy_option_success_checks(option_id: AssetId, option_amount: Balance, who: Public) {
+	let option = OptionIdToOption::<MockRuntime>::get(option_id).unwrap();
+
 	let asset_id = USDC;
 	let option_premium = TokenizedOptions::fake_option_price().unwrap() * option_amount;
 
@@ -42,6 +38,7 @@ pub fn buy_option_success_checks(
 	// ---------------------------
 	let protocol_account = TokenizedOptions::account_id(asset_id);
 	let initial_issuance_buyer = Assets::total_issuance(option_id);
+	let initial_premium_paid = option.total_premium_paid;
 	let initial_user_balance_options = Assets::balance(option_id, &who);
 	let initial_user_balance = Assets::balance(asset_id, &who);
 	let initial_protocol_balance = Assets::balance(asset_id, &protocol_account);
@@ -72,7 +69,13 @@ pub fn buy_option_success_checks(
 
 	// Check position is updated correctly
 	let updated_issuance_buyer = Assets::total_issuance(option_id);
-	assert_eq!(updated_issuance_buyer, initial_issuance_buyer + option_amount)
+	assert_eq!(updated_issuance_buyer, initial_issuance_buyer + option_amount);
+
+	let update_premium_paid =
+		OptionIdToOption::<MockRuntime>::get(option_id).unwrap().total_premium_paid;
+
+	// Check premium is updated correctly
+	assert_eq!(update_premium_paid, initial_premium_paid + option_premium);
 }
 
 #[test]
@@ -123,15 +126,17 @@ fn test_buy_option_with_initialization_success() {
 			// Check creation ended correctly
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
 
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
 			// Sell option and make checks
 			let option_amount = 1u128;
-			sell_option_success_checks(option_hash, option_config.clone(), option_amount, BOB);
+			sell_option_success_checks(option_id, option_amount, BOB);
 
 			// Go to purchase window
 			run_to_block(3);
 
 			// Buy option
-			buy_option_success_checks(option_hash, option_config, option_amount, ALICE);
+			buy_option_success_checks(option_id, option_amount, ALICE);
 		});
 }
 
@@ -162,13 +167,14 @@ fn test_buy_option_success() {
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			let bob_option_amount = 5u128;
 			let alice_option_amount = 3u128;
 
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 			run_to_block(3);
-			buy_option_success_checks(option_hash, option_config, alice_option_amount, ALICE);
+			buy_option_success_checks(option_id, alice_option_amount, ALICE);
 		});
 }
 
@@ -199,23 +205,19 @@ fn test_buy_option_multiple_times() {
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			let bob_option_amount = 5u128;
 			let alice_option_amount = 3u128;
 
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 
 			run_to_block(3);
 
-			buy_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				alice_option_amount,
-				ALICE,
-			);
+			buy_option_success_checks(option_id, alice_option_amount, ALICE);
 
 			let alice_option_amount = 2u128;
-			buy_option_success_checks(option_hash, option_config, alice_option_amount, ALICE);
+			buy_option_success_checks(option_id, alice_option_amount, ALICE);
 		});
 }
 
@@ -248,38 +250,24 @@ fn test_buy_option_multiple_users() {
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			let bob_option_amount = 5u128;
 			let alice_option_amount = 3u128;
 			let charlie_option_amount = 4u128;
 
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
-			sell_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				charlie_option_amount,
-				CHARLIE,
-			);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
+			sell_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 
 			run_to_block(3);
 
-			buy_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				alice_option_amount,
-				ALICE,
-			);
+			buy_option_success_checks(option_id, alice_option_amount, ALICE);
 
 			let charlie_option_amount = 2u128;
 
-			buy_option_success_checks(
-				option_hash,
-				option_config.clone(),
-				charlie_option_amount,
-				CHARLIE,
-			);
+			buy_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 			let alice_option_amount = 2u128;
-			buy_option_success_checks(option_hash, option_config, alice_option_amount, ALICE);
+			buy_option_success_checks(option_id, alice_option_amount, ALICE);
 		});
 }
 
@@ -333,11 +321,12 @@ fn test_buy_option_error_not_into_purchase_window() {
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			let bob_option_amount = 5u128;
 			let alice_option_amount = 2u128;
 
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 
 			// Purchase window goes from block 3 <= x < 6. Now we are in block 3.
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
@@ -349,7 +338,7 @@ fn test_buy_option_error_not_into_purchase_window() {
 
 			// Now it should work
 			run_to_block(3);
-			buy_option_success_checks(option_hash, option_config, alice_option_amount, ALICE);
+			buy_option_success_checks(option_id, alice_option_amount, ALICE);
 
 			// Now we are out of purchase window again and should fail
 			run_to_block(6);
@@ -387,9 +376,10 @@ fn test_buy_option_error_user_has_not_enough_funds() {
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			let bob_option_amount = 5u128;
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 
 			run_to_block(3);
 
@@ -405,7 +395,7 @@ fn test_buy_option_error_user_has_not_enough_funds() {
 			let alice_option_amount = 3u128; // Each option costs 1000 USDC, Alice has 3000
 
 			// Counter test
-			buy_option_success_checks(option_hash, option_config, alice_option_amount, ALICE);
+			buy_option_success_checks(option_id, alice_option_amount, ALICE);
 		});
 }
 
@@ -436,9 +426,10 @@ fn test_buy_option_error_cannot_buy_zero_options() {
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			let bob_option_amount = 5u128;
-			sell_option_success_checks(option_hash, option_config, bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 
 			run_to_block(3);
 
@@ -478,9 +469,10 @@ fn test_buy_option_error_overflow_asset_amount() {
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			let bob_option_amount = 5u128;
-			sell_option_success_checks(option_hash, option_config, bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 
 			run_to_block(3);
 
@@ -527,15 +519,16 @@ fn test_buy_option_error_not_enough_options_for_sale() {
 			);
 
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			let bob_option_amount = 5u128;
 			let alice_option_amount = 3u128;
 
-			sell_option_success_checks(option_hash, option_config.clone(), bob_option_amount, BOB);
+			sell_option_success_checks(option_id, bob_option_amount, BOB);
 
 			run_to_block(3);
 
-			buy_option_success_checks(option_hash, option_config, alice_option_amount, ALICE);
+			buy_option_success_checks(option_id, alice_option_amount, ALICE);
 
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 

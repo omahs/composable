@@ -119,7 +119,9 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAttributes<T>>
 	for ValidateOptionAttributes<T>
 {
 	fn validate(input: OptionConfigOf<T>) -> Result<OptionConfigOf<T>, &'static str> {
-		if input.total_issuance_seller != BalanceOf::<T>::zero() {
+		if input.total_issuance_seller != BalanceOf::<T>::zero()
+			|| input.total_premium_paid != BalanceOf::<T>::zero()
+		{
 			return Err("ValidateOptionAttributes");
 		}
 

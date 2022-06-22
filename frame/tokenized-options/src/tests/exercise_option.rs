@@ -27,14 +27,9 @@ use sp_runtime::ArithmeticError;
 // ----------------------------------------------------------------------------------------------------
 //		Exercise Options Tests
 // ----------------------------------------------------------------------------------------------------
-pub fn exercise_option_success_checks(
-	option_hash: H256,
-	_option_config: OptionConfig<AssetId, Balance, Moment>,
-	option_amount: Balance,
-	who: Public,
-) {
+pub fn exercise_option_success_checks(option_id: AssetId, option_amount: Balance, who: Public) {
 	// Get info before extrinsic for checks
-	let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+	let _option = OptionIdToOption::<MockRuntime>::get(option_id).unwrap();
 
 	// Call extrinsic
 	assert_ok!(TokenizedOptions::exercise_option(Origin::signed(who), option_amount, option_id));
@@ -94,16 +89,17 @@ fn test_exercise_option_with_initialization_success() {
 
 			// Check creation ended correctly
 			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
 			// Sell option and make checks
 			let option_amount = 1u128;
-			sell_option_success_checks(option_hash, option_config.clone(), option_amount, BOB);
+			sell_option_success_checks(option_id, option_amount, BOB);
 
 			// Go to purchase window
 			run_to_block(3);
 
 			// Buy option
-			buy_option_success_checks(option_hash, option_config.clone(), option_amount, ALICE);
+			buy_option_success_checks(option_id, option_amount, ALICE);
 
 			// BTC price moves from 50k to 55k
 			set_oracle_price(option_config.base_asset_id, 55000u128 * UNIT);
@@ -112,6 +108,6 @@ fn test_exercise_option_with_initialization_success() {
 			run_to_block(6);
 
 			// Exercise option
-			exercise_option_success_checks(option_hash, option_config, option_amount, ALICE);
+			exercise_option_success_checks(option_id, option_amount, ALICE);
 		});
 }
