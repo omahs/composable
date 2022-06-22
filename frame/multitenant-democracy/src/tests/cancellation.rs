@@ -24,10 +24,11 @@ fn cancel_referendum_should_work() {
 	new_test_ext().execute_with(|| {
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
+		// assert_ok!(Tokens::deposit(BTC, &1, 10_000_000));
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 		assert_ok!(Democracy::cancel_referendum(Origin::root(), r.into()));
 		assert_eq!(Democracy::lowest_unbaked(), 0);
@@ -69,7 +70,7 @@ fn emergency_cancel_should_work() {
 		System::set_block_number(0);
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			2,
 		);
@@ -83,7 +84,7 @@ fn emergency_cancel_should_work() {
 
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			2,
 		);

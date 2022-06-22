@@ -59,7 +59,7 @@ fn funded_account<T: Config>(
 ) -> T::AccountId {
 	let caller: T::AccountId = account(name, index, SEED);
 	T::NativeCurrency::make_free_balance_be(&caller, NativeBalanceOf::<T>::max_value());
-	T::MultiCurrency::deposit(asset_id, &caller, BalanceOf::<T>::max_value());
+	T::MultiCurrency::deposit(asset_id, &caller, BalanceOf::<T>::max_value()).unwrap();
 	caller
 }
 
@@ -604,7 +604,7 @@ benchmarks! {
 		let caller = funded_account::<T>("caller", 0, BTC::<T>());
 		let encoded_proposal = vec![1; b as usize];
 		whitelist_account!(caller);
-	}: _(RawOrigin::Signed(caller), encoded_proposal.clone())
+	}: _(RawOrigin::Signed(caller), encoded_proposal.clone(), BTC::<T>())
 	verify {
 		let proposal_hash = T::Hashing::hash(&encoded_proposal[..]);
 		match Preimages::<T>::get(proposal_hash) {
@@ -643,7 +643,7 @@ benchmarks! {
 		let proposal_hash = T::Hashing::hash(&encoded_proposal[..]);
 
 		let submitter = funded_account::<T>("submitter", b, BTC::<T>());
-		Democracy::<T>::note_preimage(RawOrigin::Signed(submitter).into(), encoded_proposal.clone())?;
+		Democracy::<T>::note_preimage(RawOrigin::Signed(submitter).into(), encoded_proposal.clone(), BTC::<T>())?;
 
 		// We need to set this otherwise we get `Early` error.
 		let block_number = T::VotingPeriod::get() + T::EnactmentPeriod::get() + T::BlockNumber::one();
@@ -790,11 +790,11 @@ benchmarks! {
 		let b in 0 .. MAX_BYTES;
 
 		let proposer = funded_account::<T>("proposer", 0, BTC::<T>());
-		let raw_call = Call::note_preimage { encoded_proposal: vec![1; b as usize] };
+		let raw_call = Call::note_preimage { encoded_proposal: vec![1; b as usize], asset_id: BTC::<T>() };
 		let generic_call: T::Proposal = raw_call.into();
 		let encoded_proposal = generic_call.encode();
 		let proposal_hash = T::Hashing::hash(&encoded_proposal[..]);
-		Democracy::<T>::note_preimage(RawOrigin::Signed(proposer).into(), encoded_proposal)?;
+		Democracy::<T>::note_preimage(RawOrigin::Signed(proposer).into(), encoded_proposal, BTC::<T>())?;
 
 		match Preimages::<T>::get(proposal_hash) {
 			Some(PreimageStatus::Available { .. }) => (),
@@ -815,7 +815,7 @@ benchmarks! {
 		// Random invalid bytes
 		let encoded_proposal = vec![200; b as usize];
 		let proposal_hash = T::Hashing::hash(&encoded_proposal[..]);
-		Democracy::<T>::note_preimage(RawOrigin::Signed(proposer).into(), encoded_proposal)?;
+		Democracy::<T>::note_preimage(RawOrigin::Signed(proposer).into(), encoded_proposal, BTC::<T>())?;
 
 		match Preimages::<T>::get(proposal_hash) {
 			Some(PreimageStatus::Available { .. }) => (),

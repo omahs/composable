@@ -24,7 +24,7 @@ fn simple_passing_should_work() {
 	new_test_ext().execute_with(|| {
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
@@ -43,7 +43,7 @@ fn simple_failing_should_work() {
 	new_test_ext().execute_with(|| {
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
@@ -62,13 +62,13 @@ fn ooo_inject_referendums_should_work() {
 	new_test_ext().execute_with(|| {
 		let r1 = Democracy::inject_referendum(
 			3,
-			set_balance_proposal_hash_and_note(3),
+			set_balance_proposal_hash_and_note(BTC, 3),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
 		let r2 = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
@@ -92,7 +92,7 @@ fn delayed_enactment_should_work() {
 	new_test_ext().execute_with(|| {
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			1,
 		);
@@ -118,19 +118,19 @@ fn lowest_unbaked_should_be_sensible() {
 	new_test_ext().execute_with(|| {
 		let r1 = Democracy::inject_referendum(
 			3,
-			set_balance_proposal_hash_and_note(1),
+			set_balance_proposal_hash_and_note(BTC, 1),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
 		let r2 = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
 		let r3 = Democracy::inject_referendum(
 			10,
-			set_balance_proposal_hash_and_note(3),
+			set_balance_proposal_hash_and_note(BTC, 3),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);

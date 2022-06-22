@@ -73,7 +73,7 @@ fn single_proposal_should_work() {
 			Democracy::referendum_status(0),
 			Ok(ReferendumStatus {
 				end: 4,
-				proposal_hash: set_balance_proposal_hash_and_note(2),
+				proposal_hash: set_balance_proposal_hash_and_note(BTC, 2),
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 2,
 				tally: Tally { ayes: 1, nays: 0, turnout: 10 },
@@ -103,7 +103,7 @@ fn controversial_voting_should_work() {
 	new_test_ext().execute_with(|| {
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
@@ -129,7 +129,7 @@ fn controversial_low_turnout_voting_should_work() {
 	new_test_ext().execute_with(|| {
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
@@ -153,7 +153,7 @@ fn passing_low_turnout_voting_should_work() {
 
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);

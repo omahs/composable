@@ -43,7 +43,7 @@ fn lock_voting_should_work() {
 		System::set_block_number(0);
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
@@ -126,7 +126,7 @@ fn no_locks_without_conviction_should_work() {
 		System::set_block_number(0);
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
@@ -146,7 +146,7 @@ fn lock_voting_should_work_with_delegation() {
 	new_test_ext().execute_with(|| {
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SuperMajorityApprove,
 			0,
 		);
@@ -169,7 +169,7 @@ fn setup_three_referenda() -> (u32, u32, u32) {
 	System::set_block_number(0);
 	let r1 = Democracy::inject_referendum(
 		2,
-		set_balance_proposal_hash_and_note(2),
+		set_balance_proposal_hash_and_note(BTC, 2),
 		VoteThreshold::SimpleMajority,
 		0,
 	);
@@ -177,7 +177,7 @@ fn setup_three_referenda() -> (u32, u32, u32) {
 
 	let r2 = Democracy::inject_referendum(
 		2,
-		set_balance_proposal_hash_and_note(2),
+		set_balance_proposal_hash_and_note(BTC, 2),
 		VoteThreshold::SimpleMajority,
 		0,
 	);
@@ -185,7 +185,7 @@ fn setup_three_referenda() -> (u32, u32, u32) {
 
 	let r3 = Democracy::inject_referendum(
 		2,
-		set_balance_proposal_hash_and_note(2),
+		set_balance_proposal_hash_and_note(BTC, 2),
 		VoteThreshold::SimpleMajority,
 		0,
 	);
@@ -306,7 +306,7 @@ fn locks_should_persist_from_voting_to_delegation() {
 		System::set_block_number(0);
 		let r = Democracy::inject_referendum(
 			2,
-			set_balance_proposal_hash_and_note(2),
+			set_balance_proposal_hash_and_note(BTC, 2),
 			VoteThreshold::SimpleMajority,
 			0,
 		);

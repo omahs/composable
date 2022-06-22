@@ -233,6 +233,18 @@ impl Config for Test {
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	orml_tokens::GenesisConfig::<Test> {
+		balances: vec![
+			(1, BTC, 10),
+			(2, BTC, 20),
+			(3, BTC, 30),
+			(4, BTC, 40),
+			(5, BTC, 50),
+			(6, BTC, 60),
+		],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 	pallet_balances::GenesisConfig::<Test> {
 		balances: vec![(1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60)],
 	}
@@ -278,15 +290,15 @@ fn set_balance_proposal_hash(value: u64) -> H256 {
 	BlakeTwo256::hash(&set_balance_proposal(value)[..])
 }
 
-fn set_balance_proposal_hash_and_note(value: u64) -> H256 {
-	let p = set_balance_proposal(value);
-	let h = BlakeTwo256::hash(&p[..]);
-	match Democracy::note_preimage(Origin::signed(6), p) {
+fn set_balance_proposal_hash_and_note(asset_id: u64, value: u64) -> H256 {
+	let proposal = set_balance_proposal(value);
+	let proposal_hash = BlakeTwo256::hash(&proposal[..]);
+	match Democracy::note_preimage(Origin::signed(6), proposal, asset_id) {
 		Ok(_) => (),
 		Err(x) if x == Error::<Test>::DuplicatePreimage.into() => (),
 		Err(x) => panic!("{:?}", x),
 	}
-	h
+	proposal_hash
 }
 
 fn propose_set_balance(who: u64, value: u64, asset_id: u64, delay: u64) -> DispatchResult {
@@ -296,7 +308,7 @@ fn propose_set_balance(who: u64, value: u64, asset_id: u64, delay: u64) -> Dispa
 fn propose_set_balance_and_note(who: u64, value: u64, asset_id: u64, delay: u64) -> DispatchResult {
 	Democracy::propose(
 		Origin::signed(who),
-		set_balance_proposal_hash_and_note(value),
+		set_balance_proposal_hash_and_note(asset_id, value),
 		asset_id,
 		delay,
 	)
