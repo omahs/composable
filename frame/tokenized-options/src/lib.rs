@@ -1101,7 +1101,13 @@ pub mod pallet {
 						position.option_amount = new_option_amount;
 						position.shares_amount = new_shares_amount;
 					},
-					None => *position = Some(SellerPosition { option_amount, shares_amount }),
+					None => {
+						*position = Some(SellerPosition {
+							option_amount,
+							shares_amount,
+							premium_amount: BalanceOf::<T>::zero(),
+						})
+					},
 				}
 				Ok(())
 			})?;
@@ -1294,20 +1300,27 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			// Get current asset's spot price
 			let base_asset_spot_price = Self::get_price(option.base_asset_id)?;
+			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
 
 			// Different behaviors based on Call or Put option
 			let (asset_id, collateral_for_buyers) = match option.option_type {
 				OptionType::Call => (
 					option.base_asset_id,
-					Self::call_option_collateral_amount(base_asset_spot_price, &option)?,
+					Self::call_option_collateral_amount(
+						base_asset_spot_price,
+						&option,
+						total_issuance_buyer,
+					)?,
 				),
 				OptionType::Put => (
 					option.quote_asset_id,
-					Self::put_option_collateral_amount(base_asset_spot_price, &option)?,
+					Self::put_option_collateral_amount(
+						base_asset_spot_price,
+						&option,
+						total_issuance_buyer,
+					)?,
 				),
 			};
-
-			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
 
 			// Option is out of money or has not been sold
 			if collateral_for_buyers == BalanceOf::<T>::zero()
@@ -1335,19 +1348,31 @@ pub mod pallet {
 						|position| -> Result<(), DispatchError> {
 							match position {
 								Some(position) => {
-									// Add option amount to position
 									let shares_for_buyers = position
 										.option_amount
 										.checked_mul(&shares_amount)
 										.ok_or(ArithmeticError::Overflow)?;
 
-									// Add shares amount to position
 									let new_shares_amount = position
 										.shares_amount
 										.checked_sub(&shares_for_buyers)
 										.ok_or(ArithmeticError::Overflow)?;
 
+									let premium_amount = Self::convert_and_multiply_by_rational(
+										option.total_premium_paid,
+										position.option_amount,
+										option.total_issuance_seller,
+									)?;
+
+									let new_premium_amount =
+										Self::convert_and_multiply_by_rational(
+											premium_amount,
+											total_issuance_buyer,
+											option.total_issuance_seller,
+										)?;
+
 									position.shares_amount = new_shares_amount;
+									position.premium_amount = new_premium_amount;
 								},
 								None => {
 									return Err(DispatchError::from(Error::<T>::UnexpectedError));
@@ -1359,8 +1384,6 @@ pub mod pallet {
 					)
 				},
 			)?;
-
-			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
 
 			let total_shares_amount = shares_amount
 				.checked_mul(&total_issuance_buyer)
@@ -1424,6 +1447,7 @@ pub mod pallet {
 		pub fn call_option_collateral_amount(
 			base_asset_spot_price: BalanceOf<T>,
 			option: &OptionToken<T>,
+			total_issuance_buyer: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			// Calculate amount of asset to reserve for buyers if the option is ITM
 			let collateral_for_buyers = if base_asset_spot_price >= option.base_asset_strike_price {
@@ -1433,7 +1457,14 @@ pub mod pallet {
 
 				let unit = T::LocalAssets::unit::<BalanceOf<T>>(option.base_asset_id)?;
 
-				Self::calculate_amount_in_asset(diff, unit, base_asset_spot_price)?
+				let asset_amount =
+					Self::convert_and_multiply_by_rational(diff, unit, base_asset_spot_price)?;
+
+				Self::convert_and_multiply_by_rational(
+					asset_amount,
+					total_issuance_buyer,
+					option.total_issuance_seller,
+				)?
 			} else {
 				BalanceOf::<T>::zero()
 			};
@@ -1444,13 +1475,20 @@ pub mod pallet {
 		pub fn put_option_collateral_amount(
 			base_asset_spot_price: BalanceOf<T>,
 			option: &OptionToken<T>,
+			total_issuance_buyer: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			// Calculate amount of asset to reserve for buyers if the option is ITM
 			let collateral_for_buyers = if option.base_asset_strike_price >= base_asset_spot_price {
-				option
+				let asset_amount = option
 					.base_asset_strike_price
 					.checked_sub(&base_asset_spot_price)
-					.ok_or(ArithmeticError::Overflow)?
+					.ok_or(ArithmeticError::Overflow)?;
+
+				Self::convert_and_multiply_by_rational(
+					asset_amount,
+					total_issuance_buyer,
+					option.total_issuance_seller,
+				)?
 			} else {
 				BalanceOf::<T>::zero()
 			};
@@ -1458,20 +1496,19 @@ pub mod pallet {
 			Ok(collateral_for_buyers)
 		}
 
-		pub fn calculate_amount_in_asset(
-			diff: BalanceOf<T>,
-			unit: BalanceOf<T>,
-			asset_spot_price: BalanceOf<T>,
+		pub fn convert_and_multiply_by_rational(
+			a: BalanceOf<T>,
+			b: BalanceOf<T>,
+			c: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
-			let a = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(diff);
-			let b = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(unit);
-			let c = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(asset_spot_price);
+			let a = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(a);
+			let b = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(b);
+			let c = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(c);
 
-			let asset_amount =
-				multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
+			let res = multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
 
-			let asset_amount = <T::Convert as Convert<u128, BalanceOf<T>>>::convert(asset_amount);
-			Ok(asset_amount)
+			let res = <T::Convert as Convert<u128, T::Balance>>::convert(res);
+			Ok(res)
 		}
 
 		pub fn calculate_shares_to_burn(
