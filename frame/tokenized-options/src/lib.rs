@@ -1300,6 +1300,8 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			// Get current asset's spot price
 			let base_asset_spot_price = Self::get_price(option.base_asset_id)?;
+
+			// Get total options bought
 			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
 
 			// Different behaviors based on Call or Put option
@@ -1322,7 +1324,7 @@ pub mod pallet {
 				),
 			};
 
-			// Option is out of money or has not been sold
+			// Out of money options or options without buyers don't require other calculations
 			if collateral_for_buyers == BalanceOf::<T>::zero()
 				|| total_issuance_buyer == BalanceOf::<T>::zero()
 			{
@@ -1340,6 +1342,7 @@ pub mod pallet {
 			)?;
 
 			// Update sellers positions if option is in profit for buyers (In the money)
+			// Subtract shares and add premium to the seller position
 			Sellers::<T>::iter_prefix(option_id).try_for_each(
 				|(from, position)| -> Result<(), DispatchError> {
 					Sellers::<T>::try_mutate(
@@ -1358,16 +1361,10 @@ pub mod pallet {
 										.checked_sub(&shares_for_buyers)
 										.ok_or(ArithmeticError::Overflow)?;
 
-									let premium_amount = Self::convert_and_multiply_by_rational(
-										option.total_premium_paid,
-										position.option_amount,
-										option.total_issuance_seller,
-									)?;
-
 									let new_premium_amount =
 										Self::convert_and_multiply_by_rational(
-											premium_amount,
-											total_issuance_buyer,
+											option.total_premium_paid,
+											position.option_amount,
 											option.total_issuance_seller,
 										)?;
 
@@ -1386,7 +1383,7 @@ pub mod pallet {
 			)?;
 
 			let total_shares_amount = shares_amount
-				.checked_mul(&total_issuance_buyer)
+				.checked_mul(&option.total_issuance_seller)
 				.ok_or(ArithmeticError::Overflow)?;
 
 			VaultOf::<T>::withdraw(&vault_id, &protocol_account, total_shares_amount)
