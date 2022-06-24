@@ -1321,7 +1321,7 @@ pub mod pallet {
 			let vault_id =
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
-			let shares_amount = VaultOf::<T>::calculate_lp_tokens_from_asset_amount(
+			let shares_amount = VaultOf::<T>::amount_of_lp_token_for_added_liquidity(
 				&vault_id,
 				collateral_for_buyers,
 			)?;

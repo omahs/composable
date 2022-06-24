@@ -36,10 +36,10 @@ use common::{
 use composable_support::rpc_helpers::SafeRpcWrapper;
 use composable_traits::{
 	assets::Asset,
-	defi::Rate,
-	dex::{Amm, PriceAggregate},
+	defi::{CurrencyPair, Rate},
+	dex::{Amm, PriceAggregate, RedeemableAssets},
 };
-use primitives::currency::CurrencyId;
+use primitives::currency::{CurrencyId, ValidateCurrencyId};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -81,7 +81,7 @@ use sp_runtime::AccountId32;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill, Perquintill};
-use sp_std::fmt::Debug;
+use sp_std::{collections::btree_map::BTreeMap, fmt::Debug};
 use system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
@@ -455,6 +455,7 @@ parameter_types! {
 	pub const MaxAssetsCount: u32 = 100_000;
 	pub const MaxHistory: u32 = 20;
 	pub const MaxPrePrices: u32 = 40;
+	pub const TwapWindow: u16 = 3;
 }
 
 impl oracle::Config for Runtime {
@@ -474,6 +475,7 @@ impl oracle::Config for Runtime {
 	type WeightInfo = weights::oracle::WeightInfo<Runtime>;
 	type LocalAssets = CurrencyFactory;
 	type TreasuryAccount = TreasuryAccount;
+	type TwapWindow = TwapWindow;
 }
 
 // Parachain stuff.
@@ -837,6 +839,7 @@ impl assets::Config for Runtime {
 	type WeightInfo = ();
 	type AdminOrigin = EnsureRootOrHalfCouncil;
 	type GovernanceRegistry = GovernanceRegistry;
+	type CurrencyValidator = ValidateCurrencyId;
 }
 
 parameter_types! {
@@ -860,6 +863,24 @@ impl crowdloan_rewards::Config for Runtime {
 	type PalletId = CrowdloanRewardsId;
 	type Moment = Moment;
 	type Time = Timestamp;
+}
+
+parameter_types! {
+	pub const StakingRewardsPalletId : PalletId = PalletId(*b"stk_rwrd");
+}
+
+impl pallet_staking_rewards::Config for Runtime {
+	type Event = Event;
+	type Share = Balance;
+	type Balance = Balance;
+	type PoolId = u16;
+	type PositionId = u128;
+	type MayBeAssetId = CurrencyId;
+	type CurrencyFactory = CurrencyFactory;
+	type UnixTime = Timestamp;
+	type ReleaseRewardsPoolsBatchSize = frame_support::traits::ConstU8<13>;
+	type PalletId = StakingRewardsPalletId;
+	type WeightInfo = ();
 }
 
 /// The calls we permit to be executed by extrinsics
@@ -1071,6 +1092,7 @@ impl pallet_ibc::Config for Runtime {
 	const CONNECTION_PREFIX: &'static [u8] = b"ibc";
 	type ExpectedBlockTime = ExpectedBlockTime;
 	type WeightInfo = crate::weights::pallet_ibc::WeightInfo<Self>;
+	type AdminOrigin = EnsureRoot<AccountId>;
 }
 
 impl pallet_ibc_ping::Config for Runtime {
@@ -1139,6 +1161,8 @@ construct_runtime!(
 		Lending: lending::{Pallet, Call, Storage, Event<T>} = 64,
 		Pablo: pablo::{Pallet, Call, Storage, Event<T>} = 65,
 		DexRouter: dex_router::{Pallet, Call, Storage, Event<T>} = 66,
+		StakingRewards: pallet_staking_rewards = 67,
+
 		CallFilter: call_filter::{Pallet, Call, Storage, Event<T>} = 100,
 
 		// IBC Support, pallet-ibc should be the last in the list of pallets that use the ibc protocol
@@ -1212,7 +1236,6 @@ mod benches {
 		[mosaic, Mosaic]
 		[liquidations, Liquidations]
 		[bonded_finance, BondedFinance]
-		//FIXME: broken with dali [lending, Lending]
 		[lending, Lending]
 		[assets_registry, AssetsRegistry]
 		[pablo, Pablo]
@@ -1293,6 +1316,30 @@ impl_runtime_apis! {
 				.unwrap_or_else(|_| Zero::zero())
 			)
 		}
+
+	fn redeemable_assets_for_given_lp_tokens(
+		pool_id: SafeRpcWrapper<PoolId>,
+		lp_amount: SafeRpcWrapper<Balance>
+	) -> RedeemableAssets<SafeRpcWrapper<CurrencyId>, SafeRpcWrapper<Balance>> {
+			let currency_pair = <Pablo as Amm>::currency_pair(pool_id.0).unwrap_or_else(|_| CurrencyPair::new(CurrencyId::INVALID, CurrencyId::INVALID));
+			let redeemable_assets = <Pablo as Amm>::redeemable_assets_for_given_lp_tokens(pool_id.0, lp_amount.0)
+			.unwrap_or_else(|_|
+			RedeemableAssets {
+				assets: BTreeMap::from([
+							(currency_pair.base, Zero::zero()),
+							(currency_pair.quote, Zero::zero())
+				])
+			}
+			);
+			let mut new_map = BTreeMap::new();
+			for (k,v) in redeemable_assets.assets.iter() {
+				new_map.insert(SafeRpcWrapper(*k), SafeRpcWrapper(*v));
+			}
+			RedeemableAssets{
+				assets: new_map
+			}
+	}
+
 	}
 
 	impl sp_api::Core<Block> for Runtime {
@@ -1538,6 +1585,23 @@ impl_runtime_apis! {
 
 		fn denom_traces(_offset: Vec<u8>, _limit: u64, _height: u32) -> Option<ibc_primitives::QueryDenomTracesResponse> {
 			None
+		}
+
+		fn block_events() -> Vec<pallet_ibc::events::IbcEvent> {
+			let events = frame_system::Pallet::<Self>::read_events_no_consensus().into_iter().filter_map(|e| {
+				let frame_system::EventRecord{ event, ..} = *e;
+				match event {
+					Event::Ibc(pallet_ibc::Event::IbcEvents{ events }) => {
+						Some(events)
+					},
+					_ => None
+				}
+			});
+
+			events.fold(vec![], |mut events, ev| {
+				events.extend_from_slice(&ev);
+				events
+			})
 		}
 	}
 	#[cfg(feature = "runtime-benchmarks")]

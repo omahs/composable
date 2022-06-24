@@ -10,6 +10,7 @@ use frame_support::{
 
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use orml_traits::{parameter_type_with_key, GetByKey};
+use primitives::currency::ValidateCurrencyId;
 use sp_core::{sr25519::Signature, H256};
 use sp_runtime::{
 	testing::{Header, TestXt},
@@ -171,6 +172,7 @@ parameter_types! {
 	pub const MaxAssetsCount: u32 = 2;
 	pub const MaxHistory: u32 = 3;
 	pub const MaxPrePrices: u32 = 12;
+	pub const TwapWindow: u16 = 3;
 }
 
 pub type Extrinsic = TestXt<Call, ()>;
@@ -220,6 +222,7 @@ impl pallet_oracle::Config for MockRuntime {
 	type MaxAssetsCount = MaxAssetsCount;
 	type TreasuryAccount = TreasuryAccountId;
 	type MaxHistory = MaxHistory;
+	type TwapWindow = TwapWindow;
 	type MaxPrePrices = MaxPrePrices;
 	type WeightInfo = ();
 	type LocalAssets = LpTokenFactory;
@@ -275,6 +278,7 @@ impl pallet_assets::Config for MockRuntime {
 	type WeightInfo = ();
 	type AdminOrigin = EnsureSignedBy<RootAccount, AccountId>;
 	type GovernanceRegistry = GovernanceRegistry;
+	type CurrencyValidator = ValidateCurrencyId;
 }
 
 // ----------------------------------------------------------------------------------------------------

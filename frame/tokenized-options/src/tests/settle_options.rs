@@ -84,7 +84,8 @@ pub fn settle_options_success_checks(to_check: &Vec<(Public, AssetId, Balance)>)
 
 		let total_collateral_for_buyers = collateral_for_buyers * Assets::total_issuance(option_id);
 		let shares_amount =
-			Vault::calculate_lp_tokens_from_asset_amount(&vault_id, collateral_for_buyers).unwrap();
+			Vault::amount_of_lp_token_for_added_liquidity(&vault_id, collateral_for_buyers)
+				.unwrap();
 
 		assert_eq!(
 			updated_protocol_balance,

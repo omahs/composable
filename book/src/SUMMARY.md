@@ -7,8 +7,10 @@
 
 # 💿 PRODUCTS
 - [Technical Stack Overview](./products/technical-stack-overview.md)
-- [Cross-Chain Virtual Machine](./products/cross-chain-virtual-machine.md)
-    - [Innovation Availability Layer](./products/cross-chain-virtual-machine/innovation-availability-layer.md)
+- [Composable's Cross-Chain Virtual Machine](./products/cross-chain-virtual-machine.md)
+    - [Writing Smart Contracts with CosmWasm](./products/cross-chain-virtual-machine/writing-smart-contracts-with-cosmwasm.md)
+    - [How the XCVM works](./products/cross-chain-virtual-machine/how-the-xcvm-works.md)
+    - [Routing Layer Libraries](./products/cross-chain-virtual-machine/routing-layer-libraries.md)
 - [Routing Layer](./products/routing-layer.md)
 - [Mosaic](./products/mosaic.md)
     - [Fragmentation in DeFi's Layer 2](./products/mosaic/fragmentation-in-layer-2.md)
@@ -39,16 +41,11 @@
     - [Angular Token](./products/angular/angular-token.md)
     - [Socials](./products/angular/socials.md)
     - [Foreign Assets](./products/angular/foreign-assets.md)
+- [Cubic](./products/cubic/cubic.md)
+  - [Additional Details](./products/cubic/addtional-details.md)
 - [Parachain Vault Strategy](./products/parachain-vault-strategy.md)
-    - [Vault Strategy for the Composable Polkadot Prachain](./products/parachain-vault-strategy/vault-strategy-expansion.md)
-    - [Vault Process in Detail](./products/parachain-vault-strategy/vault-process-in-detail.md)
-    - [Vault Boosts](./products/parachain-vault-strategy/vault-boosts.md)
-    - [Additional Rewards](./products/parachain-vault-strategy/additional-rewards.md)
-    - [Contract - Technical Details](./products/parachain-vault-strategy/contracts-technical-details.md)
-    - [Bug Bounty Via Immunefi](./products/parachain-vault-strategy/bug-bounty-via-immunefi.md)
-    - [Parachain Auction Tokens](./products/parachain-vault-strategy/parachain-auction-tokens.md)
-    - [Risks](./products/parachain-vault-strategy/risks.md)
-    - [Walkthroughs](./products/parachain-vault-strategy/walkthroughs.md)
+    - [Vault Process in Detail](./products/parachain-vault-strategy/vault-process-in-detail/vault-process-in-detail.md)
+    - [Contracts - Technical Details](./products/parachain-vault-strategy/contracts-technical-details/contracts-technical-details.md)
 - [The Picasso Parachain](./products/the-picasso-parachain.md)
     - [Polkadot - A Brief Overview](./products/the-picasso-parachain/polkadot-a-brief-overview.md)
     - [Council](./products/the-picasso-parachain/council.md)
@@ -76,6 +73,7 @@
 
 # 🌎 ECOSYSTEM
 - [Build on Composable: Ecosystem Development](./ecosystem/build-on-composable-ecosystem-development.md)
+  - [Composable Grants](./ecosystem/build-on-composable-ecosystem-development/composable-grants.md)
 - [Business Line Development](./ecosystem/business-line-development.md)
 - [Press Kit](./ecosystem/press-kit.md)
 - [The Composable Team](./ecosystem/the-composable-team.md)
@@ -83,7 +81,7 @@
 
 # 🩺 AUDITS AND FIXES
 - [Audit Results, Recommendations, and Remediations](./audits/audit-results-recommendations-and-remediations.md)
-- [Code Fixes](./audits/code-fixes.md)
+
 
 # ❓ FAQS
 - [FAQs](./faqs/faqs.md)
