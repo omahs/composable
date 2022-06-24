@@ -58,7 +58,7 @@ jobs:
 
       - name: Upload Artifacts
         run: |
-          echo "RELEASE_VERSION=$(git tag --sort=committerdate | grep -E '^v[0-9]' | tail -1 )" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=$(git rev-parse --short=9 HEAD )" >> $GITHUB_ENV
           sudo gsutil cp ./target/release/composable gs://composable-binaries/dali-stage/${{ env.RELEASE_VERSION }}/
           
     
@@ -81,7 +81,7 @@ jobs:
 
       - name: Set env
         run: |
-          echo "RELEASE_VERSION=$(git tag --sort=committerdate | grep -E '^v[0-9]' | tail -1 )" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=$(git rev-parse --short=9 HEAD )" >> $GITHUB_ENV
       - name: Run ansible playbook
         working-directory: "./.maintain/playbooks"
         run: |
