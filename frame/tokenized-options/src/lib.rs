@@ -1305,6 +1305,8 @@ pub mod pallet {
 			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
 
 			// Different behaviors based on Call or Put option
+			// `collateral_for_buyers` will be the amount of collateral that needs to be reserved to pay buyers
+			// already weighted by the amount of option bought wrt the amount for sale
 			let (asset_id, collateral_for_buyers) = match option.option_type {
 				OptionType::Call => (
 					option.base_asset_id,
@@ -1361,6 +1363,14 @@ pub mod pallet {
 										.checked_sub(&shares_for_buyers)
 										.ok_or(ArithmeticError::Overflow)?;
 
+									// Premium for user calculations
+
+									// premium_per_option = total_premium_paid / total_option_bought
+									// option_bought_ratio = total_option_bought / total_option_for_sale
+									// user_premium = premium_per_option * option_bought_ratio * user_option_amount
+
+									// In this way we avoid using floating point number and rely on
+									// decimals contained in the amounts since they are of Balance type
 									let new_premium_amount =
 										Self::convert_and_multiply_by_rational(
 											option.total_premium_paid,
@@ -1382,6 +1392,10 @@ pub mod pallet {
 				},
 			)?;
 
+			// Shares were already weighted by amount_option_bought / amount_option_for_sale
+			// because collateral_for_buyers was calculated in this way.
+			// So we need to multiply by amount_option_for_sale to get the total shares relative
+			// to the amount of bought options. We avoid using floating point numbers in this way.
 			let total_shares_amount = shares_amount
 				.checked_mul(&option.total_issuance_seller)
 				.ok_or(ArithmeticError::Overflow)?;
@@ -1457,6 +1471,7 @@ pub mod pallet {
 				let asset_amount =
 					Self::convert_and_multiply_by_rational(diff, unit, base_asset_spot_price)?;
 
+				// Multiply by amount_option_bought / amount_option_for_sale
 				Self::convert_and_multiply_by_rational(
 					asset_amount,
 					total_issuance_buyer,
@@ -1481,6 +1496,7 @@ pub mod pallet {
 					.checked_sub(&base_asset_spot_price)
 					.ok_or(ArithmeticError::Overflow)?;
 
+				// Multiply by the ratio of amount option bought wrt amount for sale
 				Self::convert_and_multiply_by_rational(
 					asset_amount,
 					total_issuance_buyer,

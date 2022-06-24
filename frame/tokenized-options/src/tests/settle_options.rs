@@ -129,10 +129,6 @@ pub fn settle_options_success_checks(to_check: &Vec<(Public, AssetId, Balance)>)
 			}
 		}
 	}
-
-	// Check premium is 0 in protocol balance after settlement is correct
-	// let protocol_account = TokenizedOptions::account_id(USDC);
-	// assert_eq!(Assets::balance(USDC, &protocol_account), 0u128);
 }
 
 /// Case checked: one call option with sellers and buyers, ended ITM
@@ -236,93 +232,7 @@ fn test_settle_options_call_with_initialization_success() {
 		});
 }
 
-/// Case checked: one call option with sellers and buyers, ended ITM
-#[test]
-fn test_settle_options_put_with_initialization_success2() {
-	ExtBuilder::default()
-		.initialize_balances(Vec::from([
-			(ALICE, BTC, 10 * UNIT),
-			(ALICE, USDC, 500000 * UNIT),
-			(BOB, BTC, 10 * UNIT),
-			(BOB, USDC, 500000 * UNIT),
-			(CHARLIE, BTC, 10 * UNIT),
-			(CHARLIE, USDC, 500000 * UNIT),
-			(DAVE, BTC, 10 * UNIT),
-			(DAVE, USDC, 500000 * UNIT),
-		]))
-		.build()
-		.initialize_oracle_prices()
-		.execute_with(|| {
-			// Get BTC and USDC vault config
-			let btc_vault_config = VaultConfigBuilder::default().build();
-			let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC).build();
-
-			// Create BTC and USDC vaults
-			assert_ok!(TokenizedOptions::create_asset_vault(
-				Origin::signed(ADMIN),
-				btc_vault_config
-			));
-
-			assert_ok!(TokenizedOptions::create_asset_vault(
-				Origin::signed(ADMIN),
-				usdc_vault_config
-			));
-
-			// Create default BTC option
-			let option_config =
-				OptionsConfigBuilder::default().option_type(OptionType::Call).build();
-
-			assert_ok!(TokenizedOptions::create_option(
-				Origin::signed(ADMIN),
-				option_config.clone()
-			));
-
-			let option_hash = TokenizedOptions::generate_id(
-				option_config.base_asset_id,
-				option_config.quote_asset_id,
-				option_config.base_asset_strike_price,
-				option_config.quote_asset_strike_price,
-				option_config.option_type,
-				option_config.expiring_date,
-				option_config.exercise_type,
-			);
-
-			// Check creation ended correctly
-			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
-
-			// Sell option and make checks
-			let alice_option_amount = 5u128;
-			let charlie_option_amount = 3u128;
-
-			assert_ok!(TokenizedOptions::sell_option(
-				Origin::signed(ALICE),
-				alice_option_amount,
-				option_id
-			));
-
-			// Go to purchase window
-			run_to_block(3);
-
-			// Buy option
-			assert_ok!(TokenizedOptions::buy_option(
-				Origin::signed(CHARLIE),
-				charlie_option_amount,
-				option_id
-			));
-
-			// BTC price moves from 50k to 55k, buyers are in profit
-			set_oracle_price(option_config.base_asset_id, 60000u128 * UNIT);
-
-			// Go to exercise window (option has expired so settlement can start)
-			run_to_block(6);
-
-			// Settle options
-			let to_check = vec![(ALICE, option_id, alice_option_amount)];
-			settle_options_success_checks(&to_check);
-		});
-}
-
-/// Case checked: one call option with sellers and buyers, ended ITM
+/// Case checked: one call option with seller and buyer, ended ITM
 #[test]
 fn test_settle_options_put_with_initialization_success() {
 	ExtBuilder::default()
