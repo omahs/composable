@@ -59,7 +59,7 @@ jobs:
       - name: Upload Artifacts
         run: |
           echo "RELEASE_VERSION=$(git rev-parse --short=9 HEAD )" >> $GITHUB_ENV
-          sudo gsutil cp ./target/release/composable gs://composable-binaries/dali-stage/${{ env.RELEASE_VERSION }}/
+          sudo gsutil mv ./target/release/composable gs://composable-binaries/dali-stage/${{ env.RELEASE_VERSION }}/
           
     
   dali-client-release:
