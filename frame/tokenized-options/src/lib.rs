@@ -1041,11 +1041,13 @@ pub mod pallet {
 				option_type: option_config.option_type,
 				exercise_type: option_config.exercise_type,
 				expiring_date: option_config.expiring_date,
+				epoch: option_config.epoch,
 				base_asset_amount_per_option: option_config.base_asset_amount_per_option,
 				quote_asset_amount_per_option: option_config.quote_asset_amount_per_option,
 				total_issuance_seller: option_config.total_issuance_seller,
 				total_premium_paid: option_config.total_premium_paid,
-				epoch: option_config.epoch,
+				exercise_amount: option_config.exercise_amount,
+				final_base_asset_spot_price: option_config.final_base_asset_spot_price,
 			};
 
 			let option_hash = option.generate_id();
@@ -1418,6 +1420,17 @@ pub mod pallet {
 			let total_shares_amount = shares_amount
 				.checked_mul(&option.total_issuance_seller)
 				.ok_or(ArithmeticError::Overflow)?;
+
+			OptionIdToOption::<T>::try_mutate(option_id, |option| -> Result<(), DispatchError> {
+				match option {
+					Some(option) => {
+						option.exercise_amount = collateral_for_buyers;
+						option.final_base_asset_spot_price = base_asset_spot_price;
+						Ok(())
+					},
+					None => Err(Error::<T>::OptionDoesNotExists.into()),
+				}
+			})?;
 
 			VaultOf::<T>::withdraw(&vault_id, &protocol_account, total_shares_amount)
 				.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;

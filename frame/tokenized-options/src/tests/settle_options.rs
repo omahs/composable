@@ -982,7 +982,6 @@ fn test_settle_options_error_overflow_with_value_accrual() {
 			// Settle options
 			let option = OptionIdToOption::<MockRuntime>::get(option_id).unwrap();
 			let protocol_account = TokenizedOptions::account_id(option.base_asset_id);
-			let initial_protocol_balance = Assets::balance(option.base_asset_id, &protocol_account);
 
 			assert_ok!(TokenizedOptions::do_settle_option(option_id, &option));
 			let updated_protocol_balance = Assets::balance(option.base_asset_id, &protocol_account);

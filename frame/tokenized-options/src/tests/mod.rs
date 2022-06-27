@@ -174,11 +174,13 @@ struct OptionsConfigBuilder {
 	pub option_type: OptionType,
 	pub exercise_type: ExerciseType,
 	pub expiring_date: Moment,
+	pub epoch: Epoch<Moment>,
 	pub base_asset_amount_per_option: Balance,
 	pub quote_asset_amount_per_option: Balance,
 	pub total_issuance_seller: Balance,
 	pub total_premium_paid: Balance,
-	pub epoch: Epoch<Moment>,
+	pub exercise_amount: Balance,
+	pub final_base_asset_spot_price: Balance,
 }
 
 impl Default for OptionsConfigBuilder {
@@ -191,10 +193,6 @@ impl Default for OptionsConfigBuilder {
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
 			expiring_date: 6000u64,
-			base_asset_amount_per_option: 1u128 * UNIT,
-			quote_asset_amount_per_option: 1u128 * UNIT,
-			total_issuance_seller: 0u128,
-			total_premium_paid: 0u128,
 			epoch: Epoch {
 				deposit: 0u64,
 				purchase: 3000u64,
@@ -202,6 +200,12 @@ impl Default for OptionsConfigBuilder {
 				withdraw: 9000u64,
 				end: 12000u64,
 			},
+			base_asset_amount_per_option: 1u128 * UNIT,
+			quote_asset_amount_per_option: 1u128 * UNIT,
+			total_issuance_seller: 0u128,
+			total_premium_paid: 0u128,
+			exercise_amount: 0u128,
+			final_base_asset_spot_price: 0u128,
 		}
 	}
 }
@@ -216,11 +220,13 @@ impl OptionsConfigBuilder {
 			option_type: self.option_type,
 			exercise_type: self.exercise_type,
 			expiring_date: self.expiring_date,
+			epoch: self.epoch,
 			base_asset_amount_per_option: self.base_asset_amount_per_option,
 			quote_asset_amount_per_option: self.quote_asset_amount_per_option,
 			total_issuance_seller: self.total_issuance_seller,
 			total_premium_paid: self.total_premium_paid,
-			epoch: self.epoch,
+			exercise_amount: self.exercise_amount,
+			final_base_asset_spot_price: self.final_base_asset_spot_price,
 		}
 	}
 

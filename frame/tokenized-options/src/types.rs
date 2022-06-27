@@ -80,11 +80,13 @@ pub struct OptionToken<T: Config> {
 	pub exercise_type: ExerciseType,
 
 	// Helper attributes
+	pub epoch: Epoch<T::Moment>,
 	pub base_asset_amount_per_option: T::Balance,
 	pub quote_asset_amount_per_option: T::Balance,
 	pub total_issuance_seller: T::Balance,
 	pub total_premium_paid: T::Balance,
-	pub epoch: Epoch<T::Moment>,
+	pub exercise_amount: T::Balance,
+	pub final_base_asset_spot_price: T::Balance,
 }
 
 impl<T: Config> OptionToken<T> {
@@ -111,11 +113,13 @@ pub struct OptionConfig<AssetId, Balance, Moment> {
 	pub option_type: OptionType,
 	pub expiring_date: Moment,
 	pub exercise_type: ExerciseType,
+	pub epoch: Epoch<Moment>,
 	pub base_asset_amount_per_option: Balance,
 	pub quote_asset_amount_per_option: Balance,
 	pub total_issuance_seller: Balance,
 	pub total_premium_paid: Balance,
-	pub epoch: Epoch<Moment>,
+	pub exercise_amount: Balance,
+	pub final_base_asset_spot_price: Balance,
 }
 
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, Debug)]
