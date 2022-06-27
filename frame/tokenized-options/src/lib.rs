@@ -931,6 +931,26 @@ pub mod pallet {
 			})
 		}
 
+		/// Settle all the options that are active and over their own expiration date.
+		///
+		/// # Overview
+		/// ## Parameters
+		///
+		/// ## Requirements
+		/// 1. The option to settle should exist.
+		/// 2. The option to settle should be in exercise phase, which suppose expiration date is passed.
+		///
+		/// ## Emits
+		/// - [`Event::SettleOptions`]
+		///
+		/// ## State Changes
+		/// - For each option, updates the [`Sellers`] storage calculating the PnL of each user subtracting the
+		/// correct amount of shares for paying buyers and adding the amount of premium that should be collected.
+		///
+		/// ## Errors
+		/// - There should not be errors in any case.
+		///
+		/// # Weight: O(TBD)
 		#[transactional]
 		fn settle_options() -> Result<(), DispatchError> {
 			let now = T::Time::now();
@@ -1363,8 +1383,7 @@ pub mod pallet {
 										.checked_sub(&shares_for_buyers)
 										.ok_or(ArithmeticError::Overflow)?;
 
-									// Premium for user calculations
-
+									// ------ Premium calculations for user ------
 									// premium_per_option = total_premium_paid / total_option_bought
 									// option_bought_ratio = total_option_bought / total_option_for_sale
 									// user_premium = premium_per_option * option_bought_ratio * user_option_amount

@@ -829,3 +829,164 @@ fn test_settle_options_put_success_multiple_options_not_totally_sold() {
 			settle_options_success_checks(&to_check);
 		});
 }
+
+/// Case checked: one call option with sellers and buyers, ended ITM
+/// Changing option_amount or asset price causes overflow
+#[test]
+fn test_settle_options_error_overflow() {
+	let exp: u32 = 38;
+
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 3 * 10u128.pow(exp)),
+			(CHARLIE, USDC, 3 * 10u128.pow(exp)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			// Create default BTC option
+			let option_config =
+				OptionsConfigBuilder::default().option_type(OptionType::Call).build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			// Check creation ended correctly
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			// Balance: u128 contains until ~4 * 10^38. Considering 12 decimals,
+			// the asset_amount to transfer should overflow with option amount > 3 * 10^26.
+			// It works until 3 * 10^26.
+			let alice_option_amount = 3 * 10u128.pow(26);
+
+			// Buyer pays 1k premium for each option (fixed fake amount right now), so 3 exp less
+			let charlie_option_amount = 3 * 10u128.pow(23);
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(ALICE),
+				alice_option_amount,
+				option_id
+			));
+
+			// Go to purchase window
+			run_to_block(3);
+
+			// Buy option
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(CHARLIE),
+				charlie_option_amount,
+				option_id
+			));
+
+			// BTC price moves from as far as it can
+			set_oracle_price(option_config.base_asset_id, 3 * 10u128.pow(38));
+
+			// Go to exercise window (option has expired so settlement can start)
+			run_to_block(6);
+
+			// Settle options
+			let to_check = vec![(ALICE, option_id, alice_option_amount)];
+			settle_options_success_checks(&to_check);
+		});
+}
+
+/// Case checked: one call option with sellers and buyers, ended ITM
+/// Changing option_amount or asset price causes overflow
+#[test]
+fn test_settle_options_error_overflow_with_value_accrual() {
+	let exp: u32 = 38;
+
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 3 * 10u128.pow(exp)),
+			(CHARLIE, USDC, 3 * 10u128.pow(exp)),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			// Create default BTC option
+			let option_config =
+				OptionsConfigBuilder::default().option_type(OptionType::Call).build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			// Check creation ended correctly
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			// Balance: u128 contains until ~4 * 10^38. Considering 12 decimals,
+			// the asset_amount to transfer should overflow with option amount > 3 * 10^26.
+			// It works until 3 * 10^26.
+			let alice_option_amount = 3 * 10u128.pow(26);
+
+			// Buyer pays 1k premium for each option (fixed fake amount right now), so 3 exp less
+			let charlie_option_amount = 3 * 10u128.pow(23);
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(ALICE),
+				alice_option_amount,
+				option_id
+			));
+
+			// Go to purchase window
+			run_to_block(3);
+
+			// Buy option
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(CHARLIE),
+				charlie_option_amount,
+				option_id
+			));
+
+			// Add as most BTC as I can to the vault to simulate vault value accrual
+			// In this case, too much value accrual and too much price shift cause the
+			// function `call_option_collateral_amount` to not be able to calculate `asset_amount`
+			// correctly, returning 1*UNIT as an approximation. So `shares_amount` is calculated
+			// incorrectly and this cause the withdraw of more funds than needed (because of value accrual),
+			// which actually should belong to sellers since value accrued while collateral is deposited is theirs.
+			// Of course this should never be the case since the value accrual and the price shift should
+			// never be so high
+			let vault_id = AssetToVault::<MockRuntime>::get(option_config.base_asset_id).unwrap();
+			let vault_account = Vault::account_id(&vault_id);
+			assert_ok!(Assets::mint_into(
+				Origin::signed(ADMIN),
+				option_config.base_asset_id,
+				vault_account,
+				3 * 10u128.pow(37),
+			));
+
+			// BTC price moves from as far as it can
+			set_oracle_price(option_config.base_asset_id, 3 * 10u128.pow(38));
+
+			// Go to exercise window (option has expired so settlement can start)
+			run_to_block(6);
+
+			// Settle options
+			let option = OptionIdToOption::<MockRuntime>::get(option_id).unwrap();
+			let protocol_account = TokenizedOptions::account_id(option.base_asset_id);
+			let initial_protocol_balance = Assets::balance(option.base_asset_id, &protocol_account);
+
+			assert_ok!(TokenizedOptions::do_settle_option(option_id, &option));
+			let updated_protocol_balance = Assets::balance(option.base_asset_id, &protocol_account);
+
+			assert!(updated_protocol_balance != 300000000000000000000000000000000000u128);
+		});
+}
