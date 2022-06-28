@@ -958,11 +958,11 @@ pub mod pallet {
 			OptionIdToOption::<T>::iter().try_for_each(
 				|(option_id, option)| -> Result<(), DispatchError> {
 					// Check expiring date has passed
-					if now < option.expiring_date {
-						return Err(Error::<T>::OptionDoesNotExists.into()); //TODO
+					if now >= option.expiring_date {
+						Self::do_settle_option(option_id, &option)
+					} else {
+						Ok(()) // Do nothing if option has not expired
 					}
-
-					Self::do_settle_option(option_id, &option)
 				},
 			)?;
 
@@ -1448,6 +1448,43 @@ pub mod pallet {
 				option_amount != BalanceOf::<T>::zero(),
 				Error::<T>::CannotPassZeroOptionAmount
 			);
+
+			// Check if we are in exercise window
+			ensure!(
+				option
+					.epoch
+					.window_type(T::Time::now())
+					.ok_or(Error::<T>::NotIntoExerciseWindow)?
+					== WindowType::Exercise,
+				Error::<T>::NotIntoExerciseWindow
+			);
+
+			// Different behaviors based on Call or Put option
+			let asset_id = match option.option_type {
+				OptionType::Call => option.base_asset_id,
+				OptionType::Put => option.quote_asset_id,
+			};
+
+			let protocol_account = Self::account_id(asset_id);
+
+			let total_amount_to_exercise = option
+				.exercise_amount
+				.checked_mul(&option_amount)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			// Transfer buyer profit to buyer account if option is ITM
+			if option.exercise_amount != BalanceOf::<T>::zero() {
+				AssetsOf::<T>::transfer(
+					asset_id,
+					&protocol_account,
+					from,
+					total_amount_to_exercise,
+					true,
+				)?;
+			}
+
+			// Brun option token from user's account
+			AssetsOf::<T>::burn_from(option_id, from, option_amount)?;
 
 			Self::deposit_event(Event::ExerciseOption {
 				user: from.clone(),
