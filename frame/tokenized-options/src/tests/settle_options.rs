@@ -34,24 +34,16 @@ pub fn settle_options_success_checks(to_check: &Vec<(Public, AssetId, Balance)>)
 		let base_asset_spot_price = get_oracle_price(option.base_asset_id, UNIT);
 		let total_issuance_buyer = Assets::total_issuance(option_id);
 
-		let (asset_id, collateral_for_buyers) = match option.option_type {
+		let (asset_id, collateral_for_option) = match option.option_type {
 			OptionType::Call => (
 				option.base_asset_id,
-				TokenizedOptions::call_option_collateral_amount(
-					base_asset_spot_price,
-					&option,
-					total_issuance_buyer,
-				)
-				.unwrap(),
+				TokenizedOptions::call_option_collateral_amount(base_asset_spot_price, &option)
+					.unwrap(),
 			),
 			OptionType::Put => (
 				option.quote_asset_id,
-				TokenizedOptions::put_option_collateral_amount(
-					base_asset_spot_price,
-					&option,
-					total_issuance_buyer,
-				)
-				.unwrap(),
+				TokenizedOptions::put_option_collateral_amount(base_asset_spot_price, &option)
+					.unwrap(),
 			),
 		};
 
@@ -95,9 +87,9 @@ pub fn settle_options_success_checks(to_check: &Vec<(Public, AssetId, Balance)>)
 			));
 		}
 
-		let total_collateral_for_buyers = collateral_for_buyers * option.total_issuance_seller;
+		let total_collateral_for_buyers = collateral_for_option * total_issuance_buyer;
 		let shares_amount =
-			Vault::amount_of_lp_token_for_added_liquidity(&vault_id, collateral_for_buyers)
+			Vault::amount_of_lp_token_for_added_liquidity(&vault_id, total_collateral_for_buyers)
 				.unwrap();
 
 		assert_eq!(
@@ -118,10 +110,19 @@ pub fn settle_options_success_checks(to_check: &Vec<(Public, AssetId, Balance)>)
 			if option_id == *opt_id {
 				assert_eq!(initial_user_positions[i].0, *user);
 				assert_eq!(updated_user_positions[i].0, *user);
+
+				let user_shares_amount = TokenizedOptions::convert_and_multiply_by_rational(
+					shares_amount,
+					*user_option_amount,
+					option.total_issuance_seller,
+				)
+				.unwrap();
+
 				assert_eq!(
 					updated_user_positions[i].2,
-					initial_user_positions[i].2 - shares_amount * user_option_amount
+					initial_user_positions[i].2 - user_shares_amount
 				);
+
 				assert_eq!(
 					updated_user_positions[i].3,
 					initial_user_positions[i].3 + premium_amount
@@ -187,19 +188,11 @@ fn test_settle_options_call_with_initialization_success() {
 
 			// Sell option and make checks
 			let alice_option_amount = 5u128;
-			let bob_option_amount = 4u128;
 			let charlie_option_amount = 3u128;
-			let dave_option_amount = 6u128;
 
 			assert_ok!(TokenizedOptions::sell_option(
 				Origin::signed(ALICE),
 				alice_option_amount,
-				option_id
-			));
-
-			assert_ok!(TokenizedOptions::sell_option(
-				Origin::signed(BOB),
-				bob_option_amount,
 				option_id
 			));
 
@@ -213,12 +206,6 @@ fn test_settle_options_call_with_initialization_success() {
 				option_id
 			));
 
-			assert_ok!(TokenizedOptions::buy_option(
-				Origin::signed(DAVE),
-				dave_option_amount,
-				option_id
-			));
-
 			// BTC price moves from 50k to 55k, buyers are in profit
 			set_oracle_price(option_config.base_asset_id, 55000u128 * UNIT);
 
@@ -226,8 +213,7 @@ fn test_settle_options_call_with_initialization_success() {
 			run_to_block(6);
 
 			// Settle options
-			let to_check =
-				vec![(ALICE, option_id, alice_option_amount), (BOB, option_id, bob_option_amount)];
+			let to_check = vec![(ALICE, option_id, alice_option_amount)];
 			settle_options_success_checks(&to_check);
 		});
 }
@@ -985,7 +971,8 @@ fn test_settle_options_error_overflow_with_value_accrual() {
 
 			assert_ok!(TokenizedOptions::do_settle_option(option_id, &option));
 			let updated_protocol_balance = Assets::balance(option.base_asset_id, &protocol_account);
+			let updated_vault_balance = Assets::balance(option.base_asset_id, &vault_account);
 
-			assert!(updated_protocol_balance != 300000000000000000000000000000000000u128);
+			assert!(updated_protocol_balance == 300000000000000000000000000000000000u128);
 		});
 }

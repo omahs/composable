@@ -539,3 +539,21 @@ pub fn trait_create_option(
 
 	Ok(option_id)
 }
+
+// Simulate trait call `settle_options`, but returning values
+pub fn trait_settle_options() -> Result<(), DispatchError> {
+	let now = Timestamp::now();
+
+	OptionIdToOption::<MockRuntime>::iter().try_for_each(
+		|(option_id, option)| -> Result<(), DispatchError> {
+			// Check expiring date has passed
+			if now >= option.expiring_date {
+				TokenizedOptions::do_settle_option(option_id, &option)
+			} else {
+				Ok(()) // Do nothing if option has not expired
+			}
+		},
+	)?;
+	TokenizedOptions::deposit_event(pallet::Event::SettleOptions { timestamp: now });
+	Ok(())
+}

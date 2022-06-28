@@ -1327,29 +1327,19 @@ pub mod pallet {
 			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
 
 			// Different behaviors based on Call or Put option
-			// `collateral_for_buyers` will be the amount of collateral that needs to be reserved to pay buyers
-			// already weighted by the amount of option bought wrt the amount for sale
-			let (asset_id, collateral_for_buyers) = match option.option_type {
+			let (asset_id, collateral_for_option) = match option.option_type {
 				OptionType::Call => (
 					option.base_asset_id,
-					Self::call_option_collateral_amount(
-						base_asset_spot_price,
-						&option,
-						total_issuance_buyer,
-					)?,
+					Self::call_option_collateral_amount(base_asset_spot_price, &option)?,
 				),
 				OptionType::Put => (
 					option.quote_asset_id,
-					Self::put_option_collateral_amount(
-						base_asset_spot_price,
-						&option,
-						total_issuance_buyer,
-					)?,
+					Self::put_option_collateral_amount(base_asset_spot_price, &option)?,
 				),
 			};
 
 			// Out of money options or options without buyers don't require other calculations
-			if collateral_for_buyers == BalanceOf::<T>::zero()
+			if collateral_for_option == BalanceOf::<T>::zero()
 				|| total_issuance_buyer == BalanceOf::<T>::zero()
 			{
 				return Ok(());
@@ -1360,10 +1350,12 @@ pub mod pallet {
 			let vault_id =
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
-			let shares_amount = VaultOf::<T>::amount_of_lp_token_for_added_liquidity(
-				&vault_id,
-				collateral_for_buyers,
-			)?;
+			let total_collateral = collateral_for_option
+				.checked_mul(&total_issuance_buyer)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			let total_shares_amount =
+				VaultOf::<T>::amount_of_lp_token_for_added_liquidity(&vault_id, total_collateral)?;
 
 			// Update sellers positions if option is in profit for buyers (In the money)
 			// Subtract shares and add premium to the seller position
@@ -1375,10 +1367,15 @@ pub mod pallet {
 						|position| -> Result<(), DispatchError> {
 							match position {
 								Some(position) => {
-									let shares_for_buyers = position
-										.option_amount
-										.checked_mul(&shares_amount)
-										.ok_or(ArithmeticError::Overflow)?;
+									// ------ Shares calculations for user ------
+									// shares_per_option = total_shares / total_option_bought
+									// option_bought_ratio = total_option_bought / total_option_for_sale
+									// user_shares_to_subtract = shares_per_option * option_bought_ratio * user_option_amount
+									let shares_for_buyers = Self::convert_and_multiply_by_rational(
+										total_shares_amount,
+										position.option_amount,
+										option.total_issuance_seller,
+									)?;
 
 									let new_shares_amount = position
 										.shares_amount
@@ -1389,9 +1386,6 @@ pub mod pallet {
 									// premium_per_option = total_premium_paid / total_option_bought
 									// option_bought_ratio = total_option_bought / total_option_for_sale
 									// user_premium = premium_per_option * option_bought_ratio * user_option_amount
-
-									// In this way we avoid using floating point number and rely on
-									// decimals contained in the amounts since they are of Balance type
 									let new_premium_amount =
 										Self::convert_and_multiply_by_rational(
 											option.total_premium_paid,
@@ -1413,18 +1407,10 @@ pub mod pallet {
 				},
 			)?;
 
-			// Shares were already weighted by amount_option_bought / amount_option_for_sale
-			// because collateral_for_buyers was calculated in this way.
-			// So we need to multiply by amount_option_for_sale to get the total shares relative
-			// to the amount of bought options. We avoid using floating point numbers in this way.
-			let total_shares_amount = shares_amount
-				.checked_mul(&option.total_issuance_seller)
-				.ok_or(ArithmeticError::Overflow)?;
-
 			OptionIdToOption::<T>::try_mutate(option_id, |option| -> Result<(), DispatchError> {
 				match option {
 					Some(option) => {
-						option.exercise_amount = collateral_for_buyers;
+						option.exercise_amount = collateral_for_option;
 						option.final_base_asset_spot_price = base_asset_spot_price;
 						Ok(())
 					},
@@ -1527,55 +1513,38 @@ pub mod pallet {
 		pub fn call_option_collateral_amount(
 			base_asset_spot_price: BalanceOf<T>,
 			option: &OptionToken<T>,
-			total_issuance_buyer: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			// Calculate amount of asset to reserve for buyers if the option is ITM
-			let collateral_for_buyers = if base_asset_spot_price >= option.base_asset_strike_price {
+			let collateral_for_option = if base_asset_spot_price >= option.base_asset_strike_price {
 				let diff = base_asset_spot_price
 					.checked_sub(&option.base_asset_strike_price)
 					.ok_or(ArithmeticError::Overflow)?;
 
 				let unit = T::LocalAssets::unit::<BalanceOf<T>>(option.base_asset_id)?;
 
-				let asset_amount =
-					Self::convert_and_multiply_by_rational(diff, unit, base_asset_spot_price)?;
-
-				// Multiply by amount_option_bought / amount_option_for_sale
-				Self::convert_and_multiply_by_rational(
-					asset_amount,
-					total_issuance_buyer,
-					option.total_issuance_seller,
-				)?
+				Self::convert_and_multiply_by_rational(diff, unit, base_asset_spot_price)?
 			} else {
 				BalanceOf::<T>::zero()
 			};
 
-			Ok(collateral_for_buyers)
+			Ok(collateral_for_option)
 		}
 
 		pub fn put_option_collateral_amount(
 			base_asset_spot_price: BalanceOf<T>,
 			option: &OptionToken<T>,
-			total_issuance_buyer: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			// Calculate amount of asset to reserve for buyers if the option is ITM
-			let collateral_for_buyers = if option.base_asset_strike_price >= base_asset_spot_price {
-				let asset_amount = option
+			let collateral_for_option = if option.base_asset_strike_price >= base_asset_spot_price {
+				option
 					.base_asset_strike_price
 					.checked_sub(&base_asset_spot_price)
-					.ok_or(ArithmeticError::Overflow)?;
-
-				// Multiply by the ratio of amount option bought wrt amount for sale
-				Self::convert_and_multiply_by_rational(
-					asset_amount,
-					total_issuance_buyer,
-					option.total_issuance_seller,
-				)?
+					.ok_or(ArithmeticError::Overflow)?
 			} else {
 				BalanceOf::<T>::zero()
 			};
 
-			Ok(collateral_for_buyers)
+			Ok(collateral_for_option)
 		}
 
 		pub fn convert_and_multiply_by_rational(
