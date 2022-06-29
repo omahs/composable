@@ -253,23 +253,13 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Emitted after a successful call to the [`create_asset_vault`](Pallet::create_asset_vault) extrinsic.
-		CreatedAssetVault {
-			vault_id: VaultIdOf<T>,
-			asset_id: AssetIdOf<T>,
-		},
+		CreatedAssetVault { vault_id: VaultIdOf<T>, asset_id: AssetIdOf<T> },
 
 		/// Emitted after a successful call to the [`create_option`](Pallet::create_option) extrinsic.
-		CreatedOption {
-			option_id: OptionIdOf<T>,
-			option_config: OptionConfigOf<T>,
-		},
+		CreatedOption { option_id: OptionIdOf<T>, option_config: OptionConfigOf<T> },
 
 		/// Emitted after a successful call to the [`sell_option`](Pallet::sell_option) extrinsic.
-		SellOption {
-			seller: AccountIdOf<T>,
-			option_amount: BalanceOf<T>,
-			option_id: OptionIdOf<T>,
-		},
+		SellOption { seller: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
 
 		/// Emitted after a successful call to the [`delete_sell_option`](Pallet::delete_sell_option) extrinsic.
 		DeleteSellOption {
@@ -279,15 +269,10 @@ pub mod pallet {
 		},
 
 		/// Emitted after a successful call to the [`buy_option`](Pallet::buy_option) extrinsic.
-		BuyOption {
-			buyer: AccountIdOf<T>,
-			option_amount: BalanceOf<T>,
-			option_id: OptionIdOf<T>,
-		},
+		BuyOption { buyer: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
 
-		SettleOptions {
-			timestamp: MomentOf<T>,
-		},
+		/// Emitted after a successful call to the [`settle_options`](Pallet::settle_options) function.
+		SettleOptions { timestamp: MomentOf<T> },
 
 		/// Emitted after a successful call to the [`exercise_option`](Pallet::exercise_option) extrinsic.
 		ExerciseOption {
@@ -296,30 +281,23 @@ pub mod pallet {
 			option_id: OptionIdOf<T>,
 		},
 
+		/// Emitted after a successful call to the [`withdraw_collateral`](Pallet::withdraw_collateral) extrinsic.
+		WithdrawCollateral { user: AccountIdOf<T>, option_id: OptionIdOf<T> },
+
 		/// Emitted when the deposit phase for the reported option starts
-		OptionDepositStart {
-			option_id: OptionIdOf<T>,
-		},
+		OptionDepositStart { option_id: OptionIdOf<T> },
 
 		/// Emitted when the purchase phase for the reported option starts
-		OptionPurchaseStart {
-			option_id: OptionIdOf<T>,
-		},
+		OptionPurchaseStart { option_id: OptionIdOf<T> },
 
 		/// Emitted when the exercise phase for the reported option starts
-		OptionExerciseStart {
-			option_id: OptionIdOf<T>,
-		},
+		OptionExerciseStart { option_id: OptionIdOf<T> },
 
 		/// Emitted when the withdraw phase for the reported option starts
-		OptionWithdrawStart {
-			option_id: OptionIdOf<T>,
-		},
+		OptionWithdrawStart { option_id: OptionIdOf<T> },
 
 		/// Emitted when the reported option epoch ends
-		OptionEnd {
-			option_id: OptionIdOf<T>,
-		},
+		OptionEnd { option_id: OptionIdOf<T> },
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -363,8 +341,8 @@ pub mod pallet {
 		/// Raised when trying to sell/delete/buy an option, but the option amount is zero.
 		CannotPassZeroOptionAmount,
 
-		/// Raised when trying to delete the sale of an option, but the user had never sold the
-		/// indicated option before.
+		/// Raised when trying to delete the sale of an option or withdraw collateral, but
+		/// the user had never sold the indicated option before or has not collateral to withdraw.
 		UserDoesNotHaveSellerPosition,
 
 		/// Raised when trying to delete the sale of an option, but the user is trying to withdraw more
@@ -722,6 +700,18 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::exercise_option())]
+		pub fn withdraw_collateral(
+			origin: OriginFor<T>,
+			option_id: OptionIdOf<T>,
+		) -> DispatchResult {
+			let from = ensure_signed(origin)?;
+
+			<Self as TokenizedOptions>::withdraw_collateral(&from, option_id)?;
+
+			Ok(())
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -1043,6 +1033,19 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
 				Some(option) => Self::do_exercise_option(from, option_amount, option_id, option),
+				None => Err(Error::<T>::OptionDoesNotExists.into()),
+			})
+		}
+
+		#[transactional]
+		fn withdraw_collateral(
+			from: &Self::AccountId,
+			option_id: Self::OptionId,
+		) -> Result<(), DispatchError> {
+			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
+				Some(option) => Sellers::<T>::try_mutate(option_id, from, |position| {
+					Self::do_withdraw_collateral(from, option_id, option, position)
+				}),
 				None => Err(Error::<T>::OptionDoesNotExists.into()),
 			})
 		}
@@ -1543,6 +1546,54 @@ pub mod pallet {
 				option_amount,
 				option_id,
 			});
+
+			Ok(())
+		}
+
+		fn do_withdraw_collateral(
+			from: &AccountIdOf<T>,
+			option_id: OptionIdOf<T>,
+			option: &mut OptionToken<T>,
+			position: &mut Option<SellerPosition<T>>,
+		) -> Result<(), DispatchError> {
+			// Check if we are in deposit window
+			ensure!(
+				option
+					.epoch
+					.window_type(T::Time::now())
+					.ok_or(Error::<T>::NotIntoWithdrawWindow)?
+					== WindowType::Withdraw,
+				Error::<T>::NotIntoWithdrawWindow
+			);
+
+			// Check if user has any collateral and retrieve position
+			let seller_position =
+				position.as_mut().ok_or(Error::<T>::UserDoesNotHaveSellerPosition)?;
+
+			// Different behaviors based on Call or Put option
+			let asset_id = match option.option_type {
+				OptionType::Call => option.base_asset_id,
+				OptionType::Put => option.quote_asset_id,
+			};
+
+			// Get vault_id for withdrawing collateral
+			let protocol_account = Self::account_id(asset_id);
+
+			let vault_id =
+				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
+
+			// Protocol account withdraw from the vault and burn shares_amount
+			let asset_amount =
+				VaultOf::<T>::withdraw(&vault_id, &protocol_account, seller_position.shares_amount)
+					.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
+
+			// Transfer collateral to user account
+			AssetsOf::<T>::transfer(asset_id, &protocol_account, from, asset_amount, true)?;
+
+			Self::deposit_event(Event::WithdrawCollateral { user: from.clone(), option_id });
+
+			// Delete position
+			*position = None;
 
 			Ok(())
 		}

@@ -39,4 +39,9 @@ pub trait TokenizedOptions {
 		option_amount: Self::Balance,
 		option: Self::OptionId,
 	) -> Result<(), DispatchError>;
+
+	fn withdraw_collateral(
+		from: &Self::AccountId,
+		option: Self::OptionId,
+	) -> Result<(), DispatchError>;
 }
