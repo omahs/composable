@@ -377,6 +377,9 @@ pub mod pallet {
 		/// Raised when trying to buy an option, but there are not enough options for sale.
 		NotEnoughOptionsForSale,
 
+		/// Raised when trying to exercise options, but the amount is greater than what user owns.
+		UserHasNotEnoughOptionTokens,
+
 		/// Raised when trying to get the price for a specific asset, but the asset is not found in the Oracle
 		AssetPriceNotFound,
 
@@ -1466,11 +1469,13 @@ pub mod pallet {
 					from,
 					total_amount_to_exercise,
 					true,
-				)?;
+				)
+				.map_err(|_| Error::<T>::UserHasNotEnoughOptionTokens)?;
 			}
 
 			// Brun option token from user's account
-			AssetsOf::<T>::burn_from(option_id, from, option_amount)?;
+			AssetsOf::<T>::burn_from(option_id, from, option_amount)
+				.map_err(|_| Error::<T>::UserHasNotEnoughOptionTokens)?;
 
 			Self::deposit_event(Event::ExerciseOption {
 				user: from.clone(),

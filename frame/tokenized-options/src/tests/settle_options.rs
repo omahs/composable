@@ -971,7 +971,6 @@ fn test_settle_options_error_overflow_with_value_accrual() {
 
 			assert_ok!(TokenizedOptions::do_settle_option(option_id, &option));
 			let updated_protocol_balance = Assets::balance(option.base_asset_id, &protocol_account);
-			let updated_vault_balance = Assets::balance(option.base_asset_id, &vault_account);
 
 			assert!(updated_protocol_balance == 300000000000000000000000000000000000u128);
 		});
