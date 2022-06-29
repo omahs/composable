@@ -709,6 +709,9 @@ fn test_exercise_option_out_of_money_tokens_burned() {
 			// Not yet exercise phase (starts at 6th block)
 			run_to_block(6);
 
+			// Settle options
+			assert_ok!(TokenizedOptions::settle_options());
+
 			exercise_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 		});
 }
@@ -865,6 +868,9 @@ fn test_exercise_option_error_cannot_exercise_zero_options() {
 			// Not yet exercise phase (starts at 6th block)
 			run_to_block(6);
 
+			// Settle options
+			assert_ok!(TokenizedOptions::settle_options());
+
 			assert_noop!(
 				TokenizedOptions::exercise_option(Origin::signed(CHARLIE), 0u128, option_id),
 				Error::<MockRuntime>::CannotPassZeroOptionAmount
@@ -931,9 +937,86 @@ fn test_exercise_option_error_cannot_exercise_too_much_options() {
 			// Not yet exercise phase (starts at 6th block)
 			run_to_block(6);
 
+			// Settle options
+			assert_ok!(TokenizedOptions::settle_options());
+
 			assert_noop!(
 				TokenizedOptions::exercise_option(Origin::signed(CHARLIE), 5u128, option_id),
 				Error::<MockRuntime>::UserHasNotEnoughOptionTokens
+			);
+		});
+}
+
+#[test]
+fn test_exercise_option_error_overflow() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 10 * UNIT),
+			(ALICE, USDC, 500000 * UNIT),
+			(BOB, BTC, 10 * UNIT),
+			(BOB, USDC, 500000 * UNIT),
+			(CHARLIE, BTC, 10 * UNIT),
+			(CHARLIE, USDC, 500000 * UNIT),
+			(DAVE, BTC, 10 * UNIT),
+			(DAVE, USDC, 500000 * UNIT),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			let option_config =
+				OptionsConfigBuilder::default().option_type(OptionType::Call).build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			assert!(OptionHashToOptionId::<MockRuntime>::contains_key(option_hash));
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			// Sell option and make checks
+			let alice_option_amount = 10u128;
+			let charlie_option_amount = 4u128;
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(ALICE),
+				alice_option_amount,
+				option_id
+			));
+
+			// Go to purchase window
+			run_to_block(3);
+
+			// Buy option
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(CHARLIE),
+				charlie_option_amount,
+				option_id
+			));
+
+			// BTC price moves from 50k to 55k, buyers are in profit
+			set_oracle_price(option_config.base_asset_id, 55000u128 * UNIT);
+
+			// Not yet exercise phase (starts at 6th block)
+			run_to_block(6);
+
+			// Settle options
+			assert_ok!(TokenizedOptions::settle_options());
+
+			assert_noop!(
+				TokenizedOptions::exercise_option(
+					Origin::signed(CHARLIE),
+					3 * 10u128.pow(28),
+					option_id
+				),
+				ArithmeticError::Overflow
 			);
 		});
 }
