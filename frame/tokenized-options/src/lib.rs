@@ -545,8 +545,8 @@ pub mod pallet {
 		/// already for sale.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
-		/// but it already exists.
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
 		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
 		/// associated to an asset, but it does not exist.
 		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
@@ -598,8 +598,8 @@ pub mod pallet {
 		/// already for sale.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
-		/// but it already exists.
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
 		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
 		/// associated to an asset, but it does not exist.
 		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
@@ -651,8 +651,8 @@ pub mod pallet {
 		/// already bought.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
-		/// but it already exists.
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
 		/// - [`NotIntoPurchaseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
 		/// but it is not purchase phase for that option.
 		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to buy an option,
@@ -678,6 +678,38 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Exercise the indicated option.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `origin`: type representing the origin of this dispatch.
+		/// - `option_amount`: the amount of option the user wants to exercise.
+		/// - `option_id`: the option id.
+		///
+		/// ## Requirements
+		/// 1. The call must have been signed by the user.
+		/// 2. The option should exist.
+		/// 3. The option should be in exercise phase.
+		/// 4. The option amount should not be zero.
+		///
+		/// ## Emits
+		/// - [`Event::ExerciseOption`]
+		///
+		/// ## State Changes
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
+		/// but it is not exercise phase for that option.
+		/// - [`UserHasNotEnoughOptionTokens`](Error::UserHasNotEnoughOptionTokens): raised when trying to exercise options,
+		/// but the amount is greater than what user owns.
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
+		/// but the option amount is zero.
+		///
+		/// # Examples
+		///
+		/// # Weight: O(TBD)
 		#[pallet::weight(<T as Config>::WeightInfo::exercise_option())]
 		pub fn exercise_option(
 			origin: OriginFor<T>,
@@ -974,6 +1006,35 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Exercise the indicated option.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `from`: user's account id.
+		/// - `option_amount`: the amount of option the user wants to exercise.
+		/// - `option_id`: the option id.
+		///
+		/// ## Requirements
+		/// 1. The option should exist.
+		/// 2. The option should be in exercise phase.
+		/// 3. The option amount should not be zero.
+		///
+		/// ## Emits
+		/// - [`Event::ExerciseOption`]
+		///
+		/// ## State Changes
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
+		/// but it is not exercise phase for that option.
+		/// - [`UserHasNotEnoughOptionTokens`](Error::UserHasNotEnoughOptionTokens): raised when trying to exercise options,
+		/// but the amount is greater than what user owns.
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
+		/// but the option amount is zero.
+		///
+		/// # Weight: O(TBD)
 		#[transactional]
 		fn exercise_option(
 			from: &Self::AccountId,
