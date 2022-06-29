@@ -1031,10 +1031,10 @@ pub mod pallet {
 			option_amount: Self::Balance,
 			option_id: Self::OptionId,
 		) -> Result<(), DispatchError> {
-			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
-				Some(option) => Self::do_exercise_option(from, option_amount, option_id, option),
+			match Self::option_id_to_option(option_id) {
+				Some(option) => Self::do_exercise_option(from, option_amount, option_id, &option),
 				None => Err(Error::<T>::OptionDoesNotExists.into()),
-			})
+			}
 		}
 
 		#[transactional]
@@ -1042,12 +1042,12 @@ pub mod pallet {
 			from: &Self::AccountId,
 			option_id: Self::OptionId,
 		) -> Result<(), DispatchError> {
-			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
+			match Self::option_id_to_option(option_id) {
 				Some(option) => Sellers::<T>::try_mutate(option_id, from, |position| {
-					Self::do_withdraw_collateral(from, option_id, option, position)
+					Self::do_withdraw_collateral(from, option_id, &option, position)
 				}),
 				None => Err(Error::<T>::OptionDoesNotExists.into()),
-			})
+			}
 		}
 	}
 
@@ -1209,18 +1209,19 @@ pub mod pallet {
 			VaultOf::<T>::deposit(&vault_id, &protocol_account, asset_amount)
 				.map_err(|_| Error::<T>::VaultDepositNotAllowed)?;
 
-			Self::deposit_event(Event::SellOption {
-				seller: from.clone(),
-				option_amount,
-				option_id,
-			});
-
 			// Add option amount to total issuance
 			let new_total_issuance_seller = option
 				.total_issuance_seller
 				.checked_add(&option_amount)
 				.ok_or(ArithmeticError::Overflow)?;
+
 			option.total_issuance_seller = new_total_issuance_seller;
+
+			Self::deposit_event(Event::SellOption {
+				seller: from.clone(),
+				option_amount,
+				option_id,
+			});
 
 			Ok(())
 		}
@@ -1305,19 +1306,19 @@ pub mod pallet {
 			// Transfer collateral to user account
 			AssetsOf::<T>::transfer(asset_id, &protocol_account, from, asset_amount, true)?;
 
-			Self::deposit_event(Event::DeleteSellOption {
-				seller: from.clone(),
-				option_amount,
-				option_id,
-			});
-
 			// Subtract option amount to total issuance
 			let new_total_issuance_seller = option
 				.total_issuance_seller
 				.checked_sub(&option_amount)
 				.ok_or(ArithmeticError::Overflow)?;
+
 			option.total_issuance_seller = new_total_issuance_seller;
 
+			Self::deposit_event(Event::DeleteSellOption {
+				seller: from.clone(),
+				option_amount,
+				option_id,
+			});
 			Ok(())
 		}
 
@@ -1495,7 +1496,7 @@ pub mod pallet {
 			from: &AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: OptionIdOf<T>,
-			option: &mut OptionToken<T>,
+			option: &OptionToken<T>,
 		) -> Result<(), DispatchError> {
 			ensure!(
 				option_amount != BalanceOf::<T>::zero(),
@@ -1553,7 +1554,7 @@ pub mod pallet {
 		fn do_withdraw_collateral(
 			from: &AccountIdOf<T>,
 			option_id: OptionIdOf<T>,
-			option: &mut OptionToken<T>,
+			option: &OptionToken<T>,
 			position: &mut Option<SellerPosition<T>>,
 		) -> Result<(), DispatchError> {
 			// Check if we are in deposit window
