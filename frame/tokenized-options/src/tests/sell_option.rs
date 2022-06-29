@@ -553,7 +553,8 @@ fn test_sell_option_shares_calculation_with_vault_value_accrual_success() {
 		.initialize_all_vaults()
 		.initialize_all_options()
 		.execute_with(|| {
-			let option_config = OptionsConfigBuilder::default().build();
+			let option_config =
+				OptionsConfigBuilder::default().option_type(OptionType::Call).build();
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,

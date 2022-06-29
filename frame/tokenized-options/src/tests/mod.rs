@@ -316,18 +316,21 @@ impl OptionInitializer for sp_io::TestExternalities {
 				let price = get_oracle_price(asset, UNIT);
 
 				let config = OptionsConfigBuilder::default()
+					.option_type(OptionType::Call)
 					.base_asset_id(asset)
 					.base_asset_strike_price(price)
 					.build();
 
 				let price2 = price.checked_add(price / 10).unwrap();
 				let config2 = OptionsConfigBuilder::default()
+					.option_type(OptionType::Call)
 					.base_asset_id(asset)
 					.base_asset_strike_price(price2)
 					.build();
 
 				let price3 = price.checked_sub(price / 10).unwrap();
 				let config3 = OptionsConfigBuilder::default()
+					.option_type(OptionType::Call)
 					.base_asset_id(asset)
 					.base_asset_strike_price(price3)
 					.build();
