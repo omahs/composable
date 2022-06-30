@@ -86,7 +86,9 @@ pub struct OptionToken<T: Config> {
 	pub total_issuance_seller: T::Balance,
 	pub total_premium_paid: T::Balance,
 	pub exercise_amount: T::Balance,
-	pub final_base_asset_spot_price: T::Balance,
+	pub base_asset_spot_price: T::Balance,
+	pub total_issuance_buyer: T::Balance,
+	pub total_shares_amount: T::Balance,
 }
 
 impl<T: Config> OptionToken<T> {
@@ -119,7 +121,9 @@ pub struct OptionConfig<AssetId, Balance, Moment> {
 	pub total_issuance_seller: Balance,
 	pub total_premium_paid: Balance,
 	pub exercise_amount: Balance,
-	pub final_base_asset_spot_price: Balance,
+	pub base_asset_spot_price: Balance,
+	pub total_issuance_buyer: Balance,
+	pub total_shares_amount: Balance,
 }
 
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, Debug)]

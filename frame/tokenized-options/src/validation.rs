@@ -122,7 +122,9 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAttributes<T>>
 		if input.total_issuance_seller != BalanceOf::<T>::zero()
 			|| input.total_premium_paid != BalanceOf::<T>::zero()
 			|| input.exercise_amount != BalanceOf::<T>::zero()
-			|| input.final_base_asset_spot_price != BalanceOf::<T>::zero()
+			|| input.base_asset_spot_price != BalanceOf::<T>::zero()
+			|| input.total_issuance_buyer != BalanceOf::<T>::zero()
+			|| input.total_shares_amount != BalanceOf::<T>::zero()
 		{
 			return Err("ValidateOptionAttributes");
 		}

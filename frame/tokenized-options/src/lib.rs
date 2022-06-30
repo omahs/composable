@@ -271,8 +271,8 @@ pub mod pallet {
 		/// Emitted after a successful call to the [`buy_option`](Pallet::buy_option) extrinsic.
 		BuyOption { buyer: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
 
-		/// Emitted after a successful call to the [`settle_options`](Pallet::settle_options) function.
-		SettleOptions { timestamp: MomentOf<T> },
+		/// Emitted after a successful call to the [`settle_option`](Pallet::settle_option) function.
+		SettleOption { option_id: OptionIdOf<T> },
 
 		/// Emitted after a successful call to the [`exercise_option`](Pallet::exercise_option) extrinsic.
 		ExerciseOption {
@@ -956,46 +956,6 @@ pub mod pallet {
 			})
 		}
 
-		/// Settle all the options that are active and over their own expiration date.
-		///
-		/// # Overview
-		/// ## Parameters
-		///
-		/// ## Requirements
-		/// 1. The option to settle should exist.
-		/// 2. The option to settle should be in exercise phase, which suppose expiration date is passed.
-		///
-		/// ## Emits
-		/// - [`Event::SettleOptions`]
-		///
-		/// ## State Changes
-		/// - For each option, updates the [`Sellers`] storage calculating the PnL of each user subtracting the
-		/// correct amount of shares for paying buyers and adding the amount of premium that should be collected.
-		///
-		/// ## Errors
-		/// - There should not be errors in any case.
-		///
-		/// # Weight: O(TBD)
-		#[transactional]
-		fn settle_options() -> Result<(), DispatchError> {
-			let now = T::Time::now();
-
-			OptionIdToOption::<T>::iter().try_for_each(
-				|(option_id, option)| -> Result<(), DispatchError> {
-					// Check expiring date has passed
-					if now >= option.expiring_date {
-						Self::do_settle_option(option_id, &option)
-					} else {
-						Ok(()) // Do nothing if option has not expired
-					}
-				},
-			)?;
-
-			Self::deposit_event(Event::SettleOptions { timestamp: now });
-
-			Ok(())
-		}
-
 		/// Exercise the indicated option.
 		///
 		/// # Overview
@@ -1114,7 +1074,9 @@ pub mod pallet {
 				total_issuance_seller: option_config.total_issuance_seller,
 				total_premium_paid: option_config.total_premium_paid,
 				exercise_amount: option_config.exercise_amount,
-				final_base_asset_spot_price: option_config.final_base_asset_spot_price,
+				base_asset_spot_price: option_config.base_asset_spot_price,
+				total_issuance_buyer: option_config.total_issuance_buyer,
+				total_shares_amount: option_config.total_shares_amount,
 			};
 
 			let option_hash = option.generate_id();
@@ -1155,7 +1117,7 @@ pub mod pallet {
 
 			// Different behaviors based on Call or Put option
 			let (asset_id, asset_amount) = match option.option_type {
-				OptionType::Call => (option.base_asset_id, option.base_asset_amount_per_option),
+				OptionType::Call => (option.base_asset_id, option.quote_asset_strike_price),
 				OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
 			};
 
@@ -1384,9 +1346,29 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Settle the option specified by `option_id`.
+		///
+		/// # Overview
+		/// ## Parameters
+		///
+		/// ## Requirements
+		/// 1. The option to settle should exist.
+		/// 2. The option to settle should be in exercise phase, which suppose expiration date is passed.
+		///
+		/// ## Emits
+		/// - [`Event::SettleOptions`]
+		///
+		/// ## State Changes
+		/// - For each option, updates the [`Sellers`] storage calculating the PnL of each user subtracting the
+		/// correct amount of shares for paying buyers and adding the amount of premium that should be collected.
+		///
+		/// ## Errors
+		/// - There should not be errors in any case.
+		///
+		/// # Weight: O(TBD)
 		pub(crate) fn do_settle_option(
 			option_id: OptionIdOf<T>,
-			option: &OptionToken<T>,
+			option: &mut OptionToken<T>,
 		) -> Result<(), DispatchError> {
 			// Get current asset's spot price
 			let base_asset_spot_price = Self::get_price(option.base_asset_id)?;
@@ -1406,13 +1388,7 @@ pub mod pallet {
 				),
 			};
 
-			// Out of money options or options without buyers don't require other calculations
-			if collateral_for_option == BalanceOf::<T>::zero()
-				|| total_issuance_buyer == BalanceOf::<T>::zero()
-			{
-				return Ok(());
-			}
-
+			// Calculate total_collateral to withdraw for buyers and corresponding amount of shares
 			let protocol_account = Self::account_id(asset_id);
 
 			let vault_id =
@@ -1425,69 +1401,17 @@ pub mod pallet {
 			let total_shares_amount =
 				VaultOf::<T>::amount_of_lp_token_for_added_liquidity(&vault_id, total_collateral)?;
 
-			// Update sellers positions if option is in profit for buyers (In the money)
-			// Subtract shares and add premium to the seller position
-			Sellers::<T>::iter_prefix(option_id).try_for_each(
-				|(from, position)| -> Result<(), DispatchError> {
-					Sellers::<T>::try_mutate(
-						option_id,
-						from,
-						|position| -> Result<(), DispatchError> {
-							match position {
-								Some(position) => {
-									// ------ Shares calculations for user ------
-									// shares_per_option = total_shares / total_option_bought
-									// option_bought_ratio = total_option_bought / total_option_for_sale
-									// user_shares_to_subtract = shares_per_option * option_bought_ratio * user_option_amount
-									let shares_for_buyers = Self::convert_and_multiply_by_rational(
-										total_shares_amount,
-										position.option_amount,
-										option.total_issuance_seller,
-									)?;
-
-									let new_shares_amount = position
-										.shares_amount
-										.checked_sub(&shares_for_buyers)
-										.ok_or(ArithmeticError::Overflow)?;
-
-									// ------ Premium calculations for user ------
-									// premium_per_option = total_premium_paid / total_option_bought
-									// option_bought_ratio = total_option_bought / total_option_for_sale
-									// user_premium = premium_per_option * option_bought_ratio * user_option_amount
-									let new_premium_amount =
-										Self::convert_and_multiply_by_rational(
-											option.total_premium_paid,
-											position.option_amount,
-											option.total_issuance_seller,
-										)?;
-
-									position.shares_amount = new_shares_amount;
-									position.premium_amount = new_premium_amount;
-								},
-								None => {
-									return Err(DispatchError::from(Error::<T>::UnexpectedError));
-								},
-							};
-
-							Ok(())
-						},
-					)
-				},
-			)?;
-
-			OptionIdToOption::<T>::try_mutate(option_id, |option| -> Result<(), DispatchError> {
-				match option {
-					Some(option) => {
-						option.exercise_amount = collateral_for_option;
-						option.final_base_asset_spot_price = base_asset_spot_price;
-						Ok(())
-					},
-					None => Err(Error::<T>::OptionDoesNotExists.into()),
-				}
-			})?;
-
 			VaultOf::<T>::withdraw(&vault_id, &protocol_account, total_shares_amount)
 				.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
+
+			// Update option to calculate buyers and sellers positions
+			// in exercise_option and withdraw_collateral functions
+			option.exercise_amount = collateral_for_option;
+			option.base_asset_spot_price = base_asset_spot_price;
+			option.total_issuance_buyer = total_issuance_buyer;
+			option.total_shares_amount = total_shares_amount;
+
+			Self::deposit_event(Event::SettleOption { option_id });
 
 			Ok(())
 		}
@@ -1592,6 +1516,56 @@ pub mod pallet {
 			AssetsOf::<T>::transfer(asset_id, &protocol_account, from, asset_amount, true)?;
 
 			Self::deposit_event(Event::WithdrawCollateral { user: from.clone(), option_id });
+
+			// Update sellers positions if option is in profit for buyers (In the money)
+			// Subtract shares and add premium to the seller position
+			Sellers::<T>::iter_prefix(option_id).try_for_each(
+				|(from, position)| -> Result<(), DispatchError> {
+					Sellers::<T>::try_mutate(
+						option_id,
+						from,
+						|position| -> Result<(), DispatchError> {
+							match position {
+								Some(position) => {
+									// ------ Shares calculations for user ------
+									// shares_per_option = total_shares / total_option_bought
+									// option_bought_ratio = total_option_bought / total_option_for_sale
+									// user_shares_to_subtract = shares_per_option * option_bought_ratio * user_option_amount
+									let shares_for_buyers = Self::convert_and_multiply_by_rational(
+										total_shares_amount,
+										position.option_amount,
+										option.total_issuance_seller,
+									)?;
+
+									let new_shares_amount = position
+										.shares_amount
+										.checked_sub(&shares_for_buyers)
+										.ok_or(ArithmeticError::Overflow)?;
+
+									// ------ Premium calculations for user ------
+									// premium_per_option = total_premium_paid / total_option_bought
+									// option_bought_ratio = total_option_bought / total_option_for_sale
+									// user_premium = premium_per_option * option_bought_ratio * user_option_amount
+									let new_premium_amount =
+										Self::convert_and_multiply_by_rational(
+											option.total_premium_paid,
+											position.option_amount,
+											option.total_issuance_seller,
+										)?;
+
+									position.shares_amount = new_shares_amount;
+									position.premium_amount = new_premium_amount;
+								},
+								None => {
+									return Err(DispatchError::from(Error::<T>::UnexpectedError));
+								},
+							};
+
+							Ok(())
+						},
+					)
+				},
+			)?;
 
 			// Delete position
 			*position = None;
@@ -1738,7 +1712,14 @@ pub mod pallet {
 		}
 
 		fn option_exercise_start(option_id: OptionIdOf<T>) -> Weight {
+			// Check if option is expired is redundant if we trust the Scheduler behavior
 			Self::deposit_event(Event::OptionExerciseStart { option_id });
+
+			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
+				Some(option) => Self::do_settle_option(option_id, option),
+				None => Err(Error::<T>::OptionDoesNotExists.into()),
+			});
+
 			0
 		}
 

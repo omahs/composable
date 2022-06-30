@@ -31,7 +31,7 @@ pub fn sell_option_success_checks(option_id: AssetId, option_amount: Balance, wh
 	// |  Data before extrinsic  |
 	// ---------------------------
 	let (asset_id, asset_amount) = match option.option_type {
-		OptionType::Call => (option.base_asset_id, option.base_asset_amount_per_option),
+		OptionType::Call => (option.base_asset_id, option.quote_asset_strike_price),
 		OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
 	};
 

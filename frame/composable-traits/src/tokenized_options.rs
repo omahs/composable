@@ -29,19 +29,17 @@ pub trait TokenizedOptions {
 	fn buy_option(
 		from: &Self::AccountId,
 		option_amount: Self::Balance,
-		option: Self::OptionId,
+		option_id: Self::OptionId,
 	) -> Result<(), DispatchError>;
-
-	fn settle_options() -> Result<(), DispatchError>;
 
 	fn exercise_option(
 		from: &Self::AccountId,
 		option_amount: Self::Balance,
-		option: Self::OptionId,
+		option_id: Self::OptionId,
 	) -> Result<(), DispatchError>;
 
 	fn withdraw_collateral(
 		from: &Self::AccountId,
-		option: Self::OptionId,
+		option_id: Self::OptionId,
 	) -> Result<(), DispatchError>;
 }

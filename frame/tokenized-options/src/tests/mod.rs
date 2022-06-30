@@ -182,7 +182,9 @@ struct OptionsConfigBuilder {
 	pub total_issuance_seller: Balance,
 	pub total_premium_paid: Balance,
 	pub exercise_amount: Balance,
-	pub final_base_asset_spot_price: Balance,
+	pub base_asset_spot_price: Balance,
+	pub total_issuance_buyer: Balance,
+	pub total_shares_amount: Balance,
 }
 
 impl Default for OptionsConfigBuilder {
@@ -207,7 +209,9 @@ impl Default for OptionsConfigBuilder {
 			total_issuance_seller: 0u128,
 			total_premium_paid: 0u128,
 			exercise_amount: 0u128,
-			final_base_asset_spot_price: 0u128,
+			base_asset_spot_price: 0u128,
+			total_issuance_buyer: 0u128,
+			total_shares_amount: 0u128,
 		}
 	}
 }
@@ -228,7 +232,9 @@ impl OptionsConfigBuilder {
 			total_issuance_seller: self.total_issuance_seller,
 			total_premium_paid: self.total_premium_paid,
 			exercise_amount: self.exercise_amount,
-			final_base_asset_spot_price: self.final_base_asset_spot_price,
+			base_asset_spot_price: self.base_asset_spot_price,
+			total_issuance_buyer: self.total_issuance_buyer,
+			total_shares_amount: self.total_shares_amount,
 		}
 	}
 
@@ -546,19 +552,19 @@ pub fn trait_create_option(
 }
 
 // Simulate trait call `settle_options`, but returning values
-pub fn trait_settle_options() -> Result<(), DispatchError> {
-	let now = Timestamp::now();
+// pub fn trait_settle_options() -> Result<(), DispatchError> {
+// 	let now = Timestamp::now();
 
-	OptionIdToOption::<MockRuntime>::iter().try_for_each(
-		|(option_id, option)| -> Result<(), DispatchError> {
-			// Check expiring date has passed
-			if now >= option.expiring_date {
-				TokenizedOptions::do_settle_option(option_id, &option)
-			} else {
-				Ok(()) // Do nothing if option has not expired
-			}
-		},
-	)?;
-	TokenizedOptions::deposit_event(pallet::Event::SettleOptions { timestamp: now });
-	Ok(())
-}
+// 	OptionIdToOption::<MockRuntime>::iter_mut().try_for_each(
+// 		|(option_id, option)| -> Result<(), DispatchError> {
+// 			// Check expiring date has passed
+// 			if now >= option.expiring_date {
+// 				TokenizedOptions::do_settle_option(option_id, &option)
+// 			} else {
+// 				Ok(()) // Do nothing if option has not expired
+// 			}
+// 		},
+// 	)?;
+// 	TokenizedOptions::deposit_event(pallet::Event::SettleOptions { timestamp: now });
+// 	Ok(())
+// }
