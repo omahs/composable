@@ -7,13 +7,8 @@ use crate::mock::{accounts::*, assets::*};
 
 use crate::{
 	pallet::{self, OptionHashToOptionId, Sellers},
-	tests::{
-		buy_option::buy_option_success_checks,
-		delete_sell_option::delete_sell_option_success_checks,
-		sell_option::sell_option_success_checks, settle_options::settle_options_success_checks, *,
-	},
+	tests::*,
 };
-
 use composable_traits::vault::CapabilityVault;
 use composable_traits::{
 	tokenized_options::TokenizedOptions as TokenizedOptionsTrait, vault::Vault as VaultTrait,
@@ -170,9 +165,6 @@ fn test_exercise_option_call_with_initialization_success() {
 			// Go to exercise window (option has expired so settlement can start)
 			run_to_block(6);
 
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
-
 			exercise_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 			exercise_option_success_checks(option_id, dave_option_amount, DAVE);
 
@@ -279,9 +271,6 @@ fn test_exercise_option_put_with_initialization_success() {
 			// Go to exercise window (option has expired so settlement can start)
 			run_to_block(6);
 
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
-
 			exercise_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 			exercise_option_success_checks(option_id, dave_option_amount, DAVE);
 
@@ -369,9 +358,6 @@ fn test_exercise_option_call_success() {
 			// Go to exercise window (option has expired so settlement can start)
 			run_to_block(6);
 
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
-
 			exercise_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 			exercise_option_success_checks(option_id, dave_option_amount, DAVE);
 
@@ -457,9 +443,6 @@ fn test_exercise_option_put_success() {
 			// Go to exercise window (option has expired so settlement can start)
 			run_to_block(6);
 
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
-
 			exercise_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 			exercise_option_success_checks(option_id, dave_option_amount, DAVE);
 
@@ -543,9 +526,6 @@ fn test_exercise_option_call_multiple_times() {
 
 			// Go to exercise window (option has expired so settlement can start)
 			run_to_block(6);
-
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
 
 			exercise_option_success_checks(option_id, 3u128, CHARLIE);
 			exercise_option_success_checks(option_id, 1u128, CHARLIE);
@@ -634,9 +614,6 @@ fn test_exercise_option_put_multiple_times() {
 			// Go to exercise window (option has expired so settlement can start)
 			run_to_block(6);
 
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
-
 			exercise_option_success_checks(option_id, 3u128, CHARLIE);
 			exercise_option_success_checks(option_id, 1u128, CHARLIE);
 			exercise_option_success_checks(option_id, 1u128, DAVE);
@@ -708,9 +685,6 @@ fn test_exercise_option_out_of_money_tokens_burned() {
 
 			// Not yet exercise phase (starts at 6th block)
 			run_to_block(6);
-
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
 
 			exercise_option_success_checks(option_id, charlie_option_amount, CHARLIE);
 		});
@@ -868,9 +842,6 @@ fn test_exercise_option_error_cannot_exercise_zero_options() {
 			// Not yet exercise phase (starts at 6th block)
 			run_to_block(6);
 
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
-
 			assert_noop!(
 				TokenizedOptions::exercise_option(Origin::signed(CHARLIE), 0u128, option_id),
 				Error::<MockRuntime>::CannotPassZeroOptionAmount
@@ -936,9 +907,6 @@ fn test_exercise_option_error_cannot_exercise_too_much_options() {
 
 			// Not yet exercise phase (starts at 6th block)
 			run_to_block(6);
-
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
 
 			assert_noop!(
 				TokenizedOptions::exercise_option(Origin::signed(CHARLIE), 5u128, option_id),
@@ -1006,9 +974,6 @@ fn test_exercise_option_error_overflow() {
 
 			// Not yet exercise phase (starts at 6th block)
 			run_to_block(6);
-
-			// Settle options
-			assert_ok!(TokenizedOptions::settle_options());
 
 			assert_noop!(
 				TokenizedOptions::exercise_option(

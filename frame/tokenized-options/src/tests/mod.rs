@@ -20,7 +20,7 @@ use frame_system::ensure_signed;
 
 use frame_support::{
 	assert_ok,
-	traits::{fungibles::Mutate, Hooks},
+	traits::{fungibles::Mutate, Get, Hooks},
 };
 use itertools::Itertools;
 use proptest::{
@@ -505,6 +505,12 @@ pub fn run_to_block(n: u64) {
 		let _ = Timestamp::set(Origin::none(), System::block_number() * 1000);
 		System::on_initialize(System::block_number());
 		Timestamp::on_initialize(System::block_number());
+
+		let max_weight = <<MockRuntime as frame_system::pallet::Config>::BlockWeights as Get<
+			frame_system::limits::BlockWeights,
+		>>::get()
+		.max_block;
+		TokenizedOptions::on_idle(System::block_number(), max_weight);
 	}
 }
 
@@ -518,6 +524,12 @@ pub fn run_for_seconds(n: u64) {
 	let _ = Timestamp::set(Origin::none(), n * 1000);
 	System::on_initialize(System::block_number());
 	Timestamp::on_initialize(System::block_number());
+
+	let max_weight = <<MockRuntime as frame_system::pallet::Config>::BlockWeights as Get<
+		frame_system::limits::BlockWeights,
+	>>::get()
+	.max_block;
+	TokenizedOptions::on_idle(System::block_number(), max_weight);
 }
 
 // Simulate exstrinsic call `create_asset_vault`, but returning values
@@ -543,21 +555,3 @@ pub fn trait_create_option(
 
 	Ok(option_id)
 }
-
-// Simulate trait call `settle_options`, but returning values
-// pub fn trait_settle_options() -> Result<(), DispatchError> {
-// 	let now = Timestamp::now();
-
-// 	OptionIdToOption::<MockRuntime>::iter_mut().try_for_each(
-// 		|(option_id, option)| -> Result<(), DispatchError> {
-// 			// Check expiring date has passed
-// 			if now >= option.expiring_date {
-// 				TokenizedOptions::do_settle_option(option_id, &option)
-// 			} else {
-// 				Ok(()) // Do nothing if option has not expired
-// 			}
-// 		},
-// 	)?;
-// 	TokenizedOptions::deposit_event(pallet::Event::SettleOptions { timestamp: now });
-// 	Ok(())
-// }
