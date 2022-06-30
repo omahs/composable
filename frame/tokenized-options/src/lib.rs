@@ -17,8 +17,7 @@
 //! - **Collateral**: base/quote asset backing the seller's position, used to pay the buyer if the option ends in profit.
 //! For selling `Call` options, the user needs to provide the right amount of base asset as collateral; for selling `Put` options,
 //! the user needs to provide the right amount of quote asset as collateral.
-//! - **Epoch**: the full lifecycle of an option. It's composed by the deposit phase, the purchase phase, the exercise phase and the
-//! withdraw phase.
+//! - **Epoch**: the full lifecycle of an option. It's composed by the deposit phase, the purchase phase and the exercise phase.
 //!
 //! ### Goals
 //!
@@ -43,6 +42,11 @@
 //! - [`delete_sell_option`](Pallet::delete_sell_option): withdraw the deposited collateral used for selling an option.
 //!
 //! - [`buy_option`](Pallet::buy_option): pay the premium for minting the selected option token into the user's account.
+//!
+//! - [`exercise_option`](Pallet::exercise_option): burn the option tokens from user's account and transfer user's profit into
+//! user's account.
+//|
+//! - [`withdraw_collateral`](Pallet::withdraw_collateral): withdraw user's deposited collateral and its part of the premium.
 //!
 //! ### Runtime Storage Objects
 //! - [`AssetToVault`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its vault.
@@ -293,9 +297,6 @@ pub mod pallet {
 		/// Emitted when the exercise phase for the reported option starts
 		OptionExerciseStart { option_id: OptionIdOf<T> },
 
-		/// Emitted when the withdraw phase for the reported option starts
-		OptionWithdrawStart { option_id: OptionIdOf<T> },
-
 		/// Emitted when the reported option epoch ends
 		OptionEnd { option_id: OptionIdOf<T> },
 	}
@@ -369,10 +370,6 @@ pub mod pallet {
 
 		/// Raised when trying to exercise an option, but it is not exercise phase for that option.
 		NotIntoExerciseWindow,
-
-		/// Raised when trying to withdraw collateral after the option expired, but it is not withdraw phase
-		/// for that option.
-		NotIntoWithdrawWindow,
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -1481,14 +1478,14 @@ pub mod pallet {
 			option: &OptionToken<T>,
 			position: &mut Option<SellerPosition<T>>,
 		) -> Result<(), DispatchError> {
-			// Check if we are in deposit window
+			// Check if we are in exercise window
 			ensure!(
 				option
 					.epoch
 					.window_type(T::Time::now())
-					.ok_or(Error::<T>::NotIntoWithdrawWindow)?
-					== WindowType::Withdraw,
-				Error::<T>::NotIntoWithdrawWindow
+					.ok_or(Error::<T>::NotIntoExerciseWindow)?
+					== WindowType::Exercise,
+				Error::<T>::NotIntoExerciseWindow
 			);
 
 			// Check if user has any collateral and retrieve position
@@ -1519,53 +1516,53 @@ pub mod pallet {
 
 			// Update sellers positions if option is in profit for buyers (In the money)
 			// Subtract shares and add premium to the seller position
-			Sellers::<T>::iter_prefix(option_id).try_for_each(
-				|(from, position)| -> Result<(), DispatchError> {
-					Sellers::<T>::try_mutate(
-						option_id,
-						from,
-						|position| -> Result<(), DispatchError> {
-							match position {
-								Some(position) => {
-									// ------ Shares calculations for user ------
-									// shares_per_option = total_shares / total_option_bought
-									// option_bought_ratio = total_option_bought / total_option_for_sale
-									// user_shares_to_subtract = shares_per_option * option_bought_ratio * user_option_amount
-									let shares_for_buyers = Self::convert_and_multiply_by_rational(
-										total_shares_amount,
-										position.option_amount,
-										option.total_issuance_seller,
-									)?;
+			// Sellers::<T>::iter_prefix(option_id).try_for_each(
+			// 	|(from, position)| -> Result<(), DispatchError> {
+			// 		Sellers::<T>::try_mutate(
+			// 			option_id,
+			// 			from,
+			// 			|position| -> Result<(), DispatchError> {
+			// 				match position {
+			// 					Some(position) => {
+			// 						// ------ Shares calculations for user ------
+			// 						// shares_per_option = total_shares / total_option_bought
+			// 						// option_bought_ratio = total_option_bought / total_option_for_sale
+			// 						// user_shares_to_subtract = shares_per_option * option_bought_ratio * user_option_amount
+			// 						let shares_for_buyers = Self::convert_and_multiply_by_rational(
+			// 							total_shares_amount,
+			// 							position.option_amount,
+			// 							option.total_issuance_seller,
+			// 						)?;
 
-									let new_shares_amount = position
-										.shares_amount
-										.checked_sub(&shares_for_buyers)
-										.ok_or(ArithmeticError::Overflow)?;
+			// 						let new_shares_amount = position
+			// 							.shares_amount
+			// 							.checked_sub(&shares_for_buyers)
+			// 							.ok_or(ArithmeticError::Overflow)?;
 
-									// ------ Premium calculations for user ------
-									// premium_per_option = total_premium_paid / total_option_bought
-									// option_bought_ratio = total_option_bought / total_option_for_sale
-									// user_premium = premium_per_option * option_bought_ratio * user_option_amount
-									let new_premium_amount =
-										Self::convert_and_multiply_by_rational(
-											option.total_premium_paid,
-											position.option_amount,
-											option.total_issuance_seller,
-										)?;
+			// 						// ------ Premium calculations for user ------
+			// 						// premium_per_option = total_premium_paid / total_option_bought
+			// 						// option_bought_ratio = total_option_bought / total_option_for_sale
+			// 						// user_premium = premium_per_option * option_bought_ratio * user_option_amount
+			// 						let new_premium_amount =
+			// 							Self::convert_and_multiply_by_rational(
+			// 								option.total_premium_paid,
+			// 								position.option_amount,
+			// 								option.total_issuance_seller,
+			// 							)?;
 
-									position.shares_amount = new_shares_amount;
-									position.premium_amount = new_premium_amount;
-								},
-								None => {
-									return Err(DispatchError::from(Error::<T>::UnexpectedError));
-								},
-							};
+			// 						position.shares_amount = new_shares_amount;
+			// 						position.premium_amount = new_premium_amount;
+			// 					},
+			// 					None => {
+			// 						return Err(DispatchError::from(Error::<T>::UnexpectedError));
+			// 					},
+			// 				};
 
-							Ok(())
-						},
-					)
-				},
-			)?;
+			// 				Ok(())
+			// 			},
+			// 		)
+			// 	},
+			// )?;
 
 			// Delete position
 			*position = None;
@@ -1683,7 +1680,6 @@ pub mod pallet {
 			<Scheduler<T>>::insert(Swapped::from(epoch.deposit), option_id, WindowType::Deposit);
 			<Scheduler<T>>::insert(Swapped::from(epoch.purchase), option_id, WindowType::Purchase);
 			<Scheduler<T>>::insert(Swapped::from(epoch.exercise), option_id, WindowType::Exercise);
-			<Scheduler<T>>::insert(Swapped::from(epoch.withdraw), option_id, WindowType::Withdraw);
 			<Scheduler<T>>::insert(Swapped::from(epoch.end), option_id, WindowType::End);
 		}
 
@@ -1696,7 +1692,6 @@ pub mod pallet {
 				WindowType::Deposit => Self::option_deposit_start(option_id),
 				WindowType::Purchase => Self::option_purchase_start(option_id),
 				WindowType::Exercise => Self::option_exercise_start(option_id),
-				WindowType::Withdraw => Self::option_withdraw_start(option_id),
 				WindowType::End => Self::option_end(option_id),
 			}
 		}
@@ -1720,11 +1715,6 @@ pub mod pallet {
 				None => Err(Error::<T>::OptionDoesNotExists.into()),
 			});
 
-			0
-		}
-
-		fn option_withdraw_start(option_id: OptionIdOf<T>) -> Weight {
-			Self::deposit_event(Event::OptionWithdrawStart { option_id });
 			0
 		}
 

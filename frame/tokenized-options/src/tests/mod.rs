@@ -39,7 +39,6 @@ pub mod exercise_option;
 pub mod sell_option;
 pub mod settle_options;
 mod time_management;
-
 mod withdraw_collateral;
 
 pub const UNIT: u128 = 10u128.pow(12);
@@ -197,13 +196,7 @@ impl Default for OptionsConfigBuilder {
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
 			expiring_date: 6000u64,
-			epoch: Epoch {
-				deposit: 0u64,
-				purchase: 3000u64,
-				exercise: 6000u64,
-				withdraw: 9000u64,
-				end: 12000u64,
-			},
+			epoch: Epoch { deposit: 0u64, purchase: 3000u64, exercise: 6000u64, end: 9000u64 },
 			base_asset_amount_per_option: 1u128 * UNIT,
 			quote_asset_amount_per_option: 1u128 * UNIT,
 			total_issuance_seller: 0u128,

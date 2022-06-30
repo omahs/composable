@@ -28,7 +28,6 @@ pub enum WindowType {
 	Deposit,
 	Purchase,
 	Exercise,
-	Withdraw,
 	End,
 }
 
@@ -37,13 +36,12 @@ pub enum WindowType {
 // ----------------------------------------------------------------------------------------------------
 
 /// Stores the timestamps of an epoch.
-/// An Epoch is divided into 4 phases: deposit, purchase, exercise, withdraw.
+/// An Epoch is divided into 4 phases: deposit, purchase, exercise.
 #[derive(Clone, Copy, Encode, Decode, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct Epoch<Moment> {
 	pub deposit: Moment,
 	pub purchase: Moment,
 	pub exercise: Moment,
-	pub withdraw: Moment,
 	pub end: Moment,
 }
 
@@ -55,10 +53,8 @@ impl<Moment: Ord> Epoch<Moment> {
 			Some(WindowType::Deposit)
 		} else if moment < self.exercise {
 			Some(WindowType::Purchase)
-		} else if moment < self.withdraw {
-			Some(WindowType::Exercise)
 		} else if moment < self.end {
-			Some(WindowType::Withdraw)
+			Some(WindowType::Exercise)
 		} else {
 			Some(WindowType::End)
 		}

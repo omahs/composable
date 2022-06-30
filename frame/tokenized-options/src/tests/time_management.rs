@@ -23,9 +23,8 @@ prop_compose! {
 		let deposit = start;
 		let purchase = deposit + duration[0];
 		let exercise = purchase + duration[1];
-		let withdraw = exercise + duration[2];
-		let end = withdraw + duration[3];
-		Epoch { deposit, purchase, exercise, withdraw, end }
+		let end = exercise + duration[2];
+		Epoch { deposit, purchase, exercise, end }
 	}
 }
 
@@ -90,7 +89,7 @@ fn initialize_options(epochs: Vec<Epoch<Moment>>) -> HashMap<OptionId, Epoch<Mom
 #[derive(Debug, Default)]
 struct Tester {
 	options: HashMap<OptionId, Epoch<Moment>>,
-	counters: [usize; 5],
+	counters: [usize; 4],
 	event_moment: Moment,
 }
 
@@ -114,12 +113,8 @@ impl Tester {
 					self.counters[2] += 1;
 					self.options[&option_id].exercise
 				},
-				Event::TokenizedOptions(crate::Event::OptionWithdrawStart { option_id }) => {
-					self.counters[3] += 1;
-					self.options[&option_id].withdraw
-				},
 				Event::TokenizedOptions(crate::Event::OptionEnd { option_id }) => {
-					self.counters[4] += 1;
+					self.counters[3] += 1;
 					self.options[&option_id].end
 				},
 				_ => continue,

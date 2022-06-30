@@ -118,8 +118,7 @@ fn test_create_option_error_invalid_epoch_ext() {
 		.initialize_oracle_prices()
 		.initialize_all_vaults()
 		.execute_with(|| {
-			let epoch =
-				Epoch { deposit: 1u64, purchase: 2u64, exercise: 3u64, withdraw: 4u64, end: 4u64 };
+			let epoch = Epoch { deposit: 1u64, purchase: 2u64, exercise: 3u64, end: 3u64 };
 
 			// Get default option config
 			let option_config = OptionsConfigBuilder::default().epoch(epoch).build();

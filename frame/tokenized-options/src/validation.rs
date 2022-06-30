@@ -137,8 +137,7 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAttributes<T>>
 
 		if start >= input.epoch.purchase
 			|| input.epoch.purchase >= input.epoch.exercise
-			|| input.epoch.exercise >= input.epoch.withdraw
-			|| input.epoch.withdraw >= input.epoch.end
+			|| input.epoch.exercise >= input.epoch.end
 		{
 			return Err("ValidateOptionAttributes");
 		}
