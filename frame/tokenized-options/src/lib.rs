@@ -701,7 +701,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::exercise_option())]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_collateral())]
 		pub fn withdraw_collateral(
 			origin: OriginFor<T>,
 			option_id: OptionIdOf<T>,

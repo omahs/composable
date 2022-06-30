@@ -40,6 +40,8 @@ pub mod sell_option;
 pub mod settle_options;
 mod time_management;
 
+mod withdraw_collateral;
+
 pub const UNIT: u128 = 10u128.pow(12);
 
 // ----------------------------------------------------------------------------------------------------
