@@ -1398,8 +1398,10 @@ pub mod pallet {
 			let total_shares_amount =
 				VaultOf::<T>::amount_of_lp_token_for_added_liquidity(&vault_id, total_collateral)?;
 
-			VaultOf::<T>::withdraw(&vault_id, &protocol_account, total_shares_amount)
-				.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
+			if total_shares_amount != BalanceOf::<T>::zero() {
+				VaultOf::<T>::withdraw(&vault_id, &protocol_account, total_shares_amount)
+					.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
+			};
 
 			// Update option to calculate buyers and sellers positions
 			// in exercise_option and withdraw_collateral functions
@@ -1710,6 +1712,8 @@ pub mod pallet {
 			// Check if option is expired is redundant if we trust the Scheduler behavior
 			Self::deposit_event(Event::OptionExerciseStart { option_id });
 
+			// TODO: Handle the result to address overflow errors or other types of errors.
+			// `do_settle_option` should never return an error, but if happens, it should be handled.
 			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
 				Some(option) => Self::do_settle_option(option_id, option),
 				None => Err(Error::<T>::OptionDoesNotExists.into()),
