@@ -1149,13 +1149,7 @@ pub mod pallet {
 						position.option_amount = new_option_amount;
 						position.shares_amount = new_shares_amount;
 					},
-					None => {
-						*position = Some(SellerPosition {
-							option_amount,
-							shares_amount,
-							premium_amount: BalanceOf::<T>::zero(),
-						})
-					},
+					None => *position = Some(SellerPosition { option_amount, shares_amount }),
 				}
 				Ok(())
 			})?;
@@ -1494,6 +1488,21 @@ pub mod pallet {
 			let seller_position =
 				position.as_mut().ok_or(Error::<T>::UserDoesNotHaveSellerPosition)?;
 
+			// ------ Shares calculations for user ------
+			// shares_per_option = total_shares / total_option_bought
+			// option_bought_ratio = total_option_bought / total_option_for_sale
+			// user_shares_to_subtract = shares_per_option * option_bought_ratio * user_option_amount
+			let shares_for_buyers = Self::convert_and_multiply_by_rational(
+				option.total_shares_amount,
+				seller_position.option_amount,
+				option.total_issuance_seller,
+			)?;
+
+			let user_shares_amount = seller_position
+				.shares_amount
+				.checked_sub(&shares_for_buyers)
+				.ok_or(ArithmeticError::Overflow)?;
+
 			// Different behaviors based on Call or Put option
 			let asset_id = match option.option_type {
 				OptionType::Call => option.base_asset_id,
@@ -1502,72 +1511,44 @@ pub mod pallet {
 
 			// Get vault_id for withdrawing collateral
 			let protocol_account = Self::account_id(asset_id);
-
 			let vault_id =
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
 			// Protocol account withdraw from the vault and burn shares_amount
 			let asset_amount =
-				VaultOf::<T>::withdraw(&vault_id, &protocol_account, seller_position.shares_amount)
+				VaultOf::<T>::withdraw(&vault_id, &protocol_account, user_shares_amount)
 					.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
 
 			// Transfer collateral to user account
 			AssetsOf::<T>::transfer(asset_id, &protocol_account, from, asset_amount, true)?;
 
-			Self::deposit_event(Event::WithdrawCollateral { user: from.clone(), option_id });
+			// ------ Premium calculations for user ------
+			// premium_per_option = total_premium_paid / total_option_bought
+			// option_bought_ratio = total_option_bought / total_option_for_sale
+			// user_premium = premium_per_option * option_bought_ratio * user_option_amount
+			let user_premium_amount = Self::convert_and_multiply_by_rational(
+				option.total_premium_paid,
+				seller_position.option_amount,
+				option.total_issuance_seller,
+			)?;
 
-			// Update sellers positions if option is in profit for buyers (In the money)
-			// Subtract shares and add premium to the seller position
-			// Sellers::<T>::iter_prefix(option_id).try_for_each(
-			// 	|(from, position)| -> Result<(), DispatchError> {
-			// 		Sellers::<T>::try_mutate(
-			// 			option_id,
-			// 			from,
-			// 			|position| -> Result<(), DispatchError> {
-			// 				match position {
-			// 					Some(position) => {
-			// 						// ------ Shares calculations for user ------
-			// 						// shares_per_option = total_shares / total_option_bought
-			// 						// option_bought_ratio = total_option_bought / total_option_for_sale
-			// 						// user_shares_to_subtract = shares_per_option * option_bought_ratio * user_option_amount
-			// 						let shares_for_buyers = Self::convert_and_multiply_by_rational(
-			// 							total_shares_amount,
-			// 							position.option_amount,
-			// 							option.total_issuance_seller,
-			// 						)?;
+			// Get info to transfer premium to seller
+			let stablecoin_id = T::StablecoinAssetId::get();
+			let stablecoin_protocol_account = Self::account_id(stablecoin_id);
 
-			// 						let new_shares_amount = position
-			// 							.shares_amount
-			// 							.checked_sub(&shares_for_buyers)
-			// 							.ok_or(ArithmeticError::Overflow)?;
-
-			// 						// ------ Premium calculations for user ------
-			// 						// premium_per_option = total_premium_paid / total_option_bought
-			// 						// option_bought_ratio = total_option_bought / total_option_for_sale
-			// 						// user_premium = premium_per_option * option_bought_ratio * user_option_amount
-			// 						let new_premium_amount =
-			// 							Self::convert_and_multiply_by_rational(
-			// 								option.total_premium_paid,
-			// 								position.option_amount,
-			// 								option.total_issuance_seller,
-			// 							)?;
-
-			// 						position.shares_amount = new_shares_amount;
-			// 						position.premium_amount = new_premium_amount;
-			// 					},
-			// 					None => {
-			// 						return Err(DispatchError::from(Error::<T>::UnexpectedError));
-			// 					},
-			// 				};
-
-			// 				Ok(())
-			// 			},
-			// 		)
-			// 	},
-			// )?;
+			// Transfer premium to user account
+			AssetsOf::<T>::transfer(
+				stablecoin_id,
+				&stablecoin_protocol_account,
+				from,
+				user_premium_amount,
+				true,
+			)?;
 
 			// Delete position
 			*position = None;
+
+			Self::deposit_event(Event::WithdrawCollateral { user: from.clone(), option_id });
 
 			Ok(())
 		}

@@ -128,15 +128,10 @@ pub struct OptionConfig<AssetId, Balance, Moment> {
 pub struct SellerPosition<T: Config> {
 	pub option_amount: T::Balance,
 	pub shares_amount: T::Balance,
-	pub premium_amount: T::Balance,
 }
 
 impl<T: Config> Default for SellerPosition<T> {
 	fn default() -> Self {
-		SellerPosition {
-			option_amount: T::Balance::zero(),
-			shares_amount: T::Balance::zero(),
-			premium_amount: T::Balance::zero(),
-		}
+		SellerPosition { option_amount: T::Balance::zero(), shares_amount: T::Balance::zero() }
 	}
 }
