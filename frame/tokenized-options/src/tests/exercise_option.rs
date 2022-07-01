@@ -472,7 +472,8 @@ fn test_exercise_option_call_multiple_times() {
 		.initialize_all_vaults()
 		.initialize_all_options()
 		.execute_with(|| {
-			let option_config = OptionsConfigBuilder::default().build();
+			let option_config =
+				OptionsConfigBuilder::default().option_type(OptionType::Call).build();
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
