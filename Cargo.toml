@@ -64,6 +64,10 @@ lto = true
 parity-scale-codec = { git = "https://github.com/paritytech/parity-scale-codec", tag = "parity-scale-codec-3.1.2" }
 # parity-scale-codec-derive = { git = "https://github.com/paritytech/parity-scale-codec", tag = "parity-scale-codec-derive-3.1.2" }
 
+# [patch."https://github.com/ComposableFi/ibc-rs"]
+# ibc = { git = "https://github.com/ComposableFi/ibc-rs", branch = "feat/revert-tracing-version/andor0" }
+# ibc-proto = { git = "https://github.com/ComposableFi/ibc-rs", branch = "feat/revert-tracing-version/andor0" }
+
 [patch."https://github.com/paritytech/substrate"]
 beefy-gadget = { git = "https://github.com/composableFi/substrate", branch = "polkadot-v0.9.22" }
 beefy-gadget-rpc = { git = "https://github.com/composableFi/substrate", branch = "polkadot-v0.9.22" }

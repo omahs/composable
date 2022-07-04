@@ -108,6 +108,9 @@ polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = 
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.22" }
 polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.22" }
 
+tracing-core = "=0.1.26" # https://substrate.stackexchange.com/questions/3147/node-startup-message-missing-after-upgrade-to-polkadot-v0-9-23
+
+
 [build-dependencies]
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22" }
 
