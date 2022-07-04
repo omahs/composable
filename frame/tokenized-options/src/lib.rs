@@ -2,6 +2,7 @@
 //!
 //! ## Overview
 //! This pallet provides an implementation for creating, selling, buying and exercise options as tokens.
+//! For all the possible actions available in an option's epoch, look at the `diagrams` folder
 //!
 //! ### Terminology
 //! - **Base asset**: the asset the user wants to buy/sell in future.
@@ -18,8 +19,6 @@
 //! For selling `Call` options, the user needs to provide the right amount of base asset as collateral; for selling `Put` options,
 //! the user needs to provide the right amount of quote asset as collateral.
 //! - **Epoch**: the full lifecycle of an option. It's composed by the deposit phase, the purchase phase and the exercise phase.
-//!
-//! ### Goals
 //!
 //! ### Actors
 //! - Sellers: users that provide collateral for selling options and collect the corresponding premium.
@@ -43,10 +42,10 @@
 //!
 //! - [`buy_option`](Pallet::buy_option): pay the premium for minting the selected option token into the user's account.
 //!
-//! - [`exercise_option`](Pallet::exercise_option): burn the option tokens from user's account and transfer user's profit into
-//! user's account.
+//! - [`exercise_option`](Pallet::exercise_option): burn the option tokens from user's account and transfer buyer's profit into
+//! buyer's account.
 //|
-//! - [`withdraw_collateral`](Pallet::withdraw_collateral): withdraw user's deposited collateral and its part of the premium.
+//! - [`withdraw_collateral`](Pallet::withdraw_collateral): withdraw seller's deposited collateral and its part of the premium.
 //!
 //! ### Runtime Storage Objects
 //! - [`AssetToVault`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its vault.
@@ -56,8 +55,6 @@
 //! its position as a seller.
 //! - [`Scheduler`]: maps a [`Moment`](Config::Moment) to an OptionId [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) identifying the timestamp
 //! of the next phase of the epoch for the option.
-//!
-//! ## Usage
 //!
 //! ### Example
 //!
@@ -676,11 +673,11 @@ pub mod pallet {
 		/// ## Errors
 		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`NotIntoExerciseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to exercise an option,
 		/// but it is not exercise phase for that option.
 		/// - [`UserHasNotEnoughOptionTokens`](Error::UserHasNotEnoughOptionTokens): raised when trying to exercise options,
 		/// but the amount is greater than what user owns.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to exercise an option,
 		/// but the option amount is zero.
 		///
 		/// # Examples
@@ -699,6 +696,37 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Withdraw the seller's collateral related to the indicated option.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `origin`: type representing the origin of this dispatch.
+		/// - `option_id`: the option id.
+		///
+		/// ## Requirements
+		/// 1. The call must have been signed by the user.
+		/// 2. The option should exist.
+		/// 3. The option should be in exercise phase.
+		///
+		/// ## Emits
+		/// - [`Event::WithdrawCollateral`]
+		///
+		/// ## State Changes
+		/// - Delete from [`Sellers`] storage the seller's position related to the option
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to withdraw collateral,
+		/// but it is not exercise phase for that option.
+		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to withdraw collateral,
+		/// but the seller has not a seller position.
+		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to withdraw collateral,
+		/// but withdrawals from vaults are disabled.
+		///
+		/// # Examples
+		///
+		/// # Weight: O(TBD)
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_collateral())]
 		pub fn withdraw_collateral(
 			origin: OriginFor<T>,
@@ -995,6 +1023,34 @@ pub mod pallet {
 			}
 		}
 
+		/// Withdraw the seller's collateral related to the indicated option.
+		///
+		/// # Overview
+		/// ## Parameters
+		/// - `from`: user's account id.
+		/// - `option_id`: the option id.
+		///
+		/// ## Requirements
+		/// 1. The option should exist.
+		/// 2. The option should be in exercise phase.
+		///
+		/// ## Emits
+		/// - [`Event::WithdrawCollateral`]
+		///
+		/// ## State Changes
+		/// - Delete from [`Sellers`] storage the seller's position related to the option
+		///
+		/// ## Errors
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to withdraw collateral,
+		/// but it is not exercise phase for that option.
+		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to withdraw collateral,
+		/// but the seller has not a seller position.
+		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to withdraw collateral,
+		/// but withdrawals from vaults are disabled.
+		///
+		/// # Weight: O(TBD)
 		#[transactional]
 		fn withdraw_collateral(
 			from: &Self::AccountId,
