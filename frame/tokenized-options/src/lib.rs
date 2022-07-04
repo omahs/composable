@@ -1404,11 +1404,11 @@ pub mod pallet {
 		/// 2. The option to settle should be in exercise phase, which suppose expiration date is passed.
 		///
 		/// ## Emits
-		/// - [`Event::SettleOptions`]
+		/// - [`Event::SettleOption`]
 		///
 		/// ## State Changes
-		/// - For each option, updates the [`Sellers`] storage calculating the PnL of each user subtracting the
-		/// correct amount of shares for paying buyers and adding the amount of premium that should be collected.
+		/// - For each option, updates the [`OptionIdToOption`] storage calculating the exercise amount for buyers and saving
+		/// the info to calculate the remaining collateral for sellers and their share of premium.
 		///
 		/// ## Errors
 		/// - There should not be errors in any case.
