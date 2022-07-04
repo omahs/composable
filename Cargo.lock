@@ -2811,6 +2811,7 @@ dependencies = [
  "pallet-crowdloan-rewards",
  "pallet-currency-factory",
  "pallet-democracy",
+ "pallet-democracy-instantiable",
  "pallet-dex-router",
  "pallet-dutch-auction",
  "pallet-governance-registry",
@@ -7757,6 +7758,24 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-io 6.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.22)",
+ "sp-runtime 6.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.22)",
+ "sp-std 4.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.22)",
+]
+
+[[package]]
+name = "pallet-democracy-instantiable"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-scheduler",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core 6.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.22)",
  "sp-io 6.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.22)",
  "sp-runtime 6.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.22)",
  "sp-std 4.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.22)",

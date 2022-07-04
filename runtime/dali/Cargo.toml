@@ -77,6 +77,7 @@ composable-support = { path = '../../frame/composable-support', default-features
 composable-traits = { path = "../../frame/composable-traits", default-features = false }
 crowdloan-rewards = { package = "pallet-crowdloan-rewards", path = '../../frame/crowdloan-rewards', default-features = false }
 currency-factory = { package = "pallet-currency-factory", path = "../../frame/currency-factory", default-features = false }
+democracy-instantiable = { package = "pallet-democracy-instantiable", path = "../../frame/democracy-instantiable", default-features = false }
 dex-router = { package = "pallet-dex-router", path = "../../frame/dex-router", default-features = false }
 dutch-auction = { package = "pallet-dutch-auction", path = "../../frame/dutch-auction", default-features = false }
 governance-registry = { package = "pallet-governance-registry", path = "../../frame/governance-registry", default-features = false }
@@ -197,6 +198,7 @@ runtime-benchmarks = [
   "pallet-proxy/runtime-benchmarks",
   "ibc-transfer/runtime-benchmarks",
   "pallet-staking-rewards/runtime-benchmarks",
+  "democracy-instantiable/runtime-benchmarks",
 ]
 std = [
   "codec/std",
@@ -284,5 +286,6 @@ std = [
   "ibc-transfer/std",
   "hex/std",
   "pallet-staking-rewards/std",
+  "democracy-instantiable/std",
 ]
 wasm-builder = []

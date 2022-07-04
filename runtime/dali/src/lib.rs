@@ -757,6 +757,44 @@ impl democracy::Config for Runtime {
 	type WeightInfo = weights::democracy::WeightInfo<Runtime>;
 }
 
+impl democracy_instantiable::Config<democracy_instantiable::Instance1> for Runtime {
+	type Proposal = Call;
+	type Event = Event;
+	type Currency = Balances;
+	type EnactmentPeriod = EnactmentPeriod;
+	type LaunchPeriod = LaunchPeriod;
+	type VotingPeriod = VotingPeriod;
+	type VoteLockingPeriod = EnactmentPeriod;
+	type MinimumDeposit = MinimumDeposit;
+
+	// TODO: prod values
+	type ExternalOrigin = EnsureRootOrHalfCouncil;
+	type ExternalMajorityOrigin = EnsureRootOrHalfCouncil;
+	type ExternalDefaultOrigin = EnsureRootOrHalfCouncil;
+
+	type FastTrackOrigin = EnsureRootOrHalfCouncil;
+	type InstantOrigin = EnsureRootOrHalfCouncil;
+	type InstantAllowed = InstantAllowed;
+
+	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	type CancellationOrigin = EnsureRootOrHalfCouncil;
+	type BlacklistOrigin = EnsureRootOrHalfCouncil;
+	type CancelProposalOrigin = EnsureRootOrHalfCouncil;
+	type VetoOrigin = collective::EnsureMember<AccountId, CouncilInstance>;
+	type OperationalPreimageOrigin = collective::EnsureMember<AccountId, CouncilInstance>;
+	type Slash = Treasury;
+
+	type CooloffPeriod = CooloffPeriod;
+	type MaxProposals = MaxProposals;
+	type MaxVotes = MaxVotes;
+	type PalletsOrigin = OriginCaller;
+
+	type PreimageByteDeposit = PreimageByteDeposit;
+	type Scheduler = Scheduler;
+	// TODO: Weights
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub PreimageBaseDeposit: Balance = 10 * CurrencyId::unit::<Balance>();
@@ -1222,12 +1260,13 @@ construct_runtime!(
 		Pablo: pablo::{Pallet, Call, Storage, Event<T>} = 65,
 		DexRouter: dex_router::{Pallet, Call, Storage, Event<T>} = 66,
 		StakingRewards: pallet_staking_rewards::{Pallet, Call, Storage, Event<T>} = 67,
+		PicassoDemocracy: democracy_instantiable::<Instance1>::{Pallet, Call, Storage, Event<T>} = 68,
 
 		CallFilter: call_filter::{Pallet, Call, Storage, Event<T>} = 100,
 
 		// IBC Support, pallet-ibc should be the last in the list of pallets that use the ibc protocol
-		IbcPing: pallet_ibc_ping::{Pallet, Call, Storage, Event<t>} = 101,
-		Transfer: ibc_transfer::{Pallet, Call, Storage, Event<t>} = 102,
+		IbcPing: pallet_ibc_ping::{Pallet, Call, Storage, Event<T>} = 101,
+		Transfer: ibc_transfer::{Pallet, Call, Storage, Event<T>} = 102,
 		Ibc: pallet_ibc::{Pallet, Call, Storage, Event<T>} = 103
 	}
 );
