@@ -1751,7 +1751,6 @@ pub mod pallet {
 
 		fn option_exercise_start(option_id: OptionIdOf<T>) -> Weight {
 			// Check if option is expired is redundant if we trust the Scheduler behavior
-			Self::deposit_event(Event::OptionExerciseStart { option_id });
 
 			// TODO: Handle the result to address overflow errors or other types of errors.
 			// `do_settle_option` should never return an error, but if happens, it should be handled.
@@ -1759,6 +1758,8 @@ pub mod pallet {
 				Some(option) => Self::do_settle_option(option_id, option),
 				None => Err(Error::<T>::OptionDoesNotExists.into()),
 			});
+
+			Self::deposit_event(Event::OptionExerciseStart { option_id });
 
 			0
 		}

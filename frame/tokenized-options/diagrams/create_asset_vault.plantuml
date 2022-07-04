@@ -2,7 +2,6 @@
 entity ProtocolAccount #yellow
 participant "Option Pallet" as Protocol #green
 database Vaults
-database Scheduler
 participant "Oracle Pallet" as Oracle #green
 
 group #00000022 Create Vault
