@@ -5,7 +5,6 @@ participant "Option Pallet" as Protocol #green
 database Options
 database Vaults
 database Sellers
-database Buyers
 database Scheduler
 entity ProtocolAccount #yellow
 participant "Vault Pallet" as Vault #green
@@ -17,7 +16,7 @@ participant "Pricing Pallet" as Pricing #green
 
 
 
-group Epoch
+group Epoch [Day 0]
 
 group #00000022 Create Vault
 ProtocolAccount -> Protocol: Create Vault (passing vault config)
@@ -44,7 +43,7 @@ end
 ==  ==
 
 
-group #FF000033 Deposit Window [From Monday 8AM UTC to Thursday 8AM UTC]
+group #FF000033 Deposit Window [From Day 0 to Day 5]
 group #FF000055 Sell Option
 Seller -> Protocol: Sell option (passing option_id)
 activate Protocol
@@ -88,7 +87,7 @@ end
 ==  ==
 
 
-group #0000FF33 Purchase Window [From Thursday 8AM UTC to Friday 8AM UTC]
+group #0000FF33 Purchase Window [From Day 5 to Day 7]
 Buyer -> Protocol: Buy option (passing option_id)
 activate Protocol
 Protocol -> Options: get option
@@ -106,71 +105,65 @@ end
 
 ==  ==
 
-group #00000022 Stand-by Window [From Friday 8AM UTC to exp. date 8AM UTC]
-Protocol -> Protocol: block all actions until expiration date
+group #00000022 RFQ Window [From Day 7 to Day 8 (exp. date)] TODO
+Protocol -> Protocol: block all actions
 Protocol --> Protocol: evaluate if RFQ is needed
 note left
 TBD how to do it
 end note
-Protocol --> Protocol: calculate premium for sellers based on shares
-Protocol -> Seller: transfer premium
-note right
-Do we want to transfer premiums already? 
-Liquidity providers are happy, but less TVL for the protocol
-end note
 end
+
 ==  ==
 
-group #00FF0033 Exercise Window [From exp. date 8AM UTC to 1 day after 8AM UTC]
-Buyer -> Protocol: Exercise option (passing option_id)
-note right
-Do we want a exercise_all_option() 
-function to exercise all the 
-tokens inside a user account?
-end note
-activate Protocol
-Protocol -> Options: get option
-Protocol -> Vaults: get vault
-Protocol -> Oracle: get asset spot price to calculate if option is in-the-money
+group #00000022 Settlement Window [Day 8 (exp. date)]
+Protocol -> Oracle: get asset spot price at expiration time
 activate Oracle
 Protocol <-- Oracle: asset_price
 deactivate Oracle
-Protocol --> Protocol: check if option is in-the-money
-Protocol --> Protocol: calculate amount to pay to Buyer
-Protocol -> Vault: withdraw funds
+Protocol -> Options: save asset spot price at expiration time
+Protocol -> Options: calculate and save exercise amount for buyers
+Protocol -> Options: save info to calculate remaining collateral for sellers 
+Protocol -> Options: save info to calculate premium for sellers
+Protocol -> Vaults: get vault
+Protocol -> Vault: withdraw funds to pay all buyers (if option is in-the-money)
 activate Vault
 ProtocolAccount <-- Vault: receive funds
 deactivate Vault
-Buyer <- ProtocolAccount: transfer funds
-Protocol -> Buyers: delete position
+end
+==  ==
+
+group #FFFF0033 Exercise Window [From Day 8 (exp. date) to Day ?]
+group #FFFF0055 Exercise Option 
+Buyer -> Protocol: Exercise option (passing option_id)
+activate Protocol
+Protocol -> Options: get option
+Protocol --> Protocol: check if exercise amount for the specified option
+Protocol --> Protocol: calculate amount to pay to Buyer
+Buyer <- ProtocolAccount: transfer funds to buyer
 Protocol -> Buyer: burn option token from user's account
 Buyer o<- Protocol: emit event
 deactivate Protocol
 end
 ==  ==
 
-
-
-
-group #FFFF0044 Withdraw Window [From 1 day after exp.date 8AM UTC to ?]
-Seller -> Protocol: Withdraw funds (passing option_id)
-note right
-Do we want a exercise_all_option() 
-function to withdraw all the 
-user's positions?
-end note
+group #FFFF0055 Withdraw Collateral 
+Seller -> Protocol: Withdraw collateral (passing option_id)
 activate Protocol
 Protocol -> Options: get option
+Protocol --> Sellers: check if Seller has position
 Protocol -> Vaults: get vault
-Protocol --> Protocol: calculate share to give to Seller (include yield)
-Protocol -> Vault: withdraw funds
+Protocol --> Protocol: calculate shares to give to Seller
+Protocol --> Protocol: calculate premium to give to Seller
+Protocol -> Vault: withdraw collateral from vault (yield included)
 activate Vault
 ProtocolAccount <-- Vault: receive funds
 deactivate Vault
-Seller <- ProtocolAccount: transfer funds
+Seller <- ProtocolAccount: transfer collateral
+Seller <- ProtocolAccount: transfer premium
 Protocol -> Sellers: delete position
 Seller o<- Protocol: emit event
 deactivate Protocol
+end
 end
 end
 @enduml
