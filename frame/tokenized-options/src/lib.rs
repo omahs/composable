@@ -125,6 +125,7 @@ pub mod pallet {
 		},
 		ArithmeticError, DispatchError, FixedPointNumber, FixedPointOperand, Perquintill,
 	};
+	use sp_std::cmp::min;
 
 	use sp_std::{collections::btree_map::BTreeMap, fmt::Debug};
 
@@ -1503,23 +1504,26 @@ pub mod pallet {
 				.checked_sub(&shares_for_buyers)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			// Different behaviors based on Call or Put option
+			// Do withdraw and transfer the collateral to user's account
 			let asset_id = match option.option_type {
 				OptionType::Call => option.base_asset_id,
 				OptionType::Put => option.quote_asset_id,
 			};
 
-			// Get vault_id for withdrawing collateral
 			let protocol_account = Self::account_id(asset_id);
 			let vault_id =
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
-			// Protocol account withdraw from the vault and burn shares_amount
-			let asset_amount =
-				VaultOf::<T>::withdraw(&vault_id, &protocol_account, user_shares_amount)
-					.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
+			let lp_token_issuance =
+				AssetsOf::<T>::balance(VaultOf::<T>::lp_asset_id(&vault_id)?, &protocol_account);
 
-			// Transfer collateral to user account
+			let asset_amount = VaultOf::<T>::withdraw(
+				&vault_id,
+				&protocol_account,
+				min(user_shares_amount, lp_token_issuance),
+			)
+			.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
+
 			AssetsOf::<T>::transfer(asset_id, &protocol_account, from, asset_amount, true)?;
 
 			// ------ Premium calculations for user ------

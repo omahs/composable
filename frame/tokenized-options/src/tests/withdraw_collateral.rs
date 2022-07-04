@@ -4,6 +4,7 @@ use crate::mock::runtime::{
 };
 
 use crate::mock::{accounts::*, assets::*};
+use sp_std::cmp::min;
 
 use crate::{
 	pallet::{self, OptionHashToOptionId, Sellers},
@@ -49,7 +50,7 @@ pub fn withdraw_collateral_success_checks(option_id: AssetId, who: Public) {
 
 	let initial_user_balance = Assets::balance(asset_id, &who);
 	let initial_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
-
+	let protocol_account = TokenizedOptions::account_id(asset_id);
 	let protocol_account_stablecoin = TokenizedOptions::account_id(stablecoin_id);
 	let initial_user_balance_stablecoin = Assets::balance(stablecoin_id, &who);
 	let initial_protocol_account_balance_stablecoin =
@@ -59,6 +60,9 @@ pub fn withdraw_collateral_success_checks(option_id: AssetId, who: Public) {
 	let shares_for_buyers = option.total_shares_amount * initial_user_position.option_amount
 		/ option.total_issuance_seller;
 	let user_shares_amount = initial_user_position.shares_amount - shares_for_buyers;
+	let lp_token_issuance =
+		Assets::balance(Vault::lp_asset_id(&vault_id).unwrap(), &protocol_account);
+	let user_shares_amount = min(user_shares_amount, lp_token_issuance);
 	let asset_amount = Vault::lp_share_value(&vault_id, user_shares_amount).unwrap();
 
 	// Calculate user premium amount to receive
@@ -447,6 +451,376 @@ fn test_withdraw_collateral_put_multiple_times() {
 
 			// BTC price moves from 50k to 55k, buyers are in profit
 			set_oracle_price(option_config.base_asset_id, 45000u128 * UNIT);
+
+			// Go to exercise window (option has expired so settlement can start)
+			run_to_block(6);
+
+			assert_ok!(TokenizedOptions::exercise_option(
+				Origin::signed(CHARLIE),
+				charlie_option_amount,
+				option_id
+			));
+			assert_ok!(TokenizedOptions::exercise_option(
+				Origin::signed(DAVE),
+				dave_option_amount,
+				option_id
+			));
+
+			withdraw_collateral_success_checks(option_id, ALICE);
+			withdraw_collateral_success_checks(option_id, BOB);
+		});
+}
+
+#[test]
+fn test_withdraw_collateral_error_option_not_exists() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([(BOB, BTC, 1 * UNIT), (BOB, USDC, 50000 * UNIT)]))
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				// 10000000000005u128 it's a meaningless number
+				TokenizedOptions::withdraw_collateral(
+					Origin::signed(BOB),
+					AssetId(10000000000005u128)
+				),
+				Error::<MockRuntime>::OptionDoesNotExists
+			);
+		});
+}
+
+#[test]
+fn test_withdraw_collateral_error_not_into_exercise_window() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 10 * UNIT),
+			(ALICE, USDC, 500000 * UNIT),
+			(BOB, BTC, 10 * UNIT),
+			(BOB, USDC, 500000 * UNIT),
+			(CHARLIE, BTC, 10 * UNIT),
+			(CHARLIE, USDC, 500000 * UNIT),
+			(DAVE, BTC, 10 * UNIT),
+			(DAVE, USDC, 500000 * UNIT),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			// Create default BTC option
+			let option_config =
+				OptionsConfigBuilder::default().option_type(OptionType::Call).build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			// Check creation ended correctly
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			// Sell option and make checks
+			let alice_option_amount = 10u128;
+			let bob_option_amount = 8u128;
+			let charlie_option_amount = 4u128;
+			let dave_option_amount = 7u128;
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(ALICE),
+				alice_option_amount,
+				option_id
+			));
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(BOB),
+				bob_option_amount,
+				option_id
+			));
+
+			// Go to purchase window
+			run_to_block(3);
+
+			// Buy option
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(CHARLIE),
+				charlie_option_amount,
+				option_id
+			));
+
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(DAVE),
+				dave_option_amount,
+				option_id
+			));
+
+			// BTC price moves from 50k to 55k, buyers are in profit
+			set_oracle_price(option_config.base_asset_id, 55000u128 * UNIT);
+
+			// Not yet exercise phase (block 6)
+			run_to_block(5);
+
+			assert_noop!(
+				TokenizedOptions::withdraw_collateral(Origin::signed(ALICE), option_id),
+				Error::<MockRuntime>::NotIntoExerciseWindow
+			);
+
+			assert_noop!(
+				TokenizedOptions::withdraw_collateral(Origin::signed(BOB), option_id),
+				Error::<MockRuntime>::NotIntoExerciseWindow
+			);
+		});
+}
+
+#[test]
+fn test_withdraw_collateral_error_user_does_not_have_position() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 10 * UNIT),
+			(ALICE, USDC, 500000 * UNIT),
+			(BOB, BTC, 10 * UNIT),
+			(BOB, USDC, 500000 * UNIT),
+			(CHARLIE, BTC, 10 * UNIT),
+			(CHARLIE, USDC, 500000 * UNIT),
+			(DAVE, BTC, 10 * UNIT),
+			(DAVE, USDC, 500000 * UNIT),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			// Create default BTC option
+			let option_config =
+				OptionsConfigBuilder::default().option_type(OptionType::Call).build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			// Check creation ended correctly
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			// Sell option and make checks
+			let alice_option_amount = 10u128;
+			let bob_option_amount = 8u128;
+			let charlie_option_amount = 4u128;
+			let dave_option_amount = 7u128;
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(ALICE),
+				alice_option_amount,
+				option_id
+			));
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(BOB),
+				bob_option_amount,
+				option_id
+			));
+
+			// Go to purchase window
+			run_to_block(3);
+
+			// Buy option
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(CHARLIE),
+				charlie_option_amount,
+				option_id
+			));
+
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(DAVE),
+				dave_option_amount,
+				option_id
+			));
+
+			// BTC price moves from 50k to 55k, buyers are in profit
+			set_oracle_price(option_config.base_asset_id, 55000u128 * UNIT);
+
+			// Not yet exercise phase (block 6)
+			run_to_block(6);
+
+			assert_noop!(
+				TokenizedOptions::withdraw_collateral(Origin::signed(CHARLIE), option_id),
+				Error::<MockRuntime>::UserDoesNotHaveSellerPosition
+			);
+
+			withdraw_collateral_success_checks(option_id, ALICE);
+		});
+}
+
+#[test]
+fn test_withdraw_collateral_call_out_of_money_multiple_times() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 10 * UNIT),
+			(ALICE, USDC, 500000 * UNIT),
+			(BOB, BTC, 10 * UNIT),
+			(BOB, USDC, 500000 * UNIT),
+			(CHARLIE, BTC, 10 * UNIT),
+			(CHARLIE, USDC, 500000 * UNIT),
+			(DAVE, BTC, 10 * UNIT),
+			(DAVE, USDC, 500000 * UNIT),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			// Create default BTC option
+			let option_config =
+				OptionsConfigBuilder::default().option_type(OptionType::Call).build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			// Check creation ended correctly
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			// Sell option and make checks
+			let alice_option_amount = 10u128;
+			let bob_option_amount = 8u128;
+			let charlie_option_amount = 4u128;
+			let dave_option_amount = 7u128;
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(ALICE),
+				alice_option_amount,
+				option_id
+			));
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(BOB),
+				bob_option_amount,
+				option_id
+			));
+
+			// Go to purchase window
+			run_to_block(3);
+
+			// Buy option
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(CHARLIE),
+				charlie_option_amount,
+				option_id
+			));
+
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(DAVE),
+				dave_option_amount,
+				option_id
+			));
+
+			// BTC price moves from 50k to 55k, buyers are in profit
+			set_oracle_price(option_config.base_asset_id, 45000u128 * UNIT);
+
+			// Go to exercise window (option has expired so settlement can start)
+			run_to_block(6);
+
+			assert_ok!(TokenizedOptions::exercise_option(
+				Origin::signed(CHARLIE),
+				charlie_option_amount,
+				option_id
+			));
+			assert_ok!(TokenizedOptions::exercise_option(
+				Origin::signed(DAVE),
+				dave_option_amount,
+				option_id
+			));
+
+			withdraw_collateral_success_checks(option_id, ALICE);
+			withdraw_collateral_success_checks(option_id, BOB);
+		});
+}
+
+#[test]
+fn test_withdraw_collateral_put_out_of_money_multiple_times() {
+	ExtBuilder::default()
+		.initialize_balances(Vec::from([
+			(ALICE, BTC, 10 * UNIT),
+			(ALICE, USDC, 500000 * UNIT),
+			(BOB, BTC, 10 * UNIT),
+			(BOB, USDC, 500000 * UNIT),
+			(CHARLIE, BTC, 10 * UNIT),
+			(CHARLIE, USDC, 500000 * UNIT),
+			(DAVE, BTC, 10 * UNIT),
+			(DAVE, USDC, 500000 * UNIT),
+		]))
+		.build()
+		.initialize_oracle_prices()
+		.initialize_all_vaults()
+		.initialize_all_options()
+		.execute_with(|| {
+			// Create default BTC option
+			let option_config =
+				OptionsConfigBuilder::default().option_type(OptionType::Put).build();
+
+			let option_hash = TokenizedOptions::generate_id(
+				option_config.base_asset_id,
+				option_config.quote_asset_id,
+				option_config.base_asset_strike_price,
+				option_config.quote_asset_strike_price,
+				option_config.option_type,
+				option_config.expiring_date,
+				option_config.exercise_type,
+			);
+
+			// Check creation ended correctly
+			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
+
+			// Sell option and make checks
+			let alice_option_amount = 10u128;
+			let bob_option_amount = 8u128;
+			let charlie_option_amount = 4u128;
+			let dave_option_amount = 7u128;
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(ALICE),
+				alice_option_amount,
+				option_id
+			));
+
+			assert_ok!(TokenizedOptions::sell_option(
+				Origin::signed(BOB),
+				bob_option_amount,
+				option_id
+			));
+
+			// Go to purchase window
+			run_to_block(3);
+
+			// Buy option
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(CHARLIE),
+				charlie_option_amount,
+				option_id
+			));
+
+			assert_ok!(TokenizedOptions::buy_option(
+				Origin::signed(DAVE),
+				dave_option_amount,
+				option_id
+			));
+
+			// BTC price moves from 50k to 55k, buyers are in profit
+			set_oracle_price(option_config.base_asset_id, 55000u128 * UNIT);
 
 			// Go to exercise window (option has expired so settlement can start)
 			run_to_block(6);
