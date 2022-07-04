@@ -103,7 +103,7 @@ mod rebalance {
 	}
 
 	#[test]
-	fn funds_availabilty_withdrawable() {
+	fn funds_availability_withdrawable() {
 		let base_asset = CurrencyId::LAYR;
 		let quote_asset = CurrencyId::CROWD_LOAN;
 		let amount = 100 * CurrencyId::unit::<Balance>();
@@ -199,18 +199,41 @@ mod rebalance {
 			})
 	}
 
+	#[test]
+	fn funds_availability_depositable() {
+		let base_asset = CurrencyId::LAYR;
+		let amount = 100 * CurrencyId::unit::<Balance>();
+
+		ExtBuilder::default()
+			.initialize_balance(ADMIN, base_asset, amount)
+			.build()
+			.execute_with(|| {
+				System::set_block_number(1);
+
+				let base_vault_id = create_vault(base_asset, Perquintill::from_percent(10));
+				let base_vault_account = Vault::account_id(&base_vault_id);
+
+				let pool_id = create_pool(base_asset, None, None, None, None, None);
+				pallet::AdminAccountIds::<MockRuntime>::insert(ADMIN, AccessRights::Full);
+				assert_ok!(PabloStrategy::set_pool_id_for_asset(
+					Origin::signed(ADMIN),
+					base_asset,
+					pool_id
+				));
+
+				assert_ok!(<PabloStrategy as InstrumentalProtocolStrategy>::associate_vault(
+					&base_vault_id
+				));
+			})
+	}
+
 	// #[test]
-	fn funds_availabilty_depositable() {
+	fn funds_availability_must_liquidate() {
 		todo!()
 	}
 
 	// #[test]
-	fn funds_availabilty_must_liquidate() {
-		todo!()
-	}
-
-	// #[test]
-	fn funds_availabilty_none() {
+	fn funds_availability_none() {
 		todo!()
 	}
 }
