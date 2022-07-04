@@ -274,6 +274,7 @@ pub mod pallet {
 			configuration: TimeReleaseFunction,
 		) -> DispatchResultWithPostInfo {
 			let _ = T::AdminOrigin::ensure_origin(origin)?;
+
 			Configurations::<T>::insert(configuration_id, configuration.clone());
 			Self::deposit_event(Event::CofigurationAdded { configuration_id, configuration });
 			Ok(().into())
@@ -338,7 +339,7 @@ pub mod pallet {
 
 		// TODO: make API for call this as liquidation engine
 		// TODO: so make pallet trait for having this call
-		#[pallet::weight(10000)]
+		#[pallet::weight(T::WeightInfo::xcm_sell())]
 		#[transactional]
 		pub fn xcm_sell(
 			origin: OriginFor<T>,
