@@ -532,7 +532,7 @@ pub fn run_for_seconds(n: u64) {
 	TokenizedOptions::on_idle(System::block_number(), max_weight);
 }
 
-// Simulate exstrinsic call `create_asset_vault`, but returning values
+// Simulate extrinsic call `create_asset_vault`, but returning values
 pub fn trait_create_asset_vault(
 	_origin: Origin,
 	vault_config: VaultConfig<AccountId, AssetId>,
@@ -544,7 +544,7 @@ pub fn trait_create_asset_vault(
 	Ok(vault_id)
 }
 
-// Simulate exstrinsic call `create_option`, but returning values
+// Simulate extrinsic call `create_option`, but returning values
 pub fn trait_create_option(
 	origin: Origin,
 	option_config: OptionConfig<AssetId, Balance, Moment>,

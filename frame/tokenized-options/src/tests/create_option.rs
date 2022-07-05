@@ -63,7 +63,7 @@ fn test_create_option_success() {
 }
 
 /// Create BTC vault, create BTC option and check if vault_id is correctly saved and event emitted
-/// using exstrinsic
+/// using extrinsic
 #[test]
 fn test_create_option_success_ext() {
 	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {
@@ -248,7 +248,7 @@ fn test_create_option_error_option_already_exists_ext() {
 }
 
 /// Create BTC vault, create BTC option and check if vault_id is correctly saved and event emitted
-/// using exstrinsic
+/// using extrinsic
 #[test]
 fn test_create_option_error_not_protocol_origin_ext() {
 	ExtBuilder::default().build().initialize_oracle_prices().execute_with(|| {

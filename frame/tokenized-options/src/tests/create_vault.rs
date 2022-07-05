@@ -66,7 +66,7 @@ fn test_create_vault_success_ext() {
 	});
 }
 
-/// Create BTC vault using exstrinsic; try to create it again; check if error is raised and storage
+/// Create BTC vault using extrinsic; try to create it again; check if error is raised and storage
 /// not changed
 #[test]
 fn test_create_vault_error_vault_already_exists_ext() {
@@ -104,7 +104,7 @@ fn test_create_vault_error_asset_not_supported_ext() {
 		// Check that the vault has not already been created
 		assert!(!AssetToVault::<MockRuntime>::contains_key(vault_config.asset_id));
 
-		// Check no changes have been perfomed
+		// Check no changes have been performed
 		assert_noop!(
 			TokenizedOptions::create_asset_vault(Origin::signed(ADMIN), vault_config),
 			Error::<MockRuntime>::AssetIsNotSupported
@@ -122,7 +122,7 @@ fn test_create_vault_error_not_protocol_origin_ext() {
 		// Check that the vault has not already been created
 		assert!(!AssetToVault::<MockRuntime>::contains_key(vault_config.asset_id));
 
-		// Check no changes have been perfomed with ALICE caller
+		// Check no changes have been performed with ALICE caller
 		assert_noop!(
 			TokenizedOptions::create_asset_vault(Origin::signed(ALICE), vault_config.clone()),
 			BadOrigin

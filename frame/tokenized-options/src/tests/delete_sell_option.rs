@@ -50,7 +50,7 @@ pub fn delete_sell_option_success_checks(option_id: AssetId, option_amount: Bala
 
 	let asset_amount = Vault::lp_share_value(&vault_id, shares_amount).unwrap();
 
-	// Call exstrinsic and check event
+	// Call extrinsic and check event
 	assert_ok!(TokenizedOptions::delete_sell_option(Origin::signed(who), option_amount, option_id));
 
 	System::assert_last_event(Event::TokenizedOptions(pallet::Event::DeleteSellOption {

@@ -49,7 +49,7 @@
 //!
 //! ### Runtime Storage Objects
 //! - [`AssetToVault`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its vault.
-//! - [`OptionIdToOption`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its option informations.
+//! - [`OptionIdToOption`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its option information.
 //! - [`OptionHashToOptionId`]: maps a [`H256`] to its optionId. The hash is obtained from option's attributes.
 //! - [`Sellers`]: maps an OptionId [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) and an [`AccountId`](Config::AccountId) to
 //! its position as a seller.
@@ -1428,11 +1428,11 @@ pub mod pallet {
 			let (asset_id, collateral_for_option) = match option.option_type {
 				OptionType::Call => (
 					option.base_asset_id,
-					Self::call_option_collateral_amount(base_asset_spot_price, &option)?,
+					Self::call_option_collateral_amount(base_asset_spot_price, option)?,
 				),
 				OptionType::Put => (
 					option.quote_asset_id,
-					Self::put_option_collateral_amount(base_asset_spot_price, &option)?,
+					Self::put_option_collateral_amount(base_asset_spot_price, option)?,
 				),
 			};
 
@@ -1512,7 +1512,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::UserHasNotEnoughOptionTokens)?;
 			}
 
-			// Brun option token from user's account
+			// Burn option token from user's account
 			AssetsOf::<T>::burn_from(option_id, from, option_amount)
 				.map_err(|_| Error::<T>::UserHasNotEnoughOptionTokens)?;
 
