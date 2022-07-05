@@ -1,6 +1,6 @@
 use composable_traits::{
 	instrumental::{AccessRights, InstrumentalProtocolStrategy},
-	vault::{StrategicVault, Vault as VaultTrait},
+	vault::{CapabilityVault, StrategicVault, Vault as VaultTrait},
 };
 use frame_support::{assert_noop, assert_ok, traits::fungibles::Inspect};
 use primitives::currency::CurrencyId;
@@ -227,7 +227,33 @@ mod rebalance {
 			})
 	}
 
-	// #[test]
+	#[test]
+	fn funds_availability_must_liquidate_without_depositing() {
+		let asset = CurrencyId::LAYR;
+
+		ExtBuilder::default().build().execute_with(|| {
+			System::set_block_number(1);
+
+			let vault_id = create_vault(asset, Perquintill::from_percent(10));
+			let vault_account = Vault::account_id(&vault_id);
+
+			let pool_id = create_pool(asset, None, None, None, None, None);
+			pallet::AdminAccountIds::<MockRuntime>::insert(ADMIN, AccessRights::Full);
+			assert_ok!(PabloStrategy::set_pool_id_for_asset(Origin::signed(ADMIN), asset, pool_id));
+
+			assert_ok!(<PabloStrategy as InstrumentalProtocolStrategy>::associate_vault(&vault_id));
+
+			assert_ok!(Vault::stop(&vault_id));
+
+			assert_ok!(PabloStrategy::rebalance());
+
+			System::assert_last_event(Event::PabloStrategy(pallet::Event::RebalancedVault {
+				vault_id,
+			}));
+		})
+	}
+
+	#[test]
 	fn funds_availability_must_liquidate() {
 		todo!()
 	}
