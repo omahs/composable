@@ -930,6 +930,9 @@ pub struct BaseCallFilter;
 
 impl Contains<Call> for BaseCallFilter {
 	fn contains(call: &Call) -> bool {
+		if matches!(call, Call::PicassoDemocracy(_)) {
+			return true
+		}
 		if call_filter::Pallet::<Runtime>::contains(call) {
 			return false
 		}
