@@ -85,7 +85,11 @@ pub mod pallet {
 	use crate::{prelude::*, types::*};
 	use xcm::latest::{prelude::*, MultiAsset, WeightLimit::Unlimited};
 
-	use crate::{math::*, support::DefiMultiReservableCurrency, validation::XcmSellRequestValid};
+	use crate::{
+		math::*,
+		support::DefiMultiReservableCurrency,
+		validation::{SellValid, XcmSellRequestValid},
+	};
 	use composable_support::{
 		abstractions::{
 			nonce::{Increment, Nonce},
@@ -289,6 +293,9 @@ pub mod pallet {
 			configuration: TimeReleaseFunction,
 		) -> DispatchResultWithPostInfo {
 			let who = &(ensure_signed(origin)?);
+
+			let order = SellValid::validate(order)?;
+
 			let order_id =
 				<Self as SellEngine<TimeReleaseFunction>>::ask(who, order, configuration)?;
 
