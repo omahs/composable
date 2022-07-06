@@ -104,8 +104,6 @@ fn unit_test_for_vault_prop_test() {
 			// total_amount = borrowers_amount * borrowed_amount_per_borrower / ((100 -
 			// reserved_factor) / 100) in the case of reserved_factor = 99:
 			// total_amount =  borrowers_amount * borrowed_amount_per_borrower / 0.01
-			// in our case:
-			// total_amount = 20000
 			let total_amount =
 				(FixedU128::from_inner(borrowers_amount * borrowed_amount_per_borrower) /
 					FixedU128::saturating_from_rational(100 - reserved_factor, 100u128))
