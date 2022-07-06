@@ -1,6 +1,7 @@
 use self::currency::CurrencyId;
 pub use self::currency::*;
 use crate::{self as pallet_lending, *};
+
 use composable_support::math::safe::SafeAdd;
 use composable_traits::{
 	currency::{Exponent, LocalAssets},
