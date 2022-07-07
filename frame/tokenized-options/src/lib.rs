@@ -156,22 +156,22 @@ pub mod pallet {
 		/// stored in lexical order.
 		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
 
-		/// The Unix time provider
+		/// The Unix time provider.
 		type Time: Time<Moment = MomentOf<Self>>;
 
 		/// Trait used to convert from this pallet `Balance` type to `u128`.
 		type Convert: Convert<BalanceOf<Self>, u128> + Convert<u128, BalanceOf<Self>>;
 
-		/// Option IDs generator
+		/// Option IDs generator.
 		type CurrencyFactory: CurrencyFactory<OptionIdOf<Self>, BalanceOf<Self>>;
 
-		/// Stablecoin ID to use for cash operations
+		/// Stablecoin ID to use for cash operations.
 		type StablecoinAssetId: Get<AssetIdOf<Self>>;
 
-		/// General asset type to retrieve decimal information of the asset
+		/// General asset type to retrieve decimal information of the asset.
 		type LocalAssets: LocalAssets<AssetIdOf<Self>>;
 
-		/// Protocol Origin that can create vaults and options
+		/// Protocol Origin that can create vaults and options.
 		type ProtocolOrigin: EnsureOrigin<Self::Origin>;
 
 		/// Used for option tokens and other assets management.
@@ -185,7 +185,7 @@ pub mod pallet {
 		/// Vault pallet.
 		type VaultId: Clone + Copy + Codec + MaxEncodedLen + Debug + PartialEq + Default + Parameter;
 
-		/// Vaults to collect collaterals
+		/// Vaults to collect collaterals.
 		type Vault: CapabilityVault<
 			AssetId = AssetIdOf<Self>,
 			Balance = BalanceOf<Self>,
@@ -212,25 +212,25 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
 	// ----------------------------------------------------------------------------------------------------
-	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [`VaultId`](Config::VaultId)
+	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [`VaultId`](Config::VaultId).
 	#[pallet::storage]
 	#[pallet::getter(fn asset_id_to_vault_id)]
 	pub type AssetToVault<T: Config> = StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
 
-	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [OptionToken](OptionToken) struct
+	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [`OptionToken`](OptionToken) struct.
 	#[pallet::storage]
 	#[pallet::getter(fn option_id_to_option)]
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, OptionIdOf<T>, OptionToken<T>>;
 
-	/// Maps option's hash [H256](H256) with the option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId).
+	/// Maps option's hash [`H256`](H256) with the option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId).
 	/// Used to quickly check if option exists and for all the other searching use cases.
 	#[pallet::storage]
 	#[pallet::getter(fn options_hash)]
 	pub type OptionHashToOptionId<T: Config> = StorageMap<_, Blake2_128Concat, H256, OptionIdOf<T>>;
 
 	/// Maps [`AccountId`](Config::AccountId) and option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId)
-	/// to the user's [SellerPosition](SellerPosition).
+	/// to the user's [`SellerPosition`](SellerPosition).
 	#[pallet::storage]
 	#[pallet::getter(fn sellers)]
 	pub type Sellers<T: Config> = StorageDoubleMap<
@@ -242,8 +242,8 @@ pub mod pallet {
 		SellerPosition<T>,
 	>;
 
-	/// Maps a timestamp [Moment](Config::Moment) and option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId)
-	/// to its currently active window type [WindowType](WindowType). Scheduler is a timestamp-ordered list
+	/// Maps a timestamp [`Moment`](Config::Moment) and option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId)
+	/// to its currently active window type [`WindowType`](WindowType). Scheduler is a timestamp-ordered list.
 	#[pallet::storage]
 	pub(crate) type Scheduler<T: Config> =
 		StorageDoubleMap<_, Identity, Swapped<MomentOf<T>>, Identity, OptionIdOf<T>, WindowType>;
@@ -286,16 +286,16 @@ pub mod pallet {
 		/// Emitted after a successful call to the [`withdraw_collateral`](Pallet::withdraw_collateral) extrinsic.
 		WithdrawCollateral { user: AccountIdOf<T>, option_id: OptionIdOf<T> },
 
-		/// Emitted when the deposit phase for the reported option starts
+		/// Emitted when the deposit phase for the reported option starts.
 		OptionDepositStart { option_id: OptionIdOf<T> },
 
-		/// Emitted when the purchase phase for the reported option starts
+		/// Emitted when the purchase phase for the reported option starts.
 		OptionPurchaseStart { option_id: OptionIdOf<T> },
 
-		/// Emitted when the exercise phase for the reported option starts
+		/// Emitted when the exercise phase for the reported option starts.
 		OptionExerciseStart { option_id: OptionIdOf<T> },
 
-		/// Emitted when the reported option epoch ends
+		/// Emitted when the reported option epoch ends.
 		OptionEnd { option_id: OptionIdOf<T> },
 	}
 
@@ -357,7 +357,7 @@ pub mod pallet {
 		/// Raised when trying to exercise options, but the amount is greater than what user owns.
 		UserHasNotEnoughOptionTokens,
 
-		/// Raised when trying to get the price for a specific asset, but the asset is not found in the Oracle
+		/// Raised when trying to get the price for a specific asset, but the asset is not found in the Oracle.
 		AssetPriceNotFound,
 
 		/// Raised when trying to sell an option, but it is not deposit phase for that option.
@@ -376,7 +376,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		/// At each block we perform timestamp checks to update the Scheduler
+		/// At each block we perform timestamp checks to update the Scheduler.
 		fn on_idle(_n: T::BlockNumber, remaining_weight: Weight) -> Weight {
 			let mut used_weight = 0;
 			let now = T::Time::now();
@@ -525,7 +525,7 @@ pub mod pallet {
 		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
 		/// but it is not deposit phase for that option.
 		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to sell an option,
-		/// but the user does not own enough collateral to complete the operation
+		/// but the user does not own enough collateral to complete the operation.
 		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
 		/// but deposits into vaults are disabled.
 		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to sell an option,
@@ -578,7 +578,7 @@ pub mod pallet {
 		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
 		/// but it is not deposit phase for that option.
 		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to delete the sale of an option,
-		/// but the user had never sold the indicated option
+		/// but the user had never sold the indicated option.
 		/// - [`UserDoesNotHaveEnoughCollateralDeposited`](Error::UserDoesNotHaveEnoughCollateralDeposited): raised when trying
 		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
 		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
@@ -629,7 +629,7 @@ pub mod pallet {
 		/// - [`NotIntoPurchaseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
 		/// but it is not purchase phase for that option.
 		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to buy an option,
-		/// but the user does not own enough funds to complete the operation paying the premium
+		/// but the user does not own enough funds to complete the operation paying the premium.
 		/// - [`NotEnoughOptionsForSale`](Error::NotEnoughOptionsForSale): raised when trying to buy an option,
 		/// but there are not enough option for sale to complete the purchase.
 		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
@@ -712,7 +712,7 @@ pub mod pallet {
 		/// - [`Event::WithdrawCollateral`]
 		///
 		/// ## State Changes
-		/// - Delete from [`Sellers`] storage the seller's position related to the option
+		/// - Delete from [`Sellers`] storage the seller's position related to the option.
 		///
 		/// ## Errors
 		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
@@ -840,7 +840,7 @@ pub mod pallet {
 		///
 		/// # Overview
 		/// ## Parameters
-		/// - `from`: the user's account id
+		/// - `from`: the user's account id.
 		/// - `option_amount`: the amount of option the user wants to sell.
 		/// - `option_id`: the option id.
 		///
@@ -858,14 +858,14 @@ pub mod pallet {
 		/// already for sale.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
-		/// but it already exists.
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
 		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
 		/// associated to an asset, but it does not exist.
 		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
 		/// but it is not deposit phase for that option.
 		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to sell an option,
-		/// but the user does not own enough collateral to complete the operation
+		/// but the user does not own enough collateral to complete the operation.
 		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
 		/// but deposits into vaults are disabled.
 		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to sell an option,
@@ -907,14 +907,14 @@ pub mod pallet {
 		/// already for sale.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
-		/// but it already exists.
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
 		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
 		/// associated to an asset, but it does not exist.
 		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
 		/// but it is not deposit phase for that option.
 		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to delete the sale of an option,
-		/// but the user had never sold the indicated option
+		/// but the user had never sold the indicated option.
 		/// - [`UserDoesNotHaveEnoughCollateralDeposited`](Error::UserDoesNotHaveEnoughCollateralDeposited): raised when trying
 		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
 		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
@@ -958,12 +958,12 @@ pub mod pallet {
 		/// already bought.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to create a new option,
-		/// but it already exists.
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// to the given option id, but it does not exist.
 		/// - [`NotIntoPurchaseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
 		/// but it is not purchase phase for that option.
 		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to buy an option,
-		/// but the user does not own enough funds to complete the operation paying the premium
+		/// but the user does not own enough funds to complete the operation paying the premium.
 		/// - [`NotEnoughOptionsForSale`](Error::NotEnoughOptionsForSale): raised when trying to buy an option,
 		/// but there are not enough option for sale to complete the purchase.
 		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
@@ -1003,11 +1003,11 @@ pub mod pallet {
 		/// ## Errors
 		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`NotIntoExerciseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to exercise an option,
 		/// but it is not exercise phase for that option.
 		/// - [`UserHasNotEnoughOptionTokens`](Error::UserHasNotEnoughOptionTokens): raised when trying to exercise options,
 		/// but the amount is greater than what user owns.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to exercise an option,
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
@@ -1038,7 +1038,7 @@ pub mod pallet {
 		/// - [`Event::WithdrawCollateral`]
 		///
 		/// ## State Changes
-		/// - Delete from [`Sellers`] storage the seller's position related to the option
+		/// - Delete from [`Sellers`] storage the seller's position related to the option.
 		///
 		/// ## Errors
 		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
@@ -1616,12 +1616,12 @@ pub mod pallet {
 		// ----------------------------------------------------------------------------------------------------
 		//		Helper Functions
 		// ----------------------------------------------------------------------------------------------------
-		/// Protocol account for a particular asset
+		/// Protocol account for a particular asset.
 		pub fn account_id(asset_id: AssetIdOf<T>) -> AccountIdOf<T> {
 			T::PalletId::get().into_sub_account(asset_id)
 		}
 
-		/// Calculate the hash of an option providing the required attributes
+		/// Calculate the hash of an option providing the required attributes.
 		pub fn generate_id(
 			base_asset_id: AssetIdOf<T>,
 			quote_asset_id: AssetIdOf<T>,
