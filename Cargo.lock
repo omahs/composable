@@ -1734,6 +1734,7 @@ dependencies = [
  "hex",
  "is_sorted",
  "num-traits",
+ "orml-traits",
  "p256",
  "parity-scale-codec",
  "proptest",

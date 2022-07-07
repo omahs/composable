@@ -795,6 +795,44 @@ impl democracy_instantiable::Config<democracy_instantiable::Instance1> for Runti
 	type WeightInfo = ();
 }
 
+impl democracy_instantiable::Config<democracy_instantiable::Instance2> for Runtime {
+	type Proposal = Call;
+	type Event = Event;
+	type Currency = Balances;
+	type EnactmentPeriod = EnactmentPeriod;
+	type LaunchPeriod = LaunchPeriod;
+	type VotingPeriod = VotingPeriod;
+	type VoteLockingPeriod = EnactmentPeriod;
+	type MinimumDeposit = MinimumDeposit;
+
+	// TODO: prod values
+	type ExternalOrigin = EnsureRootOrHalfCouncil;
+	type ExternalMajorityOrigin = EnsureRootOrHalfCouncil;
+	type ExternalDefaultOrigin = EnsureRootOrHalfCouncil;
+
+	type FastTrackOrigin = EnsureRootOrHalfCouncil;
+	type InstantOrigin = EnsureRootOrHalfCouncil;
+	type InstantAllowed = InstantAllowed;
+
+	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	type CancellationOrigin = EnsureRootOrHalfCouncil;
+	type BlacklistOrigin = EnsureRootOrHalfCouncil;
+	type CancelProposalOrigin = EnsureRootOrHalfCouncil;
+	type VetoOrigin = collective::EnsureMember<AccountId, CouncilInstance>;
+	type OperationalPreimageOrigin = collective::EnsureMember<AccountId, CouncilInstance>;
+	type Slash = Treasury;
+
+	type CooloffPeriod = CooloffPeriod;
+	type MaxProposals = MaxProposals;
+	type MaxVotes = MaxVotes;
+	type PalletsOrigin = OriginCaller;
+
+	type PreimageByteDeposit = PreimageByteDeposit;
+	type Scheduler = Scheduler;
+	// TODO: Weights
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub PreimageBaseDeposit: Balance = 10 * CurrencyId::unit::<Balance>();
@@ -1264,6 +1302,7 @@ construct_runtime!(
 		DexRouter: dex_router::{Pallet, Call, Storage, Event<T>} = 66,
 		StakingRewards: pallet_staking_rewards::{Pallet, Call, Storage, Event<T>} = 67,
 		PicassoDemocracy: democracy_instantiable::<Instance1>::{Pallet, Call, Storage, Event<T>} = 68,
+		KusamaDemocracy: democracy_instantiable::<Instance2>::{Pallet, Call, Storage, Event<T>} = 69,
 
 		CallFilter: call_filter::{Pallet, Call, Storage, Event<T>} = 100,
 
