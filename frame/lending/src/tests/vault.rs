@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::tests::borrow;
 use codec::Decode;
-use composable_traits::vault::Vault as VaultTrate;
+use composable_traits::{lending::TotalDebtWithInterest, vault::Vault as VaultTrate};
 use frame_support::traits::{fungible::Mutate as FungibleMutateTrate, fungibles::Mutate};
 use sp_runtime::{traits::TrailingZeroInput, Perquintill};
 
@@ -70,126 +70,6 @@ fn test_vault_market_can_withdraw() {
 				market_id: market,
 			}),
 		);
-	});
-}
-
-#[test]
-fn unit_test_for_vault_prop_test() {
-	let mut ext = new_test_ext();
-	ext.execute_with(|| {
-		//  borrowers_amount in 100..501u128,
-		//  borrowed_amount_per_borrower in 100..1001u128,
-		//	reserved_factor in 1..100u128,
-		//
-		// All combinations of edge cased for prop test: Vec[(borrowers_amount,
-		// borrowed_amount_per_borrower_reserved_facotr)]
-		let edge_cases: Vec<(u128, u128, u128)> = vec![
-			(100, 100, 1),
-			(100, 1000, 1),
-			(100, 100, 99),
-			(100, 1000, 99),
-			(500, 100, 1),
-			(500, 1000, 1),
-			(500, 100, 99),
-			(500, 1000, 99),
-		];
-		for (borrowers_amount, borrowed_amount_per_borrower, reserved_factor) in edge_cases {
-			let manager = *ALICE;
-			let lender = *CHARLIE;
-			// Individual borrow's part which is going to be returned each block
-			let return_factor = FixedU128::saturating_from_rational(25, 100);
-			let return_amount: u128 =
-				(FixedU128::from_inner(borrowed_amount_per_borrower) * return_factor).into_inner();
-			// Total amount which should be minterd onto lender account
-			// total_amount = borrowers_amount * borrowed_amount_per_borrower / ((100 -
-			// reserved_factor) / 100) in the case of reserved_factor = 99:
-			// total_amount =  borrowers_amount * borrowed_amount_per_borrower / 0.01
-			let total_amount =
-				(FixedU128::from_inner(borrowers_amount * borrowed_amount_per_borrower) /
-					FixedU128::saturating_from_rational(100 - reserved_factor, 100u128))
-				.into_inner();
-			// Creates market with USDT as borrow asset and BTC as collateral asset.
-			// 1 BTC = 50_000 USDT, reserved factor is defined from test's inputs.
-			let (market_id, vault_id) = create_market::<Runtime, 50_000>(
-				USDT::instance(),
-				BTC::instance(),
-				manager,
-				Perquintill::from_percent(reserved_factor as u64),
-				MoreThanOneFixedU128::saturating_from_integer(DEFAULT_COLLATERAL_FACTOR),
-			);
-			let market_account = Lending::account_id(&market_id);
-			let vault_account = Vault::account_id(&vault_id);
-			// Deposit USDT in the vault.
-			assert_ok!(Tokens::mint_into(USDT::ID, &lender, USDT::units(total_amount)));
-			assert_ok!(Vault::deposit(Origin::signed(lender), vault_id, USDT::units(total_amount)));
-			// Process one block to transfer not-reserved assets to the corresponded market.
-			test::block::process_and_progress_blocks::<Lending, Runtime>(1);
-			// Generate a bunch of borrowers' accounts.
-			let borrowers = generate_accounts(borrowers_amount);
-			for borrower in &borrowers {
-				// Deposit 100 BTC collateral from borrower account.
-				mint_and_deposit_collateral::<Runtime>(
-					*borrower,
-					BTC::units(100),
-					market_id,
-					BTC::ID,
-				);
-				borrow::<Runtime>(*borrower, market_id, USDT::units(borrowed_amount_per_borrower));
-			}
-			// For some reason lender needs some of his money back.
-			// So, he withdraw all assets from vault's account.
-			assert_ok!(Vault::withdraw(
-				Origin::signed(lender),
-				vault_id,
-				Assets::balance(USDT::ID, &vault_account)
-			));
-			test::block::process_and_progress_blocks::<Lending, Runtime>(1);
-			//Now vault is unbalanced and should restore equilibrium state.
-			while Lending::ensure_can_borrow_from_vault(&vault_id, &market_account).is_err() {
-				for borrower in &borrowers {
-					<Lending as LendingTrait>::repay_borrow(
-						&market_id,
-						borrower,
-						borrower,
-						RepayStrategy::PartialAmount(USDT::units(return_amount)),
-						false,
-					)
-					.unwrap();
-					test::block::process_and_progress_blocks::<Lending, Runtime>(1);
-				}
-			}
-			// Vault should be balanced.
-			assert!(Lending::ensure_can_borrow_from_vault(&vault_id, &market_account).is_ok());
-			// Lender decided withdraw money from the vault again.
-			assert_ok!(Vault::withdraw(
-				Origin::signed(lender),
-				vault_id,
-				Assets::balance(USDT::ID, &vault_account)
-			));
-			// Vault is unbalanced
-			assert!(Lending::ensure_can_borrow_from_vault(&vault_id, &market_account).is_err());
-			// Refresh assets prices
-			set_price(USDT::ID, NORMALIZED::ONE);
-			set_price(BTC::ID, NORMALIZED::units(50_000));
-
-			// Check that we can not borrow from market related to unblanaced vault
-			assert_noop!(
-				Lending::borrow(
-					Origin::signed(*borrowers.get(0).unwrap()),
-					market_id,
-					Assets::balance(USDT::ID, &market_account)
-				),
-				Error::<Runtime>::CannotBorrowFromMarketWithUnbalancedVault
-			);
-			test::block::process_and_progress_blocks::<Lending, Runtime>(1);
-
-			// Lender puts back assets to the vault.
-			assert_ok!(Tokens::mint_into(USDT::ID, &lender, USDT::units(total_amount)));
-			assert_ok!(Vault::deposit(Origin::signed(lender), vault_id, USDT::units(total_amount)));
-			test::block::process_and_progress_blocks::<Lending, Runtime>(1);
-			// Vault is balanced.
-			assert!(Lending::ensure_can_borrow_from_vault(&vault_id, &market_account).is_ok());
-		}
 	});
 }
 
@@ -278,6 +158,15 @@ proptest! {
 			//Now vault is unbalanced and should restore equilibrium state.
 			 while Lending::ensure_can_borrow_from_vault(&vault_id, &market_account).is_err() {
 				for borrower in &borrowers {
+					// Sometimes return_amount can exceed total debt.
+					// In such cases we have to repay actual debt balance.
+					let borrower_total_debt = <Lending as LendingTrait>::total_debt_with_interest(&market_id, &borrower).unwrap();
+					let mut return_amount = return_amount;
+					match borrower_total_debt {
+						TotalDebtWithInterest::Amount(debt) if debt.div(USDT::ONE) < return_amount  => return_amount = debt.div(USDT::ONE),
+						TotalDebtWithInterest::Amount(_) => (),
+						TotalDebtWithInterest::NoDebt => continue,
+					}
 					<Lending as LendingTrait>::repay_borrow(
 						&market_id,
 						borrower,
