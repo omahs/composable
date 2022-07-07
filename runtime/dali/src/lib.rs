@@ -625,6 +625,25 @@ impl treasury::Config for Runtime {
 	type SpendFunds = ();
 }
 
+impl treasury::Config<treasury::Instance1> for Runtime {
+	type PalletId = TreasuryPalletId;
+	type Currency = Balances;
+	type ApproveOrigin = EnsureRootOrHalfCouncil;
+	type RejectOrigin = EnsureRootOrHalfCouncil;
+	type Event = Event;
+	type OnSlash = OrmlTreasury;
+	type ProposalBond = ProposalBond;
+	type ProposalBondMinimum = ProposalBondMinimum;
+	type ProposalBondMaximum = ProposalBondMaximum;
+	type SpendPeriod = SpendPeriod;
+	type Burn = Burn;
+	type MaxApprovals = MaxApprovals;
+	type BurnDestination = ();
+	type WeightInfo = weights::treasury::WeightInfo<Runtime>;
+	// TODO: add bounties?
+	type SpendFunds = ();
+}
+
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
@@ -718,6 +737,9 @@ parameter_types! {
 	pub const InstantAllowed: bool = true;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
+
+	pub const PICA_ID: CurrencyId = CurrencyId::PICA;
+	pub const kUSD_ID: CurrencyId = CurrencyId::kUSD;
 }
 
 impl democracy::Config for Runtime {
@@ -760,7 +782,7 @@ impl democracy::Config for Runtime {
 impl democracy_instantiable::Config<democracy_instantiable::Instance1> for Runtime {
 	type Proposal = Call;
 	type Event = Event;
-	type Currency = Balances;
+	type Currency = orml_tokens::CurrencyAdapter<Runtime, PICA_ID>;
 	type EnactmentPeriod = EnactmentPeriod;
 	type LaunchPeriod = LaunchPeriod;
 	type VotingPeriod = VotingPeriod;
@@ -798,7 +820,7 @@ impl democracy_instantiable::Config<democracy_instantiable::Instance1> for Runti
 impl democracy_instantiable::Config<democracy_instantiable::Instance2> for Runtime {
 	type Proposal = Call;
 	type Event = Event;
-	type Currency = Balances;
+	type Currency = orml_tokens::CurrencyAdapter<Runtime, kUSD_ID>;
 	type EnactmentPeriod = EnactmentPeriod;
 	type LaunchPeriod = LaunchPeriod;
 	type VotingPeriod = VotingPeriod;
@@ -820,7 +842,7 @@ impl democracy_instantiable::Config<democracy_instantiable::Instance2> for Runti
 	type CancelProposalOrigin = EnsureRootOrHalfCouncil;
 	type VetoOrigin = collective::EnsureMember<AccountId, CouncilInstance>;
 	type OperationalPreimageOrigin = collective::EnsureMember<AccountId, CouncilInstance>;
-	type Slash = Treasury;
+	type Slash = orml_tokens::NegativeImbalance<Runtime, kUSD_ID>;
 
 	type CooloffPeriod = CooloffPeriod;
 	type MaxProposals = MaxProposals;
@@ -1303,6 +1325,7 @@ construct_runtime!(
 		StakingRewards: pallet_staking_rewards::{Pallet, Call, Storage, Event<T>} = 67,
 		PicassoDemocracy: democracy_instantiable::<Instance1>::{Pallet, Call, Storage, Event<T>} = 68,
 		KusamaDemocracy: democracy_instantiable::<Instance2>::{Pallet, Call, Storage, Event<T>} = 69,
+		OrmlTreasury: treasury::<Instance1>::{Pallet, Call, Storage, Config, Event<T>} = 70,
 
 		CallFilter: call_filter::{Pallet, Call, Storage, Event<T>} = 100,
 
