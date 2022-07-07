@@ -258,8 +258,20 @@ mod rebalance {
 		todo!()
 	}
 
-	// #[test]
+	#[test]
 	fn funds_availability_none() {
-		todo!()
+		let asset = CurrencyId::LAYR;
+
+		ExtBuilder::default().build().execute_with(|| {
+			System::set_block_number(1);
+
+			let vault_id = create_vault(asset, None);
+			let pool_id = create_pool(asset, None, None, None, None, None);
+			pallet::AdminAccountIds::<MockRuntime>::insert(ADMIN, AccessRights::Full);
+			assert_ok!(PabloStrategy::set_pool_id_for_asset(Origin::signed(ADMIN), asset, pool_id));
+
+			assert_ok!(<PabloStrategy as InstrumentalProtocolStrategy>::associate_vault(&vault_id));
+			assert_ok!(PabloStrategy::rebalance());
+		})
 	}
 }
