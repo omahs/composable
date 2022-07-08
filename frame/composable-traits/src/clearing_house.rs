@@ -144,6 +144,10 @@ pub trait ClearingHouse {
 		liquidator_id: &Self::AccountId,
 		user_id: &Self::AccountId,
 	) -> Result<(), DispatchError>;
+
+	/// Close an existing market.
+	/// 
+	/// This should be called only when one wishes to completely halt trading on a market for good.
 }
 
 /// Exposes functionality for querying funding-related quantities of synthetic instruments.
