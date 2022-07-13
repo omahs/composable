@@ -33,6 +33,7 @@ fn create_market_from_raw_origin<T: Config>(
 		<T as Config>::LiquidationStrategyId,
 		<T as DeFiComposableConfig>::MayBeAssetId,
 		<T as frame_system::Config>::BlockNumber,
+		<T as frame_system::Config>::AccountId,
 	>,
 ) -> MarketIndex {
 	Lending::<T>::create_market(origin.clone().into(), input, false).unwrap();
@@ -62,6 +63,7 @@ pub struct LendingBenchmarkingSetup<T: Config> {
 		<T as Config>::LiquidationStrategyId,
 		<T as DeFiComposableConfig>::MayBeAssetId,
 		<T as frame_system::Config>::BlockNumber,
+		<T as frame_system::Config>::AccountId,
 	>,
 }
 

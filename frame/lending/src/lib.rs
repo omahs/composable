@@ -1,4 +1,4 @@
-//! Lending pallet
+//! Lending palle`t
 #![cfg_attr(
 	not(any(test, feature = "runtime-benchmarks")),
 	deny(

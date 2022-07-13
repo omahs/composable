@@ -2,7 +2,7 @@ use crate::{currency::*, mocks::general::*, MarketIndex};
 use composable_support::validation::TryIntoValidated;
 use composable_traits::{
 	defi::{CurrencyPair, DeFiComposableConfig, MoreThanOneFixedU128, Rate},
-	lending::{math::*, CreateInput, UpdateInput},
+	lending::{math::*, CreateInput, MarketType, CollateralizedLoanSubConfig},
 	oracle,
 	vault::{Deposit, VaultConfig},
 };
@@ -46,19 +46,16 @@ impl ConfigBound for Runtime {}
 
 // HELPERS
 /// Creates a "default" [`CreateInput`], with the specified [`CurrencyPair`].
-fn default_create_input<AssetId, BlockNumber: sp_runtime::traits::Bounded>(
+fn default_create_input<AssetId, BlockNumber: sp_runtime::traits::Bounded, AccountId>(
 	currency_pair: CurrencyPair<AssetId>,
-) -> CreateInput<u32, AssetId, BlockNumber> {
+) -> CreateInput<u32, AssetId, BlockNumber, AccountId> {
 	CreateInput {
-		updatable: UpdateInput {
-			collateral_factor: default_collateral_factor(),
-			under_collateralized_warn_percent: default_under_collateralized_warn_percent(),
-			liquidators: vec![],
-			max_price_age: BlockNumber::max_value(),
-		},
+		liquidators: vec![],
+		max_price_age: BlockNumber::max_value(),
 		interest_rate_model: InterestRateModel::default(),
 		reserved_factor: DEFAULT_MARKET_VAULT_RESERVE,
 		currency_pair,
+        market_type: MarketType::Collateralized(CollateralizedLoanSubConfig {collateral_factor: default_collateral_factor(), under_collateralized_warn_percent: default_under_collateralized_warn_percent()}),
 	}
 }
 
@@ -146,12 +143,9 @@ where
 	.unwrap();
 
 	let config = CreateInput {
-		updatable: UpdateInput {
-			collateral_factor,
-			under_collateralized_warn_percent: default_under_collateralized_warn_percent(),
-			liquidators: vec![],
-			max_price_age: DEFAULT_MAX_PRICE_AGE,
-		},
+		market_type: MarketType::Collateralized(CollateralizedLoanSubConfig{collateral_factor, under_collateralized_warn_percent: default_under_collateralized_warn_percent()}),
+		liquidators: vec![],
+		max_price_age: DEFAULT_MAX_PRICE_AGE,
 		interest_rate_model: InterestRateModel::default(),
 		reserved_factor,
 		currency_pair: CurrencyPair::new(collateral_asset.id(), borrow_asset.id()),

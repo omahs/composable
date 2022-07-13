@@ -48,6 +48,7 @@ pub type CreateInputOf<T> = CreateInput<
 	<T as Config>::LiquidationStrategyId,
 	<T as DeFiComposableConfig>::MayBeAssetId,
 	<T as frame_system::Config>::BlockNumber,
+	<T as frame_system::Config>::AccountId,
 >;
 
 #[derive(Debug, PartialEqNoBound)]

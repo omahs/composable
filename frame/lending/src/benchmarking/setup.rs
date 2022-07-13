@@ -5,7 +5,7 @@ pub use codec::{Codec, Decode, Encode, FullCodec, MaxEncodedLen};
 
 use composable_traits::{
 	defi::{CurrencyPair, DeFiComposableConfig, MoreThanOneFixedU128},
-	lending::{math::InterestRateModel, CreateInput, UpdateInput},
+	lending::{math::InterestRateModel, CreateInput, UpdateInput, MarketType, CollateralizedLoanSubConfig},
 	oracle::Price,
 };
 use frame_benchmarking::whitelisted_caller;
@@ -93,14 +93,15 @@ pub(crate) fn create_market_config<T: Config>(
 	<T as Config>::LiquidationStrategyId,
 	<T as DeFiComposableConfig>::MayBeAssetId,
 	<T as frame_system::Config>::BlockNumber,
+	<T as frame_system::Config>::AccountId,
 > {
 	CreateInput {
-		updatable: UpdateInput {
-			collateral_factor: MoreThanOneFixedU128::saturating_from_rational(200_u128, 100_u128),
-			under_collateralized_warn_percent: Percent::from_percent(10),
-			liquidators: Default::default(),
-			max_price_age,
-		},
+		market_type: MarketType::Collateralized(CollateralizedLoanSubConfig{
+            collateral_factor: MoreThanOneFixedU128::saturating_from_rational(200_u128, 100_u128),
+		    under_collateralized_warn_percent: Percent::from_percent(10),
+        }),
+		liquidators: Default::default(),
+		max_price_age,
 		reserved_factor: Perquintill::from_percent(10),
 		currency_pair: CurrencyPair::new(collateral_asset, borrow_asset),
 		interest_rate_model: InterestRateModel::default(),

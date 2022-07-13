@@ -46,19 +46,22 @@ pub struct UpdateInput<LiquidationStrategyId, BlockNumber> {
 ///
 /// Input to [`Lending::create()`].
 #[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug, Clone, PartialEq)]
-pub struct CreateInput<LiquidationStrategyId, AssetId, BlockNumber> {
-	/// the part of market which can be changed
-	pub updatable: UpdateInput<LiquidationStrategyId, BlockNumber>,
-	/// collateral currency and borrow currency
+pub struct CreateInput<LiquidationStrategyId, AssetId, BlockNumber, AccountId> {
+	/// liquidation engine id
+	pub liquidators: Vec<LiquidationStrategyId>,
+	/// Count of blocks until throw error PriceIsTooOld
+	pub max_price_age: BlockNumber,
+    /// collateral currency and borrow currency
 	/// in case of liquidation, collateral is base and borrow is quote
 	pub currency_pair: CurrencyPair<AssetId>,
 	/// Reserve factor of market borrow vault.
 	pub reserved_factor: Perquintill,
 	pub interest_rate_model: InterestRateModel,
+    pub market_type: MarketType<AccountId>,
 }
 
-impl<LiquidationStrategyId, AssetId: Copy, BlockNumber>
-	CreateInput<LiquidationStrategyId, AssetId, BlockNumber>
+impl<LiquidationStrategyId, AssetId: Copy, BlockNumber, AccountId>
+	CreateInput<LiquidationStrategyId, AssetId, BlockNumber, AccountId>
 {
 	pub fn borrow_asset(&self) -> AssetId {
 		self.currency_pair.quote
@@ -72,18 +75,18 @@ impl<LiquidationStrategyId, AssetId: Copy, BlockNumber>
 	}
 }
 
-#[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug, Copy, Clone)]
+#[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug, Copy, Clone, PartialEq)]
 pub struct CollateralizedLoanSubConfig {
 	pub collateral_factor: MoreThanOneFixedU128,
 	pub under_collateralized_warn_percent: Percent,
 }
 
-#[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug)]
+#[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug, Clone, PartialEq)]
 pub struct UndercollateralizedLoanSubConfig<AccountId> {
 	pub borrowers_whitelist: Vec<AccountId>,
 }
 
-#[derive(Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Encode, Decode, TypeInfo, RuntimeDebug, Clone, PartialEq)]
 pub enum MarketType<AccountId> {
 	Collateralized(CollateralizedLoanSubConfig),
 	Undercollateralized(UndercollateralizedLoanSubConfig<AccountId>),
@@ -259,7 +262,7 @@ pub trait Lending: DeFiEngine {
 	/// Returned `MarketId` is mapped one to one with (deposit VaultId, collateral VaultId)
 	fn create_market(
 		manager: Self::AccountId,
-		config: CreateInput<Self::LiquidationStrategyId, Self::MayBeAssetId, Self::BlockNumber>,
+		config: CreateInput<Self::LiquidationStrategyId, Self::MayBeAssetId, Self::BlockNumber, Self::AccountId>,
 		keep_alive: bool,
 	) -> Result<(Self::MarketId, Self::VaultId), DispatchError>;
 

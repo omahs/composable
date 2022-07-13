@@ -103,21 +103,12 @@ impl<T: Config> Pallet<T> {
 
 			let market_config = MarketConfig {
 				manager,
-				max_price_age: config_input.updatable.max_price_age,
+				max_price_age: config_input.max_price_age,
 				borrow_asset_vault: borrow_asset_vault.clone(),
 				collateral_asset: config_input.collateral_asset(),
-				//collateral_factor: config_input.updatable.collateral_factor,
 				interest_rate_model: config_input.interest_rate_model,
-				//under_collateralized_warn_percent: config_input
-				//	.updatable
-				//	.under_collateralized_warn_percent,
-				liquidators: config_input.updatable.liquidators,
-				market_type: MarketType::Collateralized(CollateralizedLoanSubConfig {
-					collateral_factor: config_input.updatable.collateral_factor,
-					under_collateralized_warn_percent: config_input
-						.updatable
-						.under_collateralized_warn_percent,
-				}),
+				liquidators: config_input.liquidators,
+				market_type: config_input.market_type,
 			};
 			// TODO: pass ED from API,
 			let debt_token_id = T::CurrencyFactory::reserve_lp_token_id(T::Balance::default())?;
