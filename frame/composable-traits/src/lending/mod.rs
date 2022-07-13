@@ -72,6 +72,29 @@ impl<LiquidationStrategyId, AssetId: Copy, BlockNumber>
 	}
 }
 
+#[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug, Copy, Clone)]
+pub struct CollateralizedLoanSubConfig {
+	pub collateral_factor: MoreThanOneFixedU128,
+	pub under_collateralized_warn_percent: Percent,
+}
+
+#[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug)]
+pub struct UndercollateralizedLoanSubConfig<AccountId> {
+	pub borrowers_whitelist: Vec<AccountId>,
+}
+
+#[derive(Encode, Decode, TypeInfo, RuntimeDebug)]
+pub enum MarketType<AccountId> {
+	Collateralized(CollateralizedLoanSubConfig),
+	Undercollateralized(UndercollateralizedLoanSubConfig<AccountId>),
+}
+
+impl<AccountId> Default for MarketType<AccountId> {
+	fn default() -> Self {
+		Self::Collateralized(CollateralizedLoanSubConfig::default())
+	}
+}
+
 #[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug)]
 pub struct MarketConfig<VaultId, AssetId, AccountId, LiquidationStrategyId, BlockNumber> {
 	/// The owner of this market.
@@ -82,10 +105,11 @@ pub struct MarketConfig<VaultId, AssetId, AccountId, LiquidationStrategyId, Bloc
 	pub collateral_asset: AssetId,
 	/// Number of blocks until invalidate oracle's price.
 	pub max_price_age: BlockNumber,
-	pub collateral_factor: MoreThanOneFixedU128,
+	//pub collateral_factor: MoreThanOneFixedU128,
 	pub interest_rate_model: InterestRateModel,
-	pub under_collateralized_warn_percent: Percent,
+	//pub under_collateralized_warn_percent: Percent,
 	pub liquidators: Vec<LiquidationStrategyId>,
+	pub market_type: MarketType<AccountId>,
 }
 
 /// Different ways that a market can be repaid.

@@ -18,8 +18,8 @@ use composable_traits::{
 		OneOrMoreFixedU128, Sell,
 	},
 	lending::{
-		math::InterestRate, BorrowAmountOf, CollateralLpAmountOf, Lending, MarketConfig,
-		UpdateInput,
+		math::InterestRate, BorrowAmountOf, CollateralLpAmountOf, CollateralizedLoanSubConfig,
+		Lending, MarketConfig, MarketType, UpdateInput,
 	},
 	liquidation::Liquidation,
 	oracle::Oracle,
@@ -106,12 +106,18 @@ impl<T: Config> Pallet<T> {
 				max_price_age: config_input.updatable.max_price_age,
 				borrow_asset_vault: borrow_asset_vault.clone(),
 				collateral_asset: config_input.collateral_asset(),
-				collateral_factor: config_input.updatable.collateral_factor,
+				//collateral_factor: config_input.updatable.collateral_factor,
 				interest_rate_model: config_input.interest_rate_model,
-				under_collateralized_warn_percent: config_input
-					.updatable
-					.under_collateralized_warn_percent,
+				//under_collateralized_warn_percent: config_input
+				//	.updatable
+				//	.under_collateralized_warn_percent,
 				liquidators: config_input.updatable.liquidators,
+				market_type: MarketType::Collateralized(CollateralizedLoanSubConfig {
+					collateral_factor: config_input.updatable.collateral_factor,
+					under_collateralized_warn_percent: config_input
+						.updatable
+						.under_collateralized_warn_percent,
+				}),
 			};
 			// TODO: pass ED from API,
 			let debt_token_id = T::CurrencyFactory::reserve_lp_token_id(T::Balance::default())?;
@@ -157,7 +163,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		let amount = amount.value();
 		let (_, market) = Self::get_market(market_id)?;
-
+		let subconfig = Self::get_subconfig(&market);
 		let collateral_balance = AccountCollateral::<T>::try_get(market_id, account)
 			// REVIEW: Perhaps don't default to zero
 			// REVIEW: What is expected behaviour if there is no collateral?
@@ -177,11 +183,11 @@ impl<T: Config> Pallet<T> {
 		let borrower_after_withdrawal = BorrowerData::new(
 			collateral_balance_after_withdrawal_value,
 			borrow_balance_value,
-			market
+			subconfig
 				.collateral_factor
 				.try_into_validated()
 				.map_err(|_| Error::<T>::Overflow)?, // TODO: Use a proper error mesage?
-			market.under_collateralized_warn_percent,
+			subconfig.under_collateralized_warn_percent,
 		);
 
 		ensure!(
@@ -243,14 +249,15 @@ impl<T: Config> Pallet<T> {
 		Markets::<T>::mutate(&market_id, |market| {
 			if let Some(market) = market {
 				ensure!(manager == market.manager, Error::<T>::Unauthorized);
-
+                let mut subconfig = Self::get_subconfig(&market);
 				ensure!(
-					market.collateral_factor >= input.collateral_factor,
+					subconfig.collateral_factor >= input.collateral_factor,
 					Error::<T>::CannotIncreaseCollateralFactorOfOpenMarket
 				);
-				market.collateral_factor = input.collateral_factor;
-				market.under_collateralized_warn_percent = input.under_collateralized_warn_percent;
+				subconfig.collateral_factor = input.collateral_factor;
+				subconfig.under_collateralized_warn_percent = input.under_collateralized_warn_percent;
 				market.liquidators = input.liquidators.clone();
+                market.market_type = MarketType::Collateralized(subconfig); 
 				Ok(())
 			} else {
 				Err(Error::<T>::MarketDoesNotExist)
@@ -394,7 +401,7 @@ impl<T: Config> Pallet<T> {
 		account: &<Self as DeFiEngine>::AccountId,
 	) -> Result<BorrowerData, DispatchError> {
 		let (_, market) = Self::get_market(market_id)?;
-
+        let subconfig = Self::get_subconfig(&market);
 		let collateral_balance_value = Self::get_price(
 			market.collateral_asset,
 			Self::collateral_of_account(market_id, account)?,
@@ -410,12 +417,12 @@ impl<T: Config> Pallet<T> {
 		let borrower = BorrowerData::new(
 			collateral_balance_value,
 			borrow_balance_value,
-			market
+		    subconfig	
 				.collateral_factor
 				.try_into_validated()
 				.map_err(|_| Error::<T>::CollateralFactorMustBeMoreThanOne)?, /* TODO: Use a proper
 			                                                                * error mesage */
-			market.under_collateralized_warn_percent,
+			subconfig.under_collateralized_warn_percent,
 		);
 
 		Ok(borrower)
@@ -648,6 +655,13 @@ impl<T: Config> Pallet<T> {
 			DebtTokenForMarket::<T>::get(market_id).ok_or(Error::<T>::MarketDoesNotExist)?;
 
 		Ok(MarketAssets { borrow_asset, debt_asset })
+	}
+
+    pub(crate) fn get_subconfig(market: &MarketConfigOf<T>) -> CollateralizedLoanSubConfig {
+		match market.market_type {
+			MarketType::Collateralized(subconfig) => subconfig,
+			MarketType::Undercollateralized(_) => todo!(),
+		}
 	}
 }
 

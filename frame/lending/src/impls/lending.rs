@@ -454,11 +454,12 @@ impl<T: Config> Lending for Pallet<T> {
 		borrow_amount: Self::Balance,
 	) -> Result<Self::Balance, DispatchError> {
 		let (_, market) = Self::get_market(market_id)?;
-		let borrow_asset = T::Vault::asset_id(&market.borrow_asset_vault)?;
+		let sub_config = Self::get_subconfig(&market);
+        let borrow_asset = T::Vault::asset_id(&market.borrow_asset_vault)?;
 		let borrow_amount_value = Self::get_price(borrow_asset, borrow_amount)?;
 
 		Ok(LiftedFixedBalance::saturating_from_integer(borrow_amount_value.into())
-			.safe_mul(&market.collateral_factor)?
+			.safe_mul(&sub_config.collateral_factor)?
 			.checked_mul_int(1_u64)
 			.ok_or(ArithmeticError::Overflow)?
 			.into())
