@@ -450,7 +450,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Create a new option and save the option's id, option's hash and option's epoch on storage.
+		/// Create a new option and save the option's id, option's hash and option's epoch details on storage.
 		///
 		/// # Overview
 		/// ## Parameters
@@ -547,7 +547,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Delete the selling of the indicated option and update the seller's position.
+		/// Delete the sale of the indicated option and update the seller's position.
 		///
 		/// # Overview
 		/// ## Parameters
@@ -602,7 +602,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Buy the indicated option.
+		/// Buy the indicated option paying the corresponding premium.
 		///
 		/// # Overview
 		/// ## Parameters
@@ -1171,7 +1171,9 @@ pub mod pallet {
 
 			// Different behaviors based on Call or Put option
 			let (asset_id, asset_amount) = match option.option_type {
+				// For CALL options it should be `base_asset_amount_per_option` * `quote_asset_strike_price`
 				OptionType::Call => (option.base_asset_id, option.quote_asset_strike_price),
+				// For PUT options it should be `quote_asset_amount_per_option` * `base_asset_strike_price`
 				OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
 			};
 

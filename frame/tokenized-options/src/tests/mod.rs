@@ -35,6 +35,7 @@ pub mod buy_option;
 pub mod create_option;
 pub mod create_vault;
 pub mod delete_sell_option;
+mod epoch_tests;
 pub mod exercise_option;
 pub mod sell_option;
 pub mod settle_options;
