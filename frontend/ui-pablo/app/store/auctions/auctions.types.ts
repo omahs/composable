@@ -1,5 +1,5 @@
-import { LiquidityBootstrappingPool, LiquidityBootstrappingPoolStats } from "@/store/pools/pools.types";
-export enum LiquidityBootstrappingPoolTransactionType { "SWAP", "ADD_LIQUIDITY","CREATE_POOL" };
+import { LiquidityBootstrappingPool } from "@/defi/types";
+import { LiquidityBootstrappingPoolStats } from "@/store/pools/pools.types";
 export interface PoolTradeHistory {
     baseAssetAmount: string;
     baseAssetId: number;
@@ -16,10 +16,6 @@ export interface AuctionsSlice {
         activeLBP: LiquidityBootstrappingPool;
         activeLBPStats: LiquidityBootstrappingPoolStats;
         activeLBPHistory: PoolTradeHistory[];
-        activeChart: {
-            price: [number, number][],
-            predicted: [number, number][]
-        }
     }
     setActiveAuctionsPool: (
         lbPool: LiquidityBootstrappingPool
@@ -29,10 +25,6 @@ export interface AuctionsSlice {
     ) => void;
     putHistoryActiveLBP: (
         auctionHistory: PoolTradeHistory[]
-    ) => void;
-    putChartSeries: (
-        series: "price" | "predicted",
-        data: [number, number][]   
     ) => void;
     resetActiveLBP: () => void;
 }

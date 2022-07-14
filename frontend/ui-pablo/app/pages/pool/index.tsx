@@ -13,13 +13,14 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import Default from "@/components/Templates/Default";
 import { MessageBox } from "@/components/Atoms";
-import { Chart, PageTitle } from "@/components";
+import { PageTitle } from "@/components";
 import { ConnectWalletFeaturedBox } from "@/components/Organisms/ConnectWalletFeaturedBox";
 import { AllLiquidityTable } from "@/components/Organisms/AllLiquidityTable";
 
 import { Link } from "@/components";
 import {useDotSamaContext} from "substrate-react";
 import { resetAddLiquiditySlice } from "@/store/addLiquidity/addLiquidity.slice";
+import useStore from "@/store/useStore";
 
 
 const standardPageSize = {
@@ -34,6 +35,7 @@ const twoColumnPageSize = {
 const Pool: NextPage = () => {
   const {extensionStatus} = useDotSamaContext();
 
+  const {createPool} = useStore();
   const theme = useTheme();
   const router = useRouter();
   const [messageBoxOpen, setMessageBoxOpen] = useState(true);
@@ -44,6 +46,7 @@ const Pool: NextPage = () => {
   };
 
   const handleCreatePair = () => {
+    createPool.resetSlice();
     router.push("/pool/create-pool");
   };
 
@@ -119,43 +122,6 @@ const Pool: NextPage = () => {
             </Grid>
           </Grid>
         )}
-        <Grid mt={4} container spacing={4}>
-          <Grid item {...twoColumnPageSize}>
-            <Chart
-              title="TVL"
-              changeTextColor={theme.palette.common.white}
-              changeText="Past 1 week"
-              AreaChartProps={{
-                data: [
-                ],
-                height: 300,
-                shorthandLabel: "Change",
-                labelFormat: (n: number) => n.toFixed(),
-                color: theme.palette.common.white,
-              }}
-              intervals={["1w", "1m", "1y"]}
-              currentInterval="1w"
-            />
-          </Grid>
-          <Grid item {...twoColumnPageSize}>
-            <Chart
-              title="Volume"
-              changeTextColor={theme.palette.featured.main}
-              changeText="+2% KSM"
-              changeIntroText="Feb 8, ‘22"
-              AreaChartProps={{
-                data: [
-                ],
-                height: 300,
-                shorthandLabel: "Change",
-                labelFormat: (n: number) => n.toFixed(),
-                color: theme.palette.featured.main,
-              }}
-              intervals={["1w", "1m", "1y"]}
-              currentInterval="1w"
-            />
-          </Grid>
-        </Grid>
         <Grid mt={4}>
           <Grid item {...standardPageSize}>
             <Card variant="outlined">

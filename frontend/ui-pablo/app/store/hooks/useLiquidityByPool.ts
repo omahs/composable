@@ -2,13 +2,13 @@ import {
   ConstantProductPool,
   LiquidityBootstrappingPool,
   StableSwapPool,
-} from "@/store/pools/pools.types";
+} from "@/defi/types";
 import useStore from "@/store/useStore";
-import { fetchAndUpdatePoolLiquidity } from "@/updaters/liquidity/utils";
+import { fetchAndUpdatePoolLiquidity } from "@/defi/utils";
 import BigNumber from "bignumber.js";
 import { useState, useEffect } from "react";
 import { useParachainApi } from "substrate-react";
-import { DEFAULT_NETWORK_ID } from "../../updaters/constants";
+import { DEFAULT_NETWORK_ID } from "@/defi/utils/constants";
 
 export const useLiquidityByPool = (
   pool:
@@ -39,7 +39,7 @@ export const useLiquidityByPool = (
     if (pool && parachainApi) {
       fetchAndUpdatePoolLiquidity(pool as any, setTokenAmountInLiquidityPool, parachainApi)
     }
-  }, [pool, parachainApi])
+  }, [pool, parachainApi, setTokenAmountInLiquidityPool])
   /**
    * Use Updated balance of pool
    * from the zustand store

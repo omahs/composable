@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::tests::borrow;
 use codec::Decode;
-use composable_traits::vault::Vault as VaultTrate;
+use composable_traits::{lending::TotalDebtWithInterest, vault::Vault as VaultTrate};
 use frame_support::traits::{fungible::Mutate as FungibleMutateTrate, fungibles::Mutate};
 use sp_runtime::{traits::TrailingZeroInput, Perquintill};
 
@@ -112,7 +112,7 @@ proptest! {
 			let lender = *CHARLIE;
 			// Individual borrow's part which is going to be returned each block
 			let return_factor = FixedU128::saturating_from_rational(25, 100);
-			let return_amount:u128 =
+			let partial_return_amount:u128 =
 				(FixedU128::from_inner(borrowed_amount_per_borrower) * return_factor).into_inner();
 			// Total amount which should be minterd onto lender account
 			let total_amount =
@@ -156,13 +156,25 @@ proptest! {
 			));
 			test::block::process_and_progress_blocks::<Lending, Runtime>(1);
 			//Now vault is unbalanced and should restore equilibrium state.
-			 while Lending::can_borrow_from_vault(&vault_id, &market_account).is_err() {
+			 while Lending::ensure_can_borrow_from_vault(&vault_id, &market_account).is_err() {
 				for borrower in &borrowers {
+					// Sometimes partial_return_amount can exceed total debt.
+					// In such cases we have to repay actual debt balance.
+					let borrower_total_debt = <Lending as LendingTrait>::total_debt_with_interest(&market_id, &borrower).unwrap();
+					let partial_return_amount = if let TotalDebtWithInterest::Amount(debt) = borrower_total_debt {
+						if debt.div(USDT::ONE) < partial_return_amount {
+							debt.div(USDT::ONE)
+						} else {
+							partial_return_amount
+						}
+					} else {
+						partial_return_amount
+					};
 					<Lending as LendingTrait>::repay_borrow(
 						&market_id,
 						borrower,
 						borrower,
-						RepayStrategy::PartialAmount(USDT::units(return_amount)),
+						RepayStrategy::PartialAmount(USDT::units(partial_return_amount)),
 						false,
 					)
 					.unwrap();
@@ -170,7 +182,7 @@ proptest! {
 				}
 			}
 			// Vault should be balanced.
-			prop_assert!(Lending::can_borrow_from_vault(&vault_id, &market_account).is_ok());
+			prop_assert!(Lending::ensure_can_borrow_from_vault(&vault_id, &market_account).is_ok());
 			// Lender decided withdraw money from the vault again.
 			prop_assert_ok!(Vault::withdraw(
 						Origin::signed(lender),
@@ -178,7 +190,7 @@ proptest! {
 						Assets::balance(USDT::ID, &vault_account)
 					));
 			// Vault is unbalanced
-			assert!(Lending::can_borrow_from_vault(&vault_id, &market_account).is_err());
+			assert!(Lending::ensure_can_borrow_from_vault(&vault_id, &market_account).is_err());
 			// Refresh assets prices
 			set_price(USDT::ID, NORMALIZED::ONE);
 			set_price(BTC::ID, NORMALIZED::units(50_000));
@@ -193,7 +205,7 @@ proptest! {
 			prop_assert_ok!(Vault::deposit(Origin::signed(lender), vault_id, USDT::units(total_amount)));
 			test::block::process_and_progress_blocks::<Lending, Runtime>(1);
 			// Vault is balanced.
-			assert!(Lending::can_borrow_from_vault(&vault_id, &market_account).is_ok());
+			assert!(Lending::ensure_can_borrow_from_vault(&vault_id, &market_account).is_ok());
 			Ok(())
 		})?;
 	}

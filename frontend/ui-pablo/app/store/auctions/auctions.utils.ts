@@ -1,6 +1,7 @@
 import produce from "immer";
-import { LiquidityBootstrappingPool, LiquidityBootstrappingPoolStats } from "@/store/pools/pools.types";
+import { LiquidityBootstrappingPoolStats } from "@/store/pools/pools.types";
 import { AuctionsSlice, PoolTradeHistory } from "./auctions.types";
+import { LiquidityBootstrappingPool } from "@/defi/types";
 
 export const setActivePool = (
   lbpState: AuctionsSlice["auctions"],
@@ -31,16 +32,5 @@ export const putAuctionHistoryLBP = (
 ) => {
   return produce(lbpState, (draft) => {
     draft.activeLBPHistory = [...history];
-  });
-}
-
-export const putChartSeries = (
-  lbpState: AuctionsSlice["auctions"],
-  series: "price" | "predicted",
-  data: [number, number][]
-) => {
-  return produce(lbpState, (draft) => {
-    if (series === "predicted") draft.activeChart.predicted = data;
-    if (series === "price") draft.activeChart.price = data;
   });
 }

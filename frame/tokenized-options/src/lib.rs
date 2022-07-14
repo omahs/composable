@@ -1620,7 +1620,7 @@ pub mod pallet {
 		// ----------------------------------------------------------------------------------------------------
 		/// Protocol account for a particular asset.
 		pub fn account_id(asset_id: AssetIdOf<T>) -> AccountIdOf<T> {
-			T::PalletId::get().into_sub_account(asset_id)
+			T::PalletId::get().into_sub_account_truncating(asset_id)
 		}
 
 		/// Calculate the hash of an option providing the required attributes.

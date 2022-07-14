@@ -49,6 +49,7 @@ mod connection;
 mod errors;
 pub mod events;
 mod host_functions;
+pub mod ics20;
 mod port;
 pub mod routing;
 
@@ -107,7 +108,6 @@ mod mock;
 mod tests;
 
 mod impls;
-pub mod runtime_interface;
 pub mod weight;
 pub use weight::WeightInfo;
 
@@ -121,20 +121,18 @@ pub mod pallet {
 		traits::{Currency, UnixTime},
 	};
 	use frame_system::pallet_prelude::*;
-	use ibc::{
-		core::{
-			ics02_client::msgs::create_client::TYPE_URL as CREATE_CLIENT_TYPE_URL,
-			ics03_connection::{
-				connection::Counterparty, msgs::conn_open_init::MsgConnectionOpenInit,
-				version::Version,
-			},
-			ics23_commitment::commitment::CommitmentPrefix,
-			ics26_routing::handler::MsgReceipt,
+	use ibc::core::{
+		ics02_client::msgs::create_client::TYPE_URL as CREATE_CLIENT_TYPE_URL,
+		ics03_connection::{
+			connection::Counterparty, msgs::conn_open_init::MsgConnectionOpenInit, version::Version,
 		},
-		signer::Signer,
+		ics23_commitment::commitment::CommitmentPrefix,
+		ics26_routing::handler::MsgReceipt,
 	};
 
 	use crate::host_functions::HostFunctions;
+	use composable_traits::defi::DeFiComposableConfig;
+	pub use ibc::signer::Signer;
 	use ibc_trait::client_id_from_bytes;
 	use sp_runtime::{generic::DigestItem, SaturatedConversion};
 	use tendermint_proto::Protobuf;
@@ -142,7 +140,13 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + balances::Config + pallet_ibc_ping::Config + parachain_info::Config
+		frame_system::Config
+		+ balances::Config
+		+ pallet_ibc_ping::Config
+		+ parachain_info::Config
+		+ transfer::Config
+		+ DeFiComposableConfig
+		+ assets::Config
 	{
 		type TimeProvider: UnixTime;
 		/// The overarching event type.
@@ -289,10 +293,6 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T> {
-		/// Processed incoming ibc messages
-		ProcessedIBCMessages,
-		/// Initiated a new connection
-		ConnectionInitiated,
 		/// Raw Ibc events
 		IbcEvents { events: Vec<crate::events::IbcEvent> },
 		/// Ibc errors
@@ -409,8 +409,8 @@ pub mod pallet {
 						&mut ctx, msg,
 					) {
 						Ok(MsgReceipt { events: temp_events, log: temp_logs }) => {
-							events.extend_from_slice(&temp_events);
-							logs.extend_from_slice(&temp_logs);
+							events.extend(temp_events);
+							logs.extend(temp_logs);
 						},
 						Err(e) => errors.push(e),
 					}
@@ -427,7 +427,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::create_client())]
 		#[frame_support::transactional]
 		pub fn create_client(origin: OriginFor<T>, msg: Any) -> DispatchResult {
-			T::AdminOrigin::ensure_origin(origin)?;
+			<T as Config>::AdminOrigin::ensure_origin(origin)?;
 			let mut ctx = routing::Context::<T>::new();
 			let type_url =
 				String::from_utf8(msg.type_url.clone()).map_err(|_| Error::<T>::DecodingError)?;
@@ -451,7 +451,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			params: ConnectionParams,
 		) -> DispatchResult {
-			T::AdminOrigin::ensure_origin(origin)?;
+			<T as Config>::AdminOrigin::ensure_origin(origin)?;
 			if !ClientStates::<T>::contains_key(params.client_id.clone()) {
 				return Err(Error::<T>::ClientStateNotFound.into())
 			}
@@ -483,16 +483,16 @@ pub mod pallet {
 				delay_period,
 				signer: Signer::from_str(MODULE_ID).map_err(|_| Error::<T>::DecodingError)?,
 			}
-			.encode_vec()
-			.map_err(|_| Error::<T>::ProcessingError)?;
+			.encode_vec();
 			let msg = ibc_proto::google::protobuf::Any {
 				type_url: CONNECTION_OPEN_INIT_TYPE_URL.to_string(),
 				value,
 			};
 			let mut ctx = routing::Context::<T>::new();
-			ibc::core::ics26_routing::handler::deliver::<_, HostFunctions>(&mut ctx, msg)
-				.map_err(|_| Error::<T>::ProcessingError)?;
-			Self::deposit_event(Event::<T>::ConnectionInitiated);
+			let result =
+				ibc::core::ics26_routing::handler::deliver::<_, HostFunctions>(&mut ctx, msg)
+					.map_err(|_| Error::<T>::ProcessingError)?;
+			Self::deposit_event(result.events.into());
 			Ok(())
 		}
 	}

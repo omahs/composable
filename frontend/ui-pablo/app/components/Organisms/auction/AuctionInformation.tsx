@@ -2,24 +2,27 @@ import { Box, BoxProps, Typography, useTheme, Grid } from "@mui/material";
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import { getFullHumanizedDateDiff } from "@/utils/date";
 import {
-  LiquidityBootstrappingPool,
   LiquidityBootstrappingPoolStats,
 } from "@/store/pools/pools.types";
 import { nFormatter } from "@/utils/number";
 import BigNumber from "bignumber.js";
-import { getAssetById, getAssetByOnChainId } from "@/defi/polkadot/Assets";
 import { useMemo } from "react";
-import { useAuctionSpotPrice } from "@/store/auctions/hooks";
-import { useAssetPrice } from "@/store/assets/hooks";
-import { DEFAULT_NETWORK_ID } from "@/updaters/constants";
+import { useUSDPriceByAssetId } from "@/store/assets/hooks";
+import { useAuctionSpotPrice } from "@/defi/hooks/auctions";
+import { MockedAsset } from "@/store/assets/assets.types";
+import { LiquidityBootstrappingPool } from "@/defi/types";
 
 export type AuctionInformationProps = {
   auction: LiquidityBootstrappingPool;
+  baseAsset?: MockedAsset;
+  quoteAsset?: MockedAsset;
   stats: LiquidityBootstrappingPoolStats;
 } & BoxProps;
 
 export const AuctionInformation: React.FC<AuctionInformationProps> = ({
   auction,
+  baseAsset,
+  quoteAsset,
   stats,
   ...rest
 }) => {
@@ -42,20 +45,16 @@ export const AuctionInformation: React.FC<AuctionInformationProps> = ({
 
   const getTime = () => {
     if (isActive) {
-      return getFullHumanizedDateDiff(Date.now(), auction.sale.end)
+      return getFullHumanizedDateDiff(Date.now(), auction.sale.end);
     } else if (isEnded) {
-      return "-"
+      return "-";
     } else {
       return "Not started";
     }
   };
 
   const spotPrice = useAuctionSpotPrice(auction.poolId);
-  const quoteAsset = getAssetByOnChainId(
-    DEFAULT_NETWORK_ID,
-    auction.pair.quote
-  );
-  const quoteAssetPrice = useAssetPrice(quoteAsset.assetId);
+  const quoteAssetPrice = useUSDPriceByAssetId(auction.pair.quote.toString());
 
   let tokenRaised = useMemo(() => {
     return new BigNumber(stats.currentBalances.quote).minus(
@@ -78,7 +77,7 @@ export const AuctionInformation: React.FC<AuctionInformationProps> = ({
     if (base === "0") return "0";
 
     return tokenSold.div(new BigNumber(base)).times(100).toFixed(2);
-  }, [stats.startBalances.base, tokenSold]);
+  }, [stats.startBalances, tokenSold]);
 
   return (
     <Box {...rest}>
@@ -119,7 +118,8 @@ export const AuctionInformation: React.FC<AuctionInformationProps> = ({
           </Typography>
           <Box display="flex" alignItems="center" gap={1.75}>
             <Typography variant="h6">
-              ${new BigNumber(stats.liquidity).times(quoteAssetPrice).toFixed(2)}
+              $
+              {new BigNumber(stats.liquidity).times(quoteAssetPrice).toFixed(2)}
             </Typography>
           </Box>
         </Grid>
@@ -128,7 +128,9 @@ export const AuctionInformation: React.FC<AuctionInformationProps> = ({
             Price
           </Typography>
           <Box display="flex" alignItems="center" gap={1.75}>
-            <Typography variant="h6">${spotPrice}</Typography>
+            <Typography variant="h6">
+              ${new BigNumber(quoteAssetPrice).times(spotPrice).toFixed(2)}
+            </Typography>
           </Box>
         </Grid>
         <Grid item {...standardPageSize}>
@@ -151,7 +153,7 @@ export const AuctionInformation: React.FC<AuctionInformationProps> = ({
             <Typography variant="h6">{tokenRaised.toFixed(4)}</Typography>
           </Box>
           <Typography variant="body1" color="text.secondary" fontWeight="bold">
-            {getAssetById("picasso", auction.pair.quote)?.symbol}
+            {quoteAsset?.symbol}
           </Typography>
         </Grid>
       </Grid>

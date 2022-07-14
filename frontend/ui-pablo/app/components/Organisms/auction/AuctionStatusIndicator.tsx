@@ -1,5 +1,4 @@
-import { Auction } from "@/defi/types";
-import { 
+import {
   Box, 
   BoxProps, 
   Typography, 
@@ -8,7 +7,7 @@ import {
 } from "@mui/material";
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { getHumanizedDateDiff } from "@/utils/date";
-import { LiquidityBootstrappingPool } from "@/store/pools/pools.types";
+import { LiquidityBootstrappingPool } from "@/defi/types";
 
 export type AuctionStatusIndicatorProps = {
   auction: LiquidityBootstrappingPool,

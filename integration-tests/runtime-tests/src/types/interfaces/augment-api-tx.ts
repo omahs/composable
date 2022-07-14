@@ -15,6 +15,7 @@ import type {
   ComposableTraitsLendingCreateInput,
   ComposableTraitsLendingRepayStrategy,
   ComposableTraitsLendingUpdateInput,
+  ComposableTraitsStakingRewardPoolConfiguration,
   ComposableTraitsTimeTimeReleaseFunction,
   ComposableTraitsVaultVaultConfig,
   ComposableTraitsVestingVestingSchedule,
@@ -24,6 +25,8 @@ import type {
   DaliRuntimeOriginCaller,
   FrameSupportScheduleMaybeHashed,
   IbcTraitOpenChannelParams,
+  IbcTransferPalletParams,
+  IbcTransferTransferParams,
   PalletCrowdloanRewardsModelsProof,
   PalletCrowdloanRewardsModelsRemoteAccount,
   PalletDemocracyConviction,
@@ -35,6 +38,7 @@ import type {
   PalletIdentityIdentityInfo,
   PalletIdentityJudgement,
   PalletLiquidationsLiquidationStrategyConfiguration,
+  PalletMosaicAmmSwapInfo,
   PalletMosaicDecayBudgetPenaltyDecayer,
   PalletMosaicNetworkInfo,
   XcmVersionedMultiAsset
@@ -332,8 +336,31 @@ declare module "@polkadot/api-base/types/submittable" {
     };
     assetsRegistry: {
       /**
-       * creates asset using `CurrencyFactory`,
-       * raises `AssetRegistered` event
+       * Creates asset using `CurrencyFactory`,
+       * Raises `AssetRegistered` event
+       *
+       * # Parameters:
+       *
+       * `ratio` -  allows `bring you own gas` fees.
+       * Set to `None` to prevent payment in this asset, only transferring.
+       * Setting to some will NOT start minting tokens with specified ratio.
+       * Foreign assets will be put into parachain treasury as is.
+       *
+       * ```python
+       * # if cross chain message wants to pay tx fee with non native token
+       * # then amount of native token would be:
+       * amount_of_native_token = amount_of_foreign_token * ratio
+       * ```
+       *
+       * Examples:
+       *
+       * - One to one conversion is 10^18 integer.
+       *
+       * - 10*10^18 will tell that for 1 foreign asset can `buy` 10 local native.
+       *
+       * `decimals` - remote number of decimals on other(remote) chain
+       *
+       * `ed` - same meaning as in `CurrencyFactory`
        **/
       registerAsset: AugmentedSubmittable<
         (
@@ -369,6 +396,7 @@ declare module "@polkadot/api-base/types/submittable" {
       /**
        * Given well existing asset, update its remote information.
        * Use with caution as it allow reroute assets location.
+       * See `register_asset` for parameters meaning.
        **/
       updateAsset: AugmentedSubmittable<
         (
@@ -1712,6 +1740,10 @@ declare module "@polkadot/api-base/types/submittable" {
       [key: string]: SubmittableExtrinsicFunction<ApiType>;
     };
     ibc: {
+      createClient: AugmentedSubmittable<
+        (msg: PalletIbcAny | { typeUrl?: any; value?: any } | string | Uint8Array) => SubmittableExtrinsic<ApiType>,
+        [PalletIbcAny]
+      >;
       deliver: AugmentedSubmittable<
         (
           messages: Vec<PalletIbcAny> | (PalletIbcAny | { typeUrl?: any; value?: any } | string | Uint8Array)[]
@@ -1750,8 +1782,8 @@ declare module "@polkadot/api-base/types/submittable" {
             | PalletIbcPingSendPingParams
             | {
                 data?: any;
-                timeoutHeightOffset?: any;
-                timeoutTimestampOffset?: any;
+                timeoutHeight?: any;
+                timeoutTimestamp?: any;
                 channelId?: any;
                 destPortId?: any;
                 destChannelId?: any;
@@ -2498,6 +2530,16 @@ declare module "@polkadot/api-base/types/submittable" {
         [AccountId32, u32, CommonMosaicRemoteAssetId, u128]
       >;
       /**
+       * Adds a remote AMM for a specific Network
+       **/
+      addRemoteAmmId: AugmentedSubmittable<
+        (
+          networkId: u32 | AnyNumber | Uint8Array,
+          ammId: u128 | AnyNumber | Uint8Array
+        ) => SubmittableExtrinsic<ApiType>,
+        [u32, u128]
+      >;
+      /**
        * Claims user funds from the `OutgoingTransactions`, in case that the Relayer has not
        * picked them up.
        **/
@@ -2517,6 +2559,16 @@ declare module "@polkadot/api-base/types/submittable" {
           to: AccountId32 | string | Uint8Array
         ) => SubmittableExtrinsic<ApiType>,
         [u128, AccountId32]
+      >;
+      /**
+       * Removes a remote AMM for a specific Network
+       **/
+      removeRemoteAmmId: AugmentedSubmittable<
+        (
+          networkId: u32 | AnyNumber | Uint8Array,
+          ammId: u128 | AnyNumber | Uint8Array
+        ) => SubmittableExtrinsic<ApiType>,
+        [u32, u128]
       >;
       /**
        * Burns funds waiting in incoming_transactions that are still unclaimed.
@@ -2635,9 +2687,12 @@ declare module "@polkadot/api-base/types/submittable" {
           assetId: u128 | AnyNumber | Uint8Array,
           address: ComposableSupportEthereumAddress | string | Uint8Array,
           amount: u128 | AnyNumber | Uint8Array,
+          swapToNative: bool | boolean | Uint8Array,
+          sourceUserAccount: AccountId32 | string | Uint8Array,
+          ammSwapInfo: Option<PalletMosaicAmmSwapInfo> | null | object | string | Uint8Array,
           keepAlive: bool | boolean | Uint8Array
         ) => SubmittableExtrinsic<ApiType>,
-        [u32, u128, ComposableSupportEthereumAddress, u128, bool]
+        [u32, u128, ComposableSupportEthereumAddress, u128, bool, AccountId32, Option<PalletMosaicAmmSwapInfo>, bool]
       >;
       /**
        * Update a network asset mapping.
@@ -3673,6 +3728,27 @@ declare module "@polkadot/api-base/types/submittable" {
        **/
       [key: string]: SubmittableExtrinsicFunction<ApiType>;
     };
+    stakingRewards: {
+      /**
+       * Create a new reward pool based on the config.
+       *
+       * Emits `RewardPoolCreated` event when successful.
+       **/
+      createRewardPool: AugmentedSubmittable<
+        (
+          poolConfig:
+            | ComposableTraitsStakingRewardPoolConfiguration
+            | { RewardRateBasedIncentive: any }
+            | string
+            | Uint8Array
+        ) => SubmittableExtrinsic<ApiType>,
+        [ComposableTraitsStakingRewardPoolConfiguration]
+      >;
+      /**
+       * Generic tx
+       **/
+      [key: string]: SubmittableExtrinsicFunction<ApiType>;
+    };
     sudo: {
       /**
        * Authenticates the current sudo key and sets the given AccountId (`new`) as the new sudo
@@ -4044,6 +4120,40 @@ declare module "@polkadot/api-base/types/submittable" {
           amount: Compact<u128> | AnyNumber | Uint8Array
         ) => SubmittableExtrinsic<ApiType>,
         [MultiAddress, u128, Compact<u128>]
+      >;
+      /**
+       * Generic tx
+       **/
+      [key: string]: SubmittableExtrinsicFunction<ApiType>;
+    };
+    transfer: {
+      openChannel: AugmentedSubmittable<
+        (
+          params:
+            | IbcTraitOpenChannelParams
+            | { order?: any; connectionId?: any; counterpartyPortId?: any; version?: any }
+            | string
+            | Uint8Array
+        ) => SubmittableExtrinsic<ApiType>,
+        [IbcTraitOpenChannelParams]
+      >;
+      setPalletParams: AugmentedSubmittable<
+        (
+          params: IbcTransferPalletParams | { sendEnabled?: any; receiveEnabled?: any } | string | Uint8Array
+        ) => SubmittableExtrinsic<ApiType>,
+        [IbcTransferPalletParams]
+      >;
+      transfer: AugmentedSubmittable<
+        (
+          params:
+            | IbcTransferTransferParams
+            | { to?: any; sourceChannel?: any; timeoutTimestamp?: any; timeoutHeight?: any; revisionNumber?: any }
+            | string
+            | Uint8Array,
+          assetId: u128 | AnyNumber | Uint8Array,
+          amount: u128 | AnyNumber | Uint8Array
+        ) => SubmittableExtrinsic<ApiType>,
+        [IbcTransferTransferParams, u128, u128]
       >;
       /**
        * Generic tx

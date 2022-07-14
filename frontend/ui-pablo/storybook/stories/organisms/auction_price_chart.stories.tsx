@@ -30,14 +30,14 @@ const Template: ComponentStory<typeof AuctionPriceChart> = (args) => (
 
 export const Default = Template.bind({});
 Default.args = {
-  baseAsset: null,
-  quoteAsset: null,
-  data: dummyAuctionPrices,
+  baseAsset: undefined,
+  quoteAsset: undefined,
+  priceSeries: dummyAuctionPrices,
+  predictedPriceSeries: [],
   height: "100%",
   dateFormat: (
     (timestamp: number | string) => {
       return moment(timestamp).utc().format("MMM D, h:mm:ss A");
     }
   ),
-  pastCount: 3,
 };

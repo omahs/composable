@@ -420,6 +420,25 @@ declare module "@polkadot/api-base/types/consts" {
        **/
       [key: string]: Codec;
     };
+    stakingRewards: {
+      /**
+       * Maximum number of reward configurations per pool.
+       **/
+      maxRewardConfigsPerPool: u32 & AugmentedConst<ApiType>;
+      /**
+       * Maximum number of staking duration presets allowed.
+       **/
+      maxStakingDurationPresets: u32 & AugmentedConst<ApiType>;
+      palletId: FrameSupportPalletId & AugmentedConst<ApiType>;
+      /**
+       * the size of batch to take each time trying to release rewards
+       **/
+      releaseRewardsPoolsBatchSize: u8 & AugmentedConst<ApiType>;
+      /**
+       * Generic const
+       **/
+      [key: string]: Codec;
+    };
     system: {
       /**
        * Maximum number of block number to block hash mappings to keep (oldest pruned first).
@@ -511,6 +530,13 @@ declare module "@polkadot/api-base/types/consts" {
        * The polynomial that is applied in order to derive fee from weight.
        **/
       weightToFee: Vec<FrameSupportWeightsWeightToFeeCoefficient> & AugmentedConst<ApiType>;
+      /**
+       * Generic const
+       **/
+      [key: string]: Codec;
+    };
+    transfer: {
+      palletId: FrameSupportPalletId & AugmentedConst<ApiType>;
       /**
        * Generic const
        **/

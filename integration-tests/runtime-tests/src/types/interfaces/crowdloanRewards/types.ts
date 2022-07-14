@@ -103,6 +103,12 @@ export interface ComposableTraitsLendingUpdateInput extends Null {}
 /** @name ComposableTraitsOraclePrice */
 export interface ComposableTraitsOraclePrice extends Null {}
 
+/** @name ComposableTraitsStakingRewardPool */
+export interface ComposableTraitsStakingRewardPool extends Null {}
+
+/** @name ComposableTraitsStakingRewardPoolConfiguration */
+export interface ComposableTraitsStakingRewardPoolConfiguration extends Null {}
+
 /** @name ComposableTraitsTimeTimeReleaseFunction */
 export interface ComposableTraitsTimeTimeReleaseFunction extends Null {}
 
@@ -173,6 +179,12 @@ export interface FrameSystemAccountInfo extends Struct {
 
 /** @name IbcTraitOpenChannelParams */
 export interface IbcTraitOpenChannelParams extends Null {}
+
+/** @name IbcTransferPalletParams */
+export interface IbcTransferPalletParams extends Null {}
+
+/** @name IbcTransferTransferParams */
+export interface IbcTransferTransferParams extends Null {}
 
 /** @name OrmlTokensAccountData */
 export interface OrmlTokensAccountData extends Struct {
@@ -294,6 +306,9 @@ export interface PalletLiquidationsLiquidationStrategyConfiguration extends Null
 
 /** @name PalletLiquidityBootstrappingPool */
 export interface PalletLiquidityBootstrappingPool extends Null {}
+
+/** @name PalletMosaicAmmSwapInfo */
+export interface PalletMosaicAmmSwapInfo extends Null {}
 
 /** @name PalletMosaicAssetInfo */
 export interface PalletMosaicAssetInfo extends Null {}

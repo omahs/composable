@@ -1,9 +1,10 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import React, { useState, useEffect, createContext } from "react";
+import React, { createContext, useEffect, useState } from "react";
 import type { InjectedExtension } from "@polkadot/extension-inject/types";
 import { getChainId } from "./utils";
 
 import * as definitions from "../interfaces/definitions";
+
 export interface ParachainApi {
   chainId: string;
   parachainApi: ApiPromise | undefined;
@@ -145,6 +146,7 @@ const ParachainContextProvider = ({
       const { wsUrl, parachainId, relayChain, ss58Format } = supportedChains[i];
       const chainId = getChainId(relayChain, parachainId);
       // just so we can activate ASAP (where ss58Format is needed)
+      console.log("setting up", chainId);
       setParachainProviders((s) => {
         s[chainId] = {
           chainId,
@@ -159,17 +161,32 @@ const ParachainContextProvider = ({
       const wsProvider = new WsProvider(wsUrl);
       let parachainApi;
       if (chainId === "kusama-2019") {
-        const rpc = Object.keys(definitions).reduce(
-          (accumulator, key) => ({
-            ...accumulator,
-            [key]: (definitions as any)[key].rpc,
-          }),
-          {}
-        );
-        const types = Object.values(definitions).reduce(
-          (accumulator, { types }) => ({ ...accumulator, ...types }),
-          {}
-        );
+        const rpc = Object.keys(definitions)
+          .filter((k) => {
+            if (!(definitions as any)[k].rpc) {
+              return false;
+            } else {
+              return Object.keys((definitions as any)[k].rpc).length > 0;
+            }
+          })
+          .reduce(
+            (accumulator, key) => ({
+              ...accumulator,
+              [key]: (definitions as any)[key].rpc,
+            }),
+            {}
+          );
+        const types = Object.keys(definitions)
+          .filter(
+            (key) => Object.keys((definitions as any)[key].types).length > 0
+          )
+          .reduce(
+            (accumulator, key) => ({
+              ...accumulator,
+              ...(definitions as any)[key].types,
+            }),
+            {}
+          );
         parachainApi = new ApiPromise({ provider: wsProvider, types, rpc });
       } else {
         parachainApi = new ApiPromise({ provider: wsProvider });
@@ -207,7 +224,8 @@ const ParachainContextProvider = ({
           });
         });
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supportedChains.length]);
 
   const [selectedAccount, setSelectedAccount] = useState<number | -1>(-1);
 

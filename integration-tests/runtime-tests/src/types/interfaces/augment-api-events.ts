@@ -18,12 +18,27 @@ import type {
   PalletDutchAuctionSellOrder,
   PalletIbcErrorsIbcError,
   PalletIbcEventsIbcEvent,
+  PalletMosaicAmmSwapInfo,
   PalletMosaicDecayBudgetPenaltyDecayer,
   PalletMosaicNetworkInfo
 } from "@composable/types/interfaces/crowdloanRewards";
 import type { ComposableTraitsDexFee } from "@composable/types/interfaces/pablo";
 import type { ApiTypes } from "@polkadot/api-base/types";
-import type { Bytes, Null, Option, Result, U8aFixed, Vec, bool, u128, u16, u32, u64, u8 } from "@polkadot/types-codec";
+import type {
+  BTreeMap,
+  Bytes,
+  Null,
+  Option,
+  Result,
+  U8aFixed,
+  Vec,
+  bool,
+  u128,
+  u16,
+  u32,
+  u64,
+  u8
+} from "@polkadot/types-codec";
 import type { ITuple } from "@polkadot/types-codec/types";
 import type { AccountId32, H256, Percent } from "@polkadot/types/interfaces/runtime";
 import type {
@@ -602,7 +617,17 @@ declare module "@polkadot/api-base/types/events" {
        **/
       TransferOut: AugmentedEvent<
         ApiType,
-        [H256, ComposableSupportEthereumAddress, u128, u32, CommonMosaicRemoteAssetId, u128]
+        [
+          H256,
+          ComposableSupportEthereumAddress,
+          u128,
+          u32,
+          CommonMosaicRemoteAssetId,
+          u128,
+          bool,
+          AccountId32,
+          Option<PalletMosaicAmmSwapInfo>
+        ]
       >;
       /**
        * Generic event
@@ -698,6 +723,10 @@ declare module "@polkadot/api-base/types/events" {
        * Token exchange happened.
        **/
       Swapped: AugmentedEvent<ApiType, [u128, AccountId32, u128, u128, u128, u128, ComposableTraitsDexFee]>;
+      /**
+       * TWAP updated.
+       **/
+      TwapUpdated: AugmentedEvent<ApiType, [u128, u64, BTreeMap<u128, u128>]>;
       /**
        * Generic event
        **/
@@ -935,6 +964,16 @@ declare module "@polkadot/api-base/types/events" {
        **/
       [key: string]: AugmentedEvent<ApiType>;
     };
+    stakingRewards: {
+      /**
+       * Pool with specified id `T::RewardPoolId` was created successfully by `T::AccountId`.
+       **/
+      RewardPoolCreated: AugmentedEvent<ApiType, [u16, AccountId32, u32]>;
+      /**
+       * Generic event
+       **/
+      [key: string]: AugmentedEvent<ApiType>;
+    };
     sudo: {
       /**
        * The \[sudoer\] just switched identity; the old key is supplied if one existed.
@@ -1041,6 +1080,21 @@ declare module "@polkadot/api-base/types/events" {
        * Some balances were withdrawn (e.g. pay for transaction fee)
        **/
       Withdrawn: AugmentedEvent<ApiType, [u128, AccountId32, u128]>;
+      /**
+       * Generic event
+       **/
+      [key: string]: AugmentedEvent<ApiType>;
+    };
+    transfer: {
+      /**
+       * A channel has been opened
+       **/
+      ChannelOpened: AugmentedEvent<ApiType, [Bytes, Bytes]>;
+      /**
+       * Pallet params updated
+       **/
+      PalletParamsUpdated: AugmentedEvent<ApiType, [bool, bool]>;
+      TokenTransferInitiated: AugmentedEvent<ApiType, [AccountId32, Bytes, u128]>;
       /**
        * Generic event
        **/

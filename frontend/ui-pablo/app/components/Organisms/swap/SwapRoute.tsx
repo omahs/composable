@@ -1,4 +1,3 @@
-import { Auction, TokenId } from "@/defi/types";
 import {
   alpha,
   Box,
@@ -7,24 +6,21 @@ import {
   useTheme,
 } from "@mui/material";
 import { BaseAsset } from "@/components";
-import { getToken } from "@/defi/Tokens";
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useState } from "react";
-import { getNetwork } from "@/defi/Networks";
-import { AssetId } from "@/defi/polkadot/types";
-import { Assets, getAssetById } from "@/defi/polkadot/Assets";
+import { MockedAsset } from "@/store/assets/assets.types";
 
 export type SwapRouteProps = {
-  quoteAssetId: AssetId | "none",
-  baseAssetId: AssetId | "none",
+  quoteAsset: MockedAsset | undefined,
+  baseAsset: MockedAsset | undefined,
   visibleOnMount?: boolean,
 } & BoxProps;
 
 export const SwapRoute: React.FC<SwapRouteProps> = ({
-  quoteAssetId,
-  baseAssetId,
+  quoteAsset,
+  baseAsset,
   visibleOnMount = true,
   ...boxProps
 }) => {
@@ -32,14 +28,11 @@ export const SwapRoute: React.FC<SwapRouteProps> = ({
   const [open, setOpen] = useState<boolean>(visibleOnMount);
   const theme = useTheme();
 
-  const validTokens = baseAssetId !== "none" && quoteAssetId !== "none";
+  const validTokens = !!baseAsset && !!quoteAsset;
 
   if (!validTokens) {
     return <></>;
   }
-
-  const quoteAsset = Assets[quoteAssetId];
-  const baseAsset = Assets[baseAssetId];
 
   return (
     <Box {...boxProps}>

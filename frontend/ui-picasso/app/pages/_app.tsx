@@ -8,8 +8,6 @@ import { CacheProvider, EmotionCache } from "@emotion/react";
 import createEmotionCache from "@/styles/createEmotionCache";
 import { getDesignTokens } from "@/styles/theme";
 import { ColorModeContext } from "@/contexts/ColorMode";
-import { Provider } from "react-redux";
-import { store } from "@/stores/root";
 import ParachainContextProvider from "@/defi/polkadot/context/ParachainContext";
 import SubstrateBalancesUpdater from "@/stores/defi/polkadot/balances/PolkadotBalancesUpdater";
 import { SUBSTRATE_NETWORKS } from "@/defi/polkadot/Networks";
@@ -20,6 +18,8 @@ import { NETWORKS } from "@/defi/Networks";
 import { SnackbarProvider } from "notistack";
 import { ThemeResponsiveSnackbar } from "@/components/Molecules/Snackbar";
 import { ExecutorProvider } from "substrate-react";
+import { ApolloProvider } from "@apollo/client";
+import { client as apolloClient } from "@/apollo/apolloGraphql";
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache();
 
@@ -79,16 +79,16 @@ export default function MyApp(props: MyAppProps) {
           };
         })}
       >
-        <Provider store={store}>
-          <ColorModeContext.Provider value={colorMode}>
-            <ThemeProvider theme={theme}>
-              {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-              <CssBaseline />
-              <ParachainContextProvider
-                appName="Picasso UI"
-                supportedChains={Object.values(SUBSTRATE_NETWORKS)}
-              >
-                <PalletsContextProvider>
+        <ColorModeContext.Provider value={colorMode}>
+          <ThemeProvider theme={theme}>
+            {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
+            <CssBaseline />
+            <ParachainContextProvider
+              appName="Picasso UI"
+              supportedChains={Object.values(SUBSTRATE_NETWORKS)}
+            >
+              <PalletsContextProvider>
+                <ApolloProvider client={apolloClient}>
                   <SubstrateBalancesUpdater
                     substrateChains={Object.values(SUBSTRATE_NETWORKS)}
                   />
@@ -112,11 +112,11 @@ export default function MyApp(props: MyAppProps) {
                       <Component {...pageProps} />
                     </ExecutorProvider>
                   </SnackbarProvider>
-                </PalletsContextProvider>
-              </ParachainContextProvider>
-            </ThemeProvider>
-          </ColorModeContext.Provider>
-        </Provider>
+                </ApolloProvider>
+              </PalletsContextProvider>
+            </ParachainContextProvider>
+          </ThemeProvider>
+        </ColorModeContext.Provider>
       </BlockchainProvider>
     </CacheProvider>
   );

@@ -13,7 +13,6 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import BigNumber from "bignumber.js";
-import { useAppSelector } from "@/hooks/store";
 import { useDispatch } from "react-redux";
 import FormWrapper from "../../FormWrapper";
 
@@ -21,31 +20,21 @@ import EditIcon from "@mui/icons-material/Edit";
 import { ConfirmingPoolModal } from "./ConfirmingPoolModal";
 import { AccessTimeRounded, OpenInNewRounded } from "@mui/icons-material";
 import moment from "moment-timezone";
-import { useRouter } from "next/router";
 import useStore from "@/store/useStore";
-import {
-  getAsset,
-  getAssetById,
-  getAssetOnChainId,
-} from "@/defi/polkadot/Assets";
 import { AMMs } from "@/defi/AMMs";
-import { useAssetPrice } from "@/store/assets/hooks";
-import { AssetId } from "@/defi/polkadot/types";
+import { useUSDPriceByAssetId } from "@/store/assets/hooks";
 import {
   getSigner,
   useExecutor,
   useParachainApi,
   useSelectedAccount,
 } from "substrate-react";
-import {
-  createConstantProductPool,
-  createStableSwapPool,
-} from "@/updaters/createPool/utils";
-import { DEFAULT_NETWORK_ID } from "@/updaters/constants";
+import { DEFAULT_NETWORK_ID } from "@/defi/utils/constants";
 import { APP_NAME } from "@/defi/polkadot/constants";
 import { EventRecord } from "@polkadot/types/interfaces/system/types";
-import { addLiquidityToPoolViaPablo } from "@/updaters/addLiquidity/utils";
+import { addLiquidityToPoolViaPablo, createConstantProductPool, createStableSwapPool, toChainUnits } from "@/defi/utils";
 import { closeConfirmingModal, openConfirmingModal } from "@/stores/ui/uiSlice";
+import { useAsset } from "@/defi/hooks/assets/useAsset";
 
 const labelProps = (
   label: string | undefined,
@@ -71,7 +60,6 @@ const labelProps = (
 const ConfirmPoolStep: React.FC<BoxProps> = ({ ...boxProps }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const router = useRouter();
 
   const { parachainApi } = useParachainApi(DEFAULT_NETWORK_ID);
   const selectedAccount = useSelectedAccount(DEFAULT_NETWORK_ID);
@@ -88,7 +76,11 @@ const ConfirmPoolStep: React.FC<BoxProps> = ({ ...boxProps }) => {
       setSelectable,
       resetSlice,
     },
+    supportedAssets
   } = useStore();
+
+  const _baseAsset = useAsset(baseAsset);
+  const _quoteAsset = useAsset(quoteAsset)
 
   const executor = useExecutor();
 
@@ -100,10 +92,10 @@ const ConfirmPoolStep: React.FC<BoxProps> = ({ ...boxProps }) => {
     return new BigNumber(liquidity.quoteAmount);
   }, [liquidity.quoteAmount]);
 
-  const { createdAt } = useAppSelector((state) => state.pool.currentPool);
+  const [createdAt, setCreatedAt] = useState(-1)
 
-  const baseTokenUSDPrice = useAssetPrice(baseAsset as AssetId);
-  const quoteTokenUSDPrice = useAssetPrice(quoteAsset as AssetId);
+  const baseTokenUSDPrice = useUSDPriceByAssetId(baseAsset);
+  const quoteTokenUSDPrice = useUSDPriceByAssetId(quoteAsset);
 
   const [isFunding, setIsFunding] = useState<boolean>(false);
   const [isConfirmed, setIsConfirmed] = useState<boolean>(false);
@@ -111,10 +103,7 @@ const ConfirmPoolStep: React.FC<BoxProps> = ({ ...boxProps }) => {
   const usdAmount1 = baseLiquidity.multipliedBy(baseTokenUSDPrice);
   const usdAmount2 = quoteLiquidity.multipliedBy(quoteTokenUSDPrice);
 
-  const poolName = `
-    ${baseAsset !== "none" ? getAsset(baseAsset).symbol : ""}-
-    ${quoteAsset !== "none" ? getAsset(quoteAsset).symbol : ""}
-  `;
+  const poolName = `${_baseAsset?.symbol}-${_quoteAsset?.symbol}`;
 
   const buttonText = () => {
     // if (isConfirmed) {
@@ -141,18 +130,11 @@ const ConfirmPoolStep: React.FC<BoxProps> = ({ ...boxProps }) => {
       const { address } = selectedAccount;
       const signer = await getSigner(APP_NAME, address);
 
-      const baseDecimals = new BigNumber(10).pow(
-        getAsset(baseAsset as AssetId).decimals ?? 12
-      );
-      const quoteDecimals = new BigNumber(10).pow(
-        getAsset(quoteAsset as AssetId).decimals ?? 12
-      );
-
       const call = addLiquidityToPoolViaPablo(
         parachainApi,
         poolId,
-        new BigNumber(liquidity.baseAmount).times(baseDecimals).toFixed(0),
-        new BigNumber(liquidity.quoteAmount).times(quoteDecimals).toFixed(0)
+        toChainUnits(liquidity.baseAmount).toString(),
+        toChainUnits(liquidity.quoteAmount).toString()
       );
 
       executor.execute(
@@ -178,6 +160,7 @@ const ConfirmPoolStep: React.FC<BoxProps> = ({ ...boxProps }) => {
 
   const onCreateFinalized = (txHash: string, events: EventRecord[]) => {
     console.log("Pool Creation Finalized", txHash);
+    setCreatedAt(Date.now())
 
     if (parachainApi) {
       const poolCreatedEvent = events.find((ev) =>
@@ -202,11 +185,7 @@ const ConfirmPoolStep: React.FC<BoxProps> = ({ ...boxProps }) => {
       const { address } = selectedAccount;
       const signer = await getSigner(APP_NAME, address);
 
-      let pair = {
-        base: getAssetOnChainId("picasso", baseAsset as AssetId) as number,
-        quote: getAssetOnChainId("picasso", quoteAsset as AssetId) as number,
-      };
-
+      let pair = { base: +baseAsset, quote: +quoteAsset }
       let permillDecimals = new BigNumber(10).pow(4);
       let fee = new BigNumber(swapFee).times(permillDecimals).toNumber();
 
@@ -260,10 +239,10 @@ const ConfirmPoolStep: React.FC<BoxProps> = ({ ...boxProps }) => {
         </Typography>
 
         <Label {...labelProps(undefined, `${baseLiquidity}`, 600)} mt={3}>
-          {baseAsset === "none" ? null : (
+          {_baseAsset && (
             <BaseAsset
-              icon={getAsset(baseAsset).icon}
-              label={getAsset(baseAsset).symbol}
+              icon={_baseAsset.icon}
+              label={_baseAsset.symbol}
             />
           )}
         </Label>
@@ -278,10 +257,10 @@ const ConfirmPoolStep: React.FC<BoxProps> = ({ ...boxProps }) => {
         </Typography>
 
         <Label {...labelProps(undefined, `${quoteLiquidity}`, 600)} mt={2}>
-          {quoteAsset === "none" ? null : (
+          {_quoteAsset && (
             <BaseAsset
-              icon={getAsset(quoteAsset).icon}
-              label={getAsset(quoteAsset).symbol}
+              icon={_quoteAsset.icon}
+              label={_quoteAsset.symbol}
             />
           )}
         </Label>

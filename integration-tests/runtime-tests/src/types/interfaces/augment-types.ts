@@ -35,6 +35,8 @@ import type {
   ComposableTraitsLendingRepayStrategy,
   ComposableTraitsLendingUpdateInput,
   ComposableTraitsOraclePrice,
+  ComposableTraitsStakingRewardPool,
+  ComposableTraitsStakingRewardPoolConfiguration,
   ComposableTraitsTimeTimeReleaseFunction,
   ComposableTraitsVaultVaultConfig,
   ComposableTraitsVestingVestingSchedule,
@@ -55,6 +57,8 @@ import type {
   FrameSupportScheduleMaybeHashed,
   FrameSystemAccountInfo,
   IbcTraitOpenChannelParams,
+  IbcTransferPalletParams,
+  IbcTransferTransferParams,
   OrmlTokensAccountData,
   OrmlTokensBalanceLock,
   OrmlTokensReserveData,
@@ -90,6 +94,7 @@ import type {
   PalletIdentityRegistration,
   PalletLiquidationsLiquidationStrategyConfiguration,
   PalletLiquidityBootstrappingPool,
+  PalletMosaicAmmSwapInfo,
   PalletMosaicAssetInfo,
   PalletMosaicDecayBudgetPenaltyDecayer,
   PalletMosaicNetworkInfo,
@@ -1381,6 +1386,8 @@ declare module "@polkadot/types/types/registry" {
     ComposableTraitsLendingRepayStrategy: ComposableTraitsLendingRepayStrategy;
     ComposableTraitsLendingUpdateInput: ComposableTraitsLendingUpdateInput;
     ComposableTraitsOraclePrice: ComposableTraitsOraclePrice;
+    ComposableTraitsStakingRewardPool: ComposableTraitsStakingRewardPool;
+    ComposableTraitsStakingRewardPoolConfiguration: ComposableTraitsStakingRewardPoolConfiguration;
     ComposableTraitsTimeTimeReleaseFunction: ComposableTraitsTimeTimeReleaseFunction;
     ComposableTraitsVaultVaultConfig: ComposableTraitsVaultVaultConfig;
     ComposableTraitsVestingVestingSchedule: ComposableTraitsVestingVestingSchedule;
@@ -1695,6 +1702,8 @@ declare module "@polkadot/types/types/registry" {
     i8: i8;
     I8: I8;
     IbcTraitOpenChannelParams: IbcTraitOpenChannelParams;
+    IbcTransferPalletParams: IbcTransferPalletParams;
+    IbcTransferTransferParams: IbcTransferTransferParams;
     IdentificationTuple: IdentificationTuple;
     IdentityFields: IdentityFields;
     IdentityInfo: IdentityInfo;
@@ -1913,6 +1922,7 @@ declare module "@polkadot/types/types/registry" {
     PalletLiquidityBootstrappingPool: PalletLiquidityBootstrappingPool;
     PalletMetadataLatest: PalletMetadataLatest;
     PalletMetadataV14: PalletMetadataV14;
+    PalletMosaicAmmSwapInfo: PalletMosaicAmmSwapInfo;
     PalletMosaicAssetInfo: PalletMosaicAssetInfo;
     PalletMosaicDecayBudgetPenaltyDecayer: PalletMosaicDecayBudgetPenaltyDecayer;
     PalletMosaicNetworkInfo: PalletMosaicNetworkInfo;

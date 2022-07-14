@@ -158,6 +158,8 @@ impl orml_tokens::Config for MockRuntime {
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
 	type DustRemovalWhitelist = Everything;
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
 }
 
 // ----------------------------------------------------------------------------------------------------
