@@ -428,8 +428,20 @@ pub mod pallet {
 		/// Event emitted to warn that loan may go under collaterlized soon.
 		MayGoUnderCollateralizedSoon { market_id: MarketIndex, account: T::AccountId },
 	}
+	
+    #[pallet::storage]
+    pub type DebtIndex3<T: Config>= StorageNMap<
+		_,
+		(
+			NMapKey<Twox64Concat, MarketIndex>,
+			NMapKey<Twox64Concat, T::AccountId>, 
+			NMapKey<Twox64Concat, T::AccountId>, 
+		),
+		ZeroToOneFixedU128,
+		OptionQuery,
+	>;
 
-	/// Lending instances counter
+    /// Lending instances counter
 	#[pallet::storage]
 	#[allow(clippy::disallowed_types)] // MarketIndex implements Default, so ValueQuery is ok here. REVIEW: Should it?
 	pub type LendingCount<T: Config> = StorageValue<_, MarketIndex, ValueQuery>;

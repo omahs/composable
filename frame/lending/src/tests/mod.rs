@@ -17,13 +17,13 @@ use sp_runtime::{FixedPointNumber, Percent, Perquintill};
 
 pub mod prelude;
 
-pub mod borrow;
+//pub mod borrow;
 pub mod interest;
-pub mod liquidation;
-pub mod market;
-pub mod offchain;
-pub mod repay;
-pub mod vault;
+//pub mod liquidation;
+//pub mod market;
+//pub mod offchain;
+//pub mod repay;
+//pub mod vault;
 
 pub const DEFAULT_MARKET_VAULT_RESERVE: Perquintill = Perquintill::from_percent(10);
 pub const DEFAULT_COLLATERAL_FACTOR: u128 = 2;
