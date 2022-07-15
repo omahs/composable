@@ -1,11 +1,8 @@
-use composable_support::{
-	math::safe::{SafeAdd, SafeDiv, SafeMul},
-	validation::Validated,
-};
+use composable_support::math::safe::{SafeAdd, SafeDiv, SafeMul};
 use composable_traits::{
 	currency::MathBalance,
-	defi::{validate::MoreThanOne, MoreThanOneFixedU128},
-	lending::CollateralRatio,
+	defi::MoreThanOneFixedU128,
+	lending::{BorrowerDataTrait, CollateralRatio},
 };
 use sp_runtime::{
 	traits::{Saturating, Zero},
@@ -14,7 +11,7 @@ use sp_runtime::{
 
 /// Information about a borrower, including the total values of the collateral and borrow assets,
 /// and the `collateral_factor` and `under_collateralized_warn_percent` of the market.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct BorrowerData {
 	/// The value of the total amount of collateral asset that the borrower has deposited into the
 	/// market.
@@ -26,7 +23,7 @@ pub struct BorrowerData {
 	/// See [`MarketConfig::collateral_factor`] for more information.
 	///
 	/// [`MarketConfig::collateral_factor`]: composable_traits::lending::MarketConfig
-	pub collateral_factor: Validated<FixedU128, MoreThanOne>,
+	pub collateral_factor: MoreThanOneFixedU128,
 	pub under_collateralized_warn_percent: Percent,
 }
 
@@ -35,7 +32,7 @@ impl BorrowerData {
 	pub fn new<T: MathBalance>(
 		collateral_balance_total_value: T,
 		borrow_balance_total_value: T,
-		collateral_factor: Validated<FixedU128, MoreThanOne>,
+		collateral_factor: MoreThanOneFixedU128,
 		under_collateralized_warn_percent: Percent,
 	) -> Self {
 		Self {
@@ -50,43 +47,11 @@ impl BorrowerData {
 		}
 	}
 
-	/// The maximum borrowable amount, taking into account the current borrowed amount and
-	/// interest accrued.
-	///
-	/// NOTE: Returns `zero` if the borrower is under-collateralized.
-	#[inline(always)]
-	pub fn get_borrow_limit(&self) -> Result<FixedU128, ArithmeticError> {
-		let maximum_borrow_amount = self.max_borrow_for_collateral()?;
-		// NOTE(benluelo): `saturating_sub` is used here on purpose.
-		// If the borrower is under-collateralized, `borrow_balance_total_value` will be greater
-		// than `max_borrow`, in which case we want to return zero (since the borrower can't borrow
-		// any more).
-		//
-		// With `safe_sub`, this would be an error, which *could* be unwrapped to zero, but that's
-		// just the behaviour of `saturating_sub` and I see no reason to reinvent the wheel.
-		let amount_left_to_borrow =
-			maximum_borrow_amount.saturating_sub(self.borrow_balance_total_value);
-		Ok(amount_left_to_borrow)
-	}
-
 	/// Returns the amount of collateral asset available in the market for the borrower, i.e. the
 	/// amount not being held as collateral.
 	#[inline(always)]
-	fn max_borrow_for_collateral(&self) -> Result<FixedU128, ArithmeticError> {
+	pub fn max_borrow_for_collateral(&self) -> Result<FixedU128, ArithmeticError> {
 		self.collateral_balance_total_value.safe_div(&self.collateral_factor)
-	}
-
-	/// Determines whether the loan should trigger a liquidation, based on the
-	/// [`current_collateral_ratio`].
-	///
-	/// [`current_collateral_ratio`]: BorrowerData::current_collateral_ratio
-	#[inline(always)]
-	pub fn should_liquidate(&self) -> Result<bool, ArithmeticError> {
-		match self.current_collateral_ratio()? {
-			CollateralRatio::Ratio(ratio) => Ok(ratio < *self.collateral_factor),
-			// No liquidation necessary if the borrower's borrow asset balance has no value
-			CollateralRatio::NoBorrowValue => Ok(false),
-		}
 	}
 
 	/// The current collateral to debt ratio for the borrower. See [`CollateralRatio`] for
@@ -132,20 +97,59 @@ impl BorrowerData {
 			self.collateral_factor.safe_mul(&self.under_collateralized_warn_percent.into());
 		self.collateral_factor.safe_add(&collateral_factor_warn_percentage?)
 	}
+}
 
-	/// Check if a loan is about to go under-collateralized.
-	///
-	/// Checks the [`current_collateral_ratio`] against the [`minimum_safe_collateral_factor`].
-	///
-	/// [`minimum_safe_collateral_factor`]: BorrowerData::minimum_safe_collateral_factor
-	/// [`current_collateral_ratio`]: BorrowerData::current_collateral_ratio
-	#[inline(always)]
-	pub fn should_warn(&self) -> Result<bool, ArithmeticError> {
+impl BorrowerDataTrait for BorrowerData {
+	fn get_borrow_limit(&self) -> Result<FixedU128, ArithmeticError> {
+		let maximum_borrow_amount = self.max_borrow_for_collateral()?;
+		// NOTE(benluelo): `saturating_sub` is used here on purpose.
+		// If the borrower is under-collateralized, `borrow_balance_total_value` will be greater
+		// than `max_borrow`, in which case we want to return zero (since the borrower can't borrow
+		// any more).
+		//
+		// With `safe_sub`, this would be an error, which *could* be unwrapped to zero, but that's
+		// just the behaviour of `saturating_sub` and I see no reason to reinvent the wheel.
+		let amount_left_to_borrow =
+			maximum_borrow_amount.saturating_sub(self.borrow_balance_total_value);
+		Ok(amount_left_to_borrow)
+	}
+
+	fn should_liquidate(&self) -> Result<bool, ArithmeticError> {
+		match self.current_collateral_ratio()? {
+			CollateralRatio::Ratio(ratio) => Ok(ratio < self.collateral_factor),
+			// No liquidation necessary if the borrower's borrow asset balance has no value
+			CollateralRatio::NoBorrowValue => Ok(false),
+		}
+	}
+
+	fn should_warn(&self) -> Result<bool, ArithmeticError> {
 		match self.current_collateral_ratio()? {
 			CollateralRatio::Ratio(ratio) => Ok(ratio < self.minimum_safe_collateral_factor()?),
 			// No liquidation necessary if the borrower's borrow asset balance has no value
 			CollateralRatio::NoBorrowValue => Ok(false),
 		}
+	}
+}
+
+pub struct BorrowerDataUnderCollateralized;
+
+impl BorrowerDataUnderCollateralized {
+	pub fn new() -> Self {
+		Self
+	}
+}
+
+impl BorrowerDataTrait for BorrowerDataUnderCollateralized {
+	fn get_borrow_limit(&self) -> Result<FixedU128, ArithmeticError> {
+		Ok(1.into())
+	}
+
+	fn should_liquidate(&self) -> Result<bool, ArithmeticError> {
+		Ok(false)
+	}
+
+	fn should_warn(&self) -> Result<bool, ArithmeticError> {
+		Ok(false)
 	}
 }
 

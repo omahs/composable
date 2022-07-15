@@ -386,6 +386,14 @@ pub mod pallet {
 		// If Vault is unbalanced we can not borrow from it, since
 		// we do not know how many asset it needs to balance.
 		CannotBorrowFromMarketWithUnbalancedVault,
+
+		//
+		CollateralFactorUnspecified,
+		//
+		WarnPercentUnscpecified,
+
+		MethodCannotBeUsedForUndercollateralizedMarket,
+		MethodCannotBeUsedForCollateralizedMarket,
 	}
 
 	#[pallet::event]

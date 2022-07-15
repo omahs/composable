@@ -26,7 +26,7 @@ pub type MarketId = u32;
 #[repr(transparent)]
 pub struct MarketIndex(
 	#[cfg(test)] // to allow pattern matching in tests outside of this crate
-	pub MarketId,
+	pub  MarketId,
 	#[cfg(not(test))] pub(crate) MarketId,
 );
 
@@ -48,6 +48,7 @@ pub type CreateInputOf<T> = CreateInput<
 	<T as Config>::LiquidationStrategyId,
 	<T as DeFiComposableConfig>::MayBeAssetId,
 	<T as frame_system::Config>::BlockNumber,
+	<T as frame_system::Config>::AccountId,
 >;
 
 #[derive(Debug, PartialEqNoBound)]

@@ -34,7 +34,10 @@ fn test_repay_partial_amount() {
 
 			// borrow_limit * COLLATERAL::ONE / price_of(COLLATERAL::ONE)
 			// REVIEW: I'm still not sure if this makes sense
-			let limit_normalized = Lending::get_borrow_limit(&market_index, &account).unwrap();
+			let borrower =
+				Lending::create_borrower_data_for_collateralized_market(&market_index, &account).unwrap();
+			let limit_normalized =
+				Lending::get_borrow_limit(&market_index, &account, borrower).unwrap();
 			let limit = limit_normalized
 				.mul(COLLATERAL::ONE)
 				.div(get_price(COLLATERAL::ID, COLLATERAL::ONE));
@@ -187,7 +190,10 @@ fn test_repay_total_debt() {
 			// BTC is worth 50_000 times more than USDT (see `create_simple_market()`)
 
 			// REVIEW: I'm still not sure if this makes sense
-			let limit_normalized = Lending::get_borrow_limit(&market_index, &account).unwrap();
+			let borrower =
+				Lending::create_borrower_data_for_collateralized_market(&market_index, &account).unwrap();
+			let limit_normalized =
+				Lending::get_borrow_limit(&market_index, &account, borrower).unwrap();
 			let limit = limit_normalized.mul(BTC::ONE).div(get_price(BTC::ID, BTC::ONE));
 			limit
 		};

@@ -17,7 +17,9 @@ impl<LiquidationStrategyId, BlockNumber>
 	fn validate(
 		update_input: UpdateInput<LiquidationStrategyId, BlockNumber>,
 	) -> Result<UpdateInput<LiquidationStrategyId, BlockNumber>, &'static str> {
-		if update_input.collateral_factor < MoreThanOneFixedU128::one() {
+		if update_input.collateral_factor.ok_or("Collateral factor is not specified.")? <
+			MoreThanOneFixedU128::one()
+		{
 			return Err("Collateral factor must be more than one.")
 		}
 
@@ -30,13 +32,13 @@ pub struct MarketModelValid;
 #[derive(Clone, Copy, RuntimeDebug, PartialEq, TypeInfo, Default)]
 pub struct CurrencyPairIsNotSame;
 
-impl<LiquidationStrategyId, Asset: Eq, BlockNumber>
-	Validate<CreateInput<LiquidationStrategyId, Asset, BlockNumber>, MarketModelValid>
+impl<LiquidationStrategyId, Asset: Eq, BlockNumber, AccountId>
+	Validate<CreateInput<LiquidationStrategyId, Asset, BlockNumber, AccountId>, MarketModelValid>
 	for MarketModelValid
 {
 	fn validate(
-		create_input: CreateInput<LiquidationStrategyId, Asset, BlockNumber>,
-	) -> Result<CreateInput<LiquidationStrategyId, Asset, BlockNumber>, &'static str> {
+		create_input: CreateInput<LiquidationStrategyId, Asset, BlockNumber, AccountId>,
+	) -> Result<CreateInput<LiquidationStrategyId, Asset, BlockNumber, AccountId>, &'static str> {
 		let updatable = create_input.updatable.try_into_validated::<UpdateInputValid>()?.value();
 		let interest_rate_model = create_input
 			.interest_rate_model
@@ -47,13 +49,15 @@ impl<LiquidationStrategyId, Asset: Eq, BlockNumber>
 	}
 }
 
-impl<LiquidationStrategyId, Asset: Eq, BlockNumber>
-	Validate<CreateInput<LiquidationStrategyId, Asset, BlockNumber>, CurrencyPairIsNotSame>
-	for CurrencyPairIsNotSame
+impl<LiquidationStrategyId, Asset: Eq, BlockNumber, AccountId>
+	Validate<
+		CreateInput<LiquidationStrategyId, Asset, BlockNumber, AccountId>,
+		CurrencyPairIsNotSame,
+	> for CurrencyPairIsNotSame
 {
 	fn validate(
-		create_input: CreateInput<LiquidationStrategyId, Asset, BlockNumber>,
-	) -> Result<CreateInput<LiquidationStrategyId, Asset, BlockNumber>, &'static str> {
+		create_input: CreateInput<LiquidationStrategyId, Asset, BlockNumber, AccountId>,
+	) -> Result<CreateInput<LiquidationStrategyId, Asset, BlockNumber, AccountId>, &'static str> {
 		if create_input.currency_pair.base == create_input.currency_pair.quote {
 			Err("Base and quote currencies supposed to be different in currency pair")
 		} else {
@@ -65,15 +69,21 @@ impl<LiquidationStrategyId, Asset: Eq, BlockNumber>
 #[derive(RuntimeDebug, PartialEq, TypeInfo, Default, Clone, Copy)]
 pub struct AssetIsSupportedByOracle<Oracle: OracleTrait>(PhantomData<Oracle>);
 
-impl<LiquidationStrategyId, Asset: Copy, BlockNumber, Oracle: OracleTrait<AssetId = Asset>>
+impl<
+		LiquidationStrategyId,
+		Asset: Copy,
+		BlockNumber,
+		Oracle: OracleTrait<AssetId = Asset>,
+		AccountId,
+	>
 	Validate<
-		CreateInput<LiquidationStrategyId, Asset, BlockNumber>,
+		CreateInput<LiquidationStrategyId, Asset, BlockNumber, AccountId>,
 		AssetIsSupportedByOracle<Oracle>,
 	> for AssetIsSupportedByOracle<Oracle>
 {
 	fn validate(
-		create_input: CreateInput<LiquidationStrategyId, Asset, BlockNumber>,
-	) -> Result<CreateInput<LiquidationStrategyId, Asset, BlockNumber>, &'static str> {
+		create_input: CreateInput<LiquidationStrategyId, Asset, BlockNumber, AccountId>,
+	) -> Result<CreateInput<LiquidationStrategyId, Asset, BlockNumber, AccountId>, &'static str> {
 		ensure!(
 			Oracle::is_supported(create_input.borrow_asset())?,
 			"Borrow asset is not supported by oracle"

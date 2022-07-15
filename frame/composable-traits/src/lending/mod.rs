@@ -10,7 +10,7 @@ use crate::{
 };
 use frame_support::{pallet_prelude::*, sp_std::vec::Vec};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Zero, Percent, Perquintill};
+use sp_runtime::{traits::Zero, ArithmeticError, FixedU128, Percent, Perquintill};
 
 use self::math::*;
 
@@ -32,10 +32,10 @@ pub type BorrowAmountOf<T> = <T as DeFiEngine>::Balance;
 #[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug, Clone, PartialEq)]
 pub struct UpdateInput<LiquidationStrategyId, BlockNumber> {
 	/// Collateral factor of market
-	pub collateral_factor: MoreThanOneFixedU128,
+	pub collateral_factor: Option<MoreThanOneFixedU128>,
 	/// warn borrower when loan's collateral/debt ratio
 	/// given percentage short to be under collateralized
-	pub under_collateralized_warn_percent: Percent,
+	pub under_collateralized_warn_percent: Option<Percent>,
 	/// liquidation engine id
 	pub liquidators: Vec<LiquidationStrategyId>,
 	/// Count of blocks until throw error PriceIsTooOld
@@ -46,7 +46,7 @@ pub struct UpdateInput<LiquidationStrategyId, BlockNumber> {
 ///
 /// Input to [`Lending::create()`].
 #[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug, Clone, PartialEq)]
-pub struct CreateInput<LiquidationStrategyId, AssetId, BlockNumber> {
+pub struct CreateInput<LiquidationStrategyId, AssetId, BlockNumber, AccountId> {
 	/// the part of market which can be changed
 	pub updatable: UpdateInput<LiquidationStrategyId, BlockNumber>,
 	/// collateral currency and borrow currency
@@ -55,10 +55,12 @@ pub struct CreateInput<LiquidationStrategyId, AssetId, BlockNumber> {
 	/// Reserve factor of market borrow vault.
 	pub reserved_factor: Perquintill,
 	pub interest_rate_model: InterestRateModel,
+	// TODO: @mikolaichuk: BoundedVec
+	pub borrowers_whitelist: Option<Vec<AccountId>>,
 }
 
-impl<LiquidationStrategyId, AssetId: Copy, BlockNumber>
-	CreateInput<LiquidationStrategyId, AssetId, BlockNumber>
+impl<LiquidationStrategyId, AssetId: Copy, BlockNumber, AccountId>
+	CreateInput<LiquidationStrategyId, AssetId, BlockNumber, AccountId>
 {
 	pub fn borrow_asset(&self) -> AssetId {
 		self.currency_pair.quote
@@ -66,9 +68,48 @@ impl<LiquidationStrategyId, AssetId: Copy, BlockNumber>
 	pub fn collateral_asset(&self) -> AssetId {
 		self.currency_pair.base
 	}
-
 	pub fn reserved_factor(&self) -> Perquintill {
 		self.reserved_factor
+	}
+}
+
+#[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug, Copy, Clone, PartialEq)]
+pub struct CollateralizedMarketConfig {
+	pub collateral_factor: MoreThanOneFixedU128,
+	pub under_collateralized_warn_percent: Percent,
+}
+
+#[derive(Encode, Decode, Default, TypeInfo, RuntimeDebug, Clone, PartialEq)]
+// TODO: @mikolaichuk: BoundedVec
+pub struct UndercollateralizedMarketConfig<AccountId> {
+	pub borrowers_whitelist: Vec<AccountId>,
+}
+
+#[derive(Encode, Decode, TypeInfo, RuntimeDebug, Clone, PartialEq)]
+pub enum MarketType<AccountId> {
+	Collateralized(CollateralizedMarketConfig),
+	Undercollateralized(UndercollateralizedMarketConfig<AccountId>),
+}
+
+impl<AccountId> MarketType<AccountId> {
+	pub fn get_collateral_factor(&self) -> Option<MoreThanOneFixedU128> {
+		if let Self::Collateralized(config) = self {
+			return Some(config.collateral_factor)
+		}
+		None
+	}
+
+	pub fn get_under_collateralized_warn_percent(&self) -> Option<Percent> {
+		if let Self::Collateralized(config) = self {
+			return Some(config.under_collateralized_warn_percent)
+		}
+		None
+	}
+}
+
+impl<AccountId> Default for MarketType<AccountId> {
+	fn default() -> Self {
+		Self::Collateralized(CollateralizedMarketConfig::default())
 	}
 }
 
@@ -82,10 +123,34 @@ pub struct MarketConfig<VaultId, AssetId, AccountId, LiquidationStrategyId, Bloc
 	pub collateral_asset: AssetId,
 	/// Number of blocks until invalidate oracle's price.
 	pub max_price_age: BlockNumber,
-	pub collateral_factor: MoreThanOneFixedU128,
 	pub interest_rate_model: InterestRateModel,
-	pub under_collateralized_warn_percent: Percent,
 	pub liquidators: Vec<LiquidationStrategyId>,
+	pub collateralization: MarketType<AccountId>,
+}
+
+impl<VaultId, AssetId, AccountId, LiquidationStrategyId, BlockNumber>
+	MarketConfig<VaultId, AssetId, AccountId, LiquidationStrategyId, BlockNumber>
+{
+	pub fn is_collateralized(&self) -> bool {
+		if let MarketType::Collateralized(_) = self.collateralization {
+			return true
+		}
+		false
+	}
+
+	pub fn get_collateral_factor(&self) -> Option<MoreThanOneFixedU128> {
+		self.collateralization.get_collateral_factor()
+	}
+
+	pub fn get_under_collateralized_warn_percent(&self) -> Option<Percent> {
+		self.collateralization.get_under_collateralized_warn_percent()
+	}
+}
+
+pub trait BorrowerDataTrait {
+	fn get_borrow_limit(&self) -> Result<FixedU128, ArithmeticError>;
+	fn should_liquidate(&self) -> Result<bool, ArithmeticError>;
+	fn should_warn(&self) -> Result<bool, ArithmeticError>;
 }
 
 /// Different ways that a market can be repaid.
@@ -235,7 +300,12 @@ pub trait Lending: DeFiEngine {
 	/// Returned `MarketId` is mapped one to one with (deposit VaultId, collateral VaultId)
 	fn create_market(
 		manager: Self::AccountId,
-		config: CreateInput<Self::LiquidationStrategyId, Self::MayBeAssetId, Self::BlockNumber>,
+		config: CreateInput<
+			Self::LiquidationStrategyId,
+			Self::MayBeAssetId,
+			Self::BlockNumber,
+			Self::AccountId,
+		>,
 		keep_alive: bool,
 	) -> Result<(Self::MarketId, Self::VaultId), DispatchError>;
 
@@ -436,8 +506,9 @@ pub trait Lending: DeFiEngine {
 	/// NOTE: This will return `zero` if the account has not deposited any collateral yet (a newly
 	/// created market, for instance) ***OR*** if the account has already borrowed the maximum
 	/// amount borrowable with the given amount of collateral deposited.
-	fn get_borrow_limit(
+	fn get_borrow_limit<Borrower: BorrowerDataTrait>(
 		market_id: &Self::MarketId,
 		account: &Self::AccountId,
+		borrower: Borrower,
 	) -> Result<Self::Balance, DispatchError>;
 }

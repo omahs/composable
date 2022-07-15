@@ -93,16 +93,20 @@ pub(crate) fn create_market_config<T: Config>(
 	<T as Config>::LiquidationStrategyId,
 	<T as DeFiComposableConfig>::MayBeAssetId,
 	<T as frame_system::Config>::BlockNumber,
+	<T as frame_system::Config>::AccountId,
 > {
 	CreateInput {
 		updatable: UpdateInput {
-			collateral_factor: MoreThanOneFixedU128::saturating_from_rational(200_u128, 100_u128),
-			under_collateralized_warn_percent: Percent::from_percent(10),
+			collateral_factor: Some(MoreThanOneFixedU128::saturating_from_rational(
+				200_u128, 100_u128,
+			)),
+			under_collateralized_warn_percent: Some(Percent::from_percent(10)),
 			liquidators: Default::default(),
 			max_price_age,
 		},
 		reserved_factor: Perquintill::from_percent(10),
 		currency_pair: CurrencyPair::new(collateral_asset, borrow_asset),
 		interest_rate_model: InterestRateModel::default(),
+		borrowers_whitelist: None,
 	}
 }

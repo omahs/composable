@@ -157,7 +157,10 @@ fn liquidation() {
 		// from the vault
 		test::block::process_and_progress_blocks::<Lending, Runtime>(1);
 
-		let borrow_limit = Lending::get_borrow_limit(&market_id, &ALICE).expect("impossible");
+		let borrower =
+			Lending::create_borrower_data_for_collateralized_market(&market_id, &ALICE).unwrap();
+		let borrow_limit =
+			Lending::get_borrow_limit(&market_id, &ALICE, borrower).expect("impossible");
 		assert!(borrow_limit > 0);
 
 		assert_extrinsic_event::<Runtime>(
@@ -222,7 +225,12 @@ fn test_warn_soon_under_collateralized() {
 
 		test::block::process_and_progress_blocks::<Lending, Runtime>(1);
 
-		assert_eq!(Lending::get_borrow_limit(&market, &ALICE), Ok(50_000_000_000_000_000));
+		let borrower =
+			Lending::create_borrower_data_for_collateralized_market(&market, &ALICE).unwrap();
+		assert_eq!(
+			Lending::get_borrow_limit(&market, &ALICE, borrower),
+			Ok(50_000_000_000_000_000)
+		);
 
 		let borrow_amount = USDT::units(80);
 
@@ -268,7 +276,9 @@ fn market_owner_cannot_retroactively_liquidate() {
 
 		test::block::process_and_progress_blocks::<Lending, Runtime>(1);
 
-		let limit_normalized = Lending::get_borrow_limit(&market_id, &BOB).unwrap();
+		let borrower =
+			Lending::create_borrower_data_for_collateralized_market(&market_id, &BOB).unwrap();
+		let limit_normalized = Lending::get_borrow_limit(&market_id, &BOB, borrower).unwrap();
 		test::block::process_and_progress_blocks::<Lending, Runtime>(2);
 
 		assert_extrinsic_event::<Runtime>(
@@ -283,10 +293,11 @@ fn market_owner_cannot_retroactively_liquidate() {
 		assert_eq!(Lending::should_liquidate(&market_id, &BOB), Ok(false));
 
 		// Update collateral factor to big value
-		let collateral_factor = MoreThanOneFixedU128::saturating_from_rational(2000_u128, 99_u128);
+		let collateral_factor =
+			Some(MoreThanOneFixedU128::saturating_from_rational(2000_u128, 99_u128));
 		let updatable = UpdateInput {
 			collateral_factor,
-			under_collateralized_warn_percent: Percent::from_float(1.1),
+			under_collateralized_warn_percent: Some(Percent::from_float(1.1)),
 			liquidators: vec![],
 			max_price_age: DEFAULT_MAX_PRICE_AGE,
 		};

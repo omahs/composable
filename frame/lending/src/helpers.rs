@@ -1,4 +1,9 @@
-use crate::{models::borrower_data::BorrowerData, types::AccruedInterest, weights::WeightInfo, *};
+use crate::{
+	models::borrower_data::{BorrowerData, BorrowerDataUnderCollateralized},
+	types::AccruedInterest,
+	weights::WeightInfo,
+	*,
+};
 
 use crate::{
 	types::InitializeBlockCallCounters,
@@ -9,7 +14,7 @@ use crate::{
 };
 use composable_support::{
 	math::safe::{SafeAdd, SafeDiv, SafeMul, SafeSub},
-	validation::{TryIntoValidated, Validated},
+	validation::Validated,
 };
 use composable_traits::{
 	currency::CurrencyFactory,
@@ -18,8 +23,8 @@ use composable_traits::{
 		OneOrMoreFixedU128, Sell,
 	},
 	lending::{
-		math::InterestRate, BorrowAmountOf, CollateralLpAmountOf, Lending, MarketConfig,
-		UpdateInput,
+		math::InterestRate, BorrowAmountOf, BorrowerDataTrait, CollateralLpAmountOf,
+		CollateralizedMarketConfig, Lending, MarketConfig, MarketType, UpdateInput,
 	},
 	liquidation::Liquidation,
 	oracle::Oracle,
@@ -106,12 +111,20 @@ impl<T: Config> Pallet<T> {
 				max_price_age: config_input.updatable.max_price_age,
 				borrow_asset_vault: borrow_asset_vault.clone(),
 				collateral_asset: config_input.collateral_asset(),
-				collateral_factor: config_input.updatable.collateral_factor,
 				interest_rate_model: config_input.interest_rate_model,
-				under_collateralized_warn_percent: config_input
-					.updatable
-					.under_collateralized_warn_percent,
 				liquidators: config_input.updatable.liquidators,
+				collateralization: composable_traits::lending::MarketType::Collateralized(
+					CollateralizedMarketConfig {
+						collateral_factor: config_input
+							.updatable
+							.collateral_factor
+							.ok_or(Error::<T>::CollateralFactorUnspecified)?,
+						under_collateralized_warn_percent: config_input
+							.updatable
+							.under_collateralized_warn_percent
+							.ok_or(Error::<T>::WarnPercentUnscpecified)?,
+					},
+				),
 			};
 			// TODO: pass ED from API,
 			let debt_token_id = T::CurrencyFactory::reserve_lp_token_id(T::Balance::default())?;
@@ -174,21 +187,26 @@ impl<T: Config> Pallet<T> {
 		let collateral_balance_after_withdrawal_value =
 			Self::get_price(market.collateral_asset, collateral_balance.safe_sub(&amount)?)?;
 
-		let borrower_after_withdrawal = BorrowerData::new(
-			collateral_balance_after_withdrawal_value,
-			borrow_balance_value,
-			market
-				.collateral_factor
-				.try_into_validated()
-				.map_err(|_| Error::<T>::Overflow)?, // TODO: Use a proper error mesage?
-			market.under_collateralized_warn_percent,
-		);
+		// TODO: @mikolaichuk: move in function?
+		if market.is_collateralized() {
+			let borrower_after_withdrawal = BorrowerData::new(
+				collateral_balance_after_withdrawal_value,
+				borrow_balance_value,
+				market.get_collateral_factor().unwrap(),
+				market.get_under_collateralized_warn_percent().unwrap(),
+			);
 
-		ensure!(
-			!borrower_after_withdrawal.should_liquidate()?,
-			Error::<T>::WouldGoUnderCollateralized
-		);
-
+			ensure!(
+				!borrower_after_withdrawal.should_liquidate()?,
+				Error::<T>::WouldGoUnderCollateralized
+			);
+		} else {
+			let borrower_after_withdrawal = BorrowerDataUnderCollateralized::new();
+			ensure!(
+				!borrower_after_withdrawal.should_liquidate()?,
+				Error::<T>::WouldGoUnderCollateralized
+			);
+		}
 		let market_account = Self::account_id(market_id);
 
 		ensure!(
@@ -243,18 +261,28 @@ impl<T: Config> Pallet<T> {
 		Markets::<T>::mutate(&market_id, |market| {
 			if let Some(market) = market {
 				ensure!(manager == market.manager, Error::<T>::Unauthorized);
-
-				ensure!(
-					market.collateral_factor >= input.collateral_factor,
-					Error::<T>::CannotIncreaseCollateralFactorOfOpenMarket
-				);
-				market.collateral_factor = input.collateral_factor;
-				market.under_collateralized_warn_percent = input.under_collateralized_warn_percent;
+				// @mikolaichuk: if market is collateralized we can update collateral_factor and
+				// under_collateralized_warn_percent
+				if market.is_collateralized() {
+					let collateral_factor =
+						input.collateral_factor.ok_or(Error::<T>::CollateralFactorUnspecified)?;
+					let under_collateralized_warn_percent = input
+						.under_collateralized_warn_percent
+						.ok_or(Error::<T>::WarnPercentUnscpecified)?;
+					ensure!(
+						market.get_collateral_factor().unwrap() >= collateral_factor,
+						Error::<T>::CannotIncreaseCollateralFactorOfOpenMarket
+					);
+					market.collateralization =
+						MarketType::<T::AccountId>::Collateralized(CollateralizedMarketConfig {
+							collateral_factor,
+							under_collateralized_warn_percent,
+						});
+				};
 				market.liquidators = input.liquidators.clone();
-				Ok(())
-			} else {
-				Err(Error::<T>::MarketDoesNotExist)
-			}
+				return Ok(())
+			};
+			Err(Error::<T>::MarketDoesNotExist)
 		})?;
 		Self::deposit_event(Event::<T>::MarketUpdated { market_id, input });
 		Ok(().into())
@@ -295,9 +323,17 @@ impl<T: Config> Pallet<T> {
 				return Err(Error::<T>::InvalidTimestampOnBorrowRequest.into())
 			}
 		}
+		let borrow_limit = if market.is_collateralized() {
+			let borrower =
+				Self::create_borrower_data_for_collateralized_market(market_id, debt_owner)?;
+			Self::get_borrow_limit(market_id, debt_owner, borrower)?
+		} else {
+			let borrower =
+				Self::create_borrower_data_for_undercollateralized_market(market_id, debt_owner)?;
+			Self::get_borrow_limit(market_id, debt_owner, borrower)?
+		};
 
 		let borrow_asset = T::Vault::asset_id(&market.borrow_asset_vault)?;
-		let borrow_limit = Self::get_borrow_limit(market_id, debt_owner)?;
 		let borrow_amount_value = Self::get_price(borrow_asset, amount_to_borrow)?;
 		ensure!(borrow_limit >= borrow_amount_value, Error::<T>::NotEnoughCollateralToBorrow);
 
@@ -394,6 +430,38 @@ impl<T: Config> Pallet<T> {
 		account: &<Self as DeFiEngine>::AccountId,
 	) -> Result<BorrowerData, DispatchError> {
 		let (_, market) = Self::get_market(market_id)?;
+		if !market.is_collateralized() {
+			Err(Error::<T>::MethodCannotBeUsedForUndercollateralizedMarket)?;
+		}
+		let collateral_balance_value = Self::get_price(
+			market.collateral_asset,
+			Self::collateral_of_account(market_id, account)?,
+		)?;
+
+		let account_total_debt_with_interest =
+			Self::total_debt_with_interest(market_id, account)?.unwrap_or_zero();
+		let borrow_balance_value = Self::get_price(
+			T::Vault::asset_id(&market.borrow_asset_vault)?,
+			account_total_debt_with_interest,
+		)?;
+
+		let borrower = BorrowerData::new(
+			collateral_balance_value,
+			borrow_balance_value,
+			market.get_collateral_factor().unwrap(),
+			market.get_under_collateralized_warn_percent().unwrap(),
+		);
+
+		Ok(borrower)
+	}
+	// @mikolaichuk
+	/// Creates a new [`BorrowerData`] for the given market and account. See [`BorrowerData`]
+	/// for more information.
+	pub fn create_borrower_data_for_collateralized_market(
+		market_id: &<Self as Lending>::MarketId,
+		account: &<Self as DeFiEngine>::AccountId,
+	) -> Result<BorrowerData, DispatchError> {
+		let (_, market) = Self::get_market(market_id)?;
 
 		let collateral_balance_value = Self::get_price(
 			market.collateral_asset,
@@ -410,15 +478,21 @@ impl<T: Config> Pallet<T> {
 		let borrower = BorrowerData::new(
 			collateral_balance_value,
 			borrow_balance_value,
-			market
-				.collateral_factor
-				.try_into_validated()
-				.map_err(|_| Error::<T>::CollateralFactorMustBeMoreThanOne)?, /* TODO: Use a proper
-			                                                                * error mesage */
-			market.under_collateralized_warn_percent,
+			market.get_collateral_factor().unwrap(),
+			market.get_under_collateralized_warn_percent().unwrap(),
 		);
 
 		Ok(borrower)
+	}
+
+	// @mikolaichuk
+	/// Creates a new [`BorrowerData`] for the given market and account. See [`BorrowerData`]
+	/// for more information.
+	pub fn create_borrower_data_for_undercollateralized_market(
+		market_id: &<Self as Lending>::MarketId,
+		account: &<Self as DeFiEngine>::AccountId,
+	) -> Result<BorrowerDataUnderCollateralized, DispatchError> {
+		Ok(BorrowerDataUnderCollateralized)
 	}
 
 	/// Whether or not an account should be liquidated. See [`BorrowerData::should_liquidate()`]
@@ -427,7 +501,7 @@ impl<T: Config> Pallet<T> {
 		market_id: &<Self as Lending>::MarketId,
 		account: &<Self as DeFiEngine>::AccountId,
 	) -> Result<bool, DispatchError> {
-		let borrower = Self::create_borrower_data(market_id, account)?;
+		let borrower = Self::create_borrower_data_for_collateralized_market(market_id, account)?;
 		let should_liquidate = borrower.should_liquidate()?;
 		Ok(should_liquidate)
 	}
@@ -436,7 +510,7 @@ impl<T: Config> Pallet<T> {
 		market_id: &<Self as Lending>::MarketId,
 		account: &<Self as DeFiEngine>::AccountId,
 	) -> Result<bool, DispatchError> {
-		let borrower = Self::create_borrower_data(market_id, account)?;
+		let borrower = Self::create_borrower_data_for_collateralized_market(market_id, account)?;
 		let should_warn = borrower.should_warn()?;
 		Ok(should_warn)
 	}

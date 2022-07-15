@@ -8,8 +8,8 @@ use composable_traits::{
 	defi::*,
 	lending::{
 		math::{self, *},
-		BorrowAmountOf, CollateralLpAmountOf, Lending, RepayStrategy, TotalDebtWithInterest,
-		UpdateInput,
+		BorrowAmountOf, BorrowerDataTrait, CollateralLpAmountOf, Lending, RepayStrategy,
+		TotalDebtWithInterest, UpdateInput,
 	},
 	time::Timestamp,
 	vault::Vault,
@@ -454,19 +454,23 @@ impl<T: Config> Lending for Pallet<T> {
 		borrow_amount: Self::Balance,
 	) -> Result<Self::Balance, DispatchError> {
 		let (_, market) = Self::get_market(market_id)?;
+        if !market.is_collateralized() {
+            Err(Error::<T>::MethodCannotBeUsedForUndercollateralizedMarket)?;
+        }
 		let borrow_asset = T::Vault::asset_id(&market.borrow_asset_vault)?;
 		let borrow_amount_value = Self::get_price(borrow_asset, borrow_amount)?;
 
 		Ok(LiftedFixedBalance::saturating_from_integer(borrow_amount_value.into())
-			.safe_mul(&market.collateral_factor)?
+			.safe_mul(&market.get_collateral_factor().unwrap())?
 			.checked_mul_int(1_u64)
 			.ok_or(ArithmeticError::Overflow)?
 			.into())
 	}
 
-	fn get_borrow_limit(
+	fn get_borrow_limit<Borrower: BorrowerDataTrait>(
 		market_id: &Self::MarketId,
 		account: &Self::AccountId,
+		borrower: Borrower,
 	) -> Result<Self::Balance, DispatchError> {
 		let collateral_balance = AccountCollateral::<T>::get(market_id, account)
 			// REVIEW: I don't think this should default to zero, only to check against zero
@@ -474,15 +478,13 @@ impl<T: Config> Lending for Pallet<T> {
 			.unwrap_or_else(CollateralLpAmountOf::<Self>::zero);
 
 		if collateral_balance > T::Balance::zero() {
-			let borrower = Self::create_borrower_data(market_id, account)?;
 			let balance = borrower
 				.get_borrow_limit()
 				.map_err(|_| Error::<T>::BorrowerDataCalculationFailed)?
 				.checked_mul_int(1_u64)
 				.ok_or(ArithmeticError::Overflow)?;
-			Ok(balance.into())
-		} else {
-			Ok(Self::Balance::zero())
+			return Ok(balance.into())
 		}
+		Ok(Self::Balance::zero())
 	}
 }

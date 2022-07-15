@@ -15,12 +15,13 @@ use frame_support::{
 use pallet_vault::models::VaultInfo;
 use sp_runtime::{FixedPointNumber, Percent, Perquintill};
 
+pub mod prelude;
+
 pub mod borrow;
 pub mod interest;
 pub mod liquidation;
 pub mod market;
 pub mod offchain;
-pub mod prelude;
 pub mod repay;
 pub mod vault;
 
@@ -48,17 +49,18 @@ impl ConfigBound for Runtime {}
 /// Creates a "default" [`CreateInput`], with the specified [`CurrencyPair`].
 fn default_create_input<AssetId, BlockNumber: sp_runtime::traits::Bounded>(
 	currency_pair: CurrencyPair<AssetId>,
-) -> CreateInput<u32, AssetId, BlockNumber> {
+) -> CreateInput<u32, AssetId, BlockNumber, AccountId> {
 	CreateInput {
 		updatable: UpdateInput {
-			collateral_factor: default_collateral_factor(),
-			under_collateralized_warn_percent: default_under_collateralized_warn_percent(),
+			collateral_factor: Some(default_collateral_factor()),
+			under_collateralized_warn_percent: Some(default_under_collateralized_warn_percent()),
 			liquidators: vec![],
 			max_price_age: BlockNumber::max_value(),
 		},
 		interest_rate_model: InterestRateModel::default(),
 		reserved_factor: DEFAULT_MARKET_VAULT_RESERVE,
 		currency_pair,
+		borrowers_whitelist: Some(vec![]),
 	}
 }
 
@@ -147,14 +149,16 @@ where
 
 	let config = CreateInput {
 		updatable: UpdateInput {
-			collateral_factor,
-			under_collateralized_warn_percent: default_under_collateralized_warn_percent(),
+			//TODO: @mikolaichuk: Fix: Default collateral factor should not be used
+			collateral_factor: Some(default_collateral_factor()),
+			under_collateralized_warn_percent: Some(default_under_collateralized_warn_percent()),
 			liquidators: vec![],
 			max_price_age: DEFAULT_MAX_PRICE_AGE,
 		},
 		interest_rate_model: InterestRateModel::default(),
 		reserved_factor,
 		currency_pair: CurrencyPair::new(collateral_asset.id(), borrow_asset.id()),
+		borrowers_whitelist: None,
 	};
 
 	crate::Pallet::<T>::create_market(SystemOriginOf::<T>::signed(manager), config, false).unwrap();

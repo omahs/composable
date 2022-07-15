@@ -1,6 +1,6 @@
 use super::prelude::*;
 use crate::models::borrower_data::BorrowerData;
-use composable_traits::defi::LiftedFixedBalance;
+use composable_traits::{defi::LiftedFixedBalance, lending::BorrowerDataTrait};
 
 #[test]
 fn test_borrow_repay_in_same_block() {
@@ -33,7 +33,9 @@ fn test_borrow_repay_in_same_block() {
 
 		test::block::process_and_progress_blocks::<Lending, Runtime>(1);
 
-		let limit_normalized = Lending::get_borrow_limit(&market_id, &ALICE).unwrap();
+		let borrower =
+			Lending::create_borrower_data_for_collateralized_market(&market_id, &ALICE).unwrap();
+		let limit_normalized = Lending::get_borrow_limit(&market_id, &ALICE, borrower).unwrap();
 		assert_eq!(Lending::total_available_to_be_borrowed(&market_id), Ok(total_cash));
 		test::block::process_and_progress_blocks::<Lending, Runtime>(1); // <- ???
 
@@ -93,10 +95,7 @@ fn test_borrow_math() {
 	let borrower = BorrowerData::new(
 		100_u128,
 		0,
-		MoreThanOneFixedU128::checked_from_rational(200_u8, 100_u8)
-			.unwrap()
-			.try_into_validated()
-			.unwrap(),
+		MoreThanOneFixedU128::checked_from_rational(200_u8, 100_u8).unwrap(),
 		Percent::from_percent(10),
 	);
 	let borrow = borrower.get_borrow_limit().unwrap();
@@ -233,7 +232,9 @@ fn borrow_flow() {
 		});
 		System::assert_last_event(event);
 
-		let limit_normalized = Lending::get_borrow_limit(&market, &ALICE).unwrap();
+		let borrower =
+			Lending::create_borrower_data_for_collateralized_market(&market, &ALICE).unwrap();
+		let limit_normalized = Lending::get_borrow_limit(&market, &ALICE, borrower).unwrap();
 
 		assert_eq!(
 			limit_normalized,
@@ -270,7 +271,10 @@ fn borrow_flow() {
 		);
 		assert_eq!(Lending::total_interest(&market), Ok(0));
 
-		let limit_normalized = Lending::get_borrow_limit(&market, &ALICE).unwrap();
+		let borrower =
+			Lending::create_borrower_data_for_collateralized_market(&market, &ALICE).unwrap();
+		let limit_normalized =
+			Lending::get_borrow_limit(&market, &ALICE, borrower).unwrap();
 		let original_limit = limit_normalized * USDT::ONE / get_price(USDT::ID, USDT::ONE);
 
 		assert_eq!(original_limit, borrow_amount / DEFAULT_COLLATERAL_FACTOR - alice_borrow);
@@ -282,7 +286,9 @@ fn borrow_flow() {
 		let interest_after = Lending::total_interest(&market).unwrap();
 		assert!(interest_before < interest_after);
 
-		let limit_normalized = Lending::get_borrow_limit(&market, &ALICE).unwrap();
+		let borrower =
+			Lending::create_borrower_data_for_collateralized_market(&market, &ALICE).unwrap();
+		let limit_normalized = Lending::get_borrow_limit(&market, &ALICE, borrower).unwrap();
 		let new_limit = limit_normalized * USDT::ONE / get_price(USDT::ID, USDT::ONE);
 
 		assert!(new_limit < original_limit);
@@ -334,7 +340,9 @@ fn borrow_flow() {
 			}),
 		);
 
-		let alice_limit = Lending::get_borrow_limit(&market, &ALICE).unwrap();
+		let borrower =
+			Lending::create_borrower_data_for_collateralized_market(&market, &ALICE).unwrap();
+		let alice_limit = Lending::get_borrow_limit(&market, &ALICE, borrower).unwrap();
 		assert!(get_price(BTC::ID, collateral_amount) > alice_limit);
 
 		assert_noop!(
@@ -397,10 +405,7 @@ proptest! {
 		let borrower = BorrowerData::new(
 			collateral_balance * collateral_price,
 			borrower_balance_with_interest * borrow_price,
-			MoreThanOneFixedU128::checked_from_rational(101_u8, 100_u8)
-				.unwrap()
-				.try_into_validated()
-				.unwrap(),
+			MoreThanOneFixedU128::checked_from_rational(101_u8, 100_u8).unwrap(),
 			Percent::from_percent(10),
 		);
 		let borrow = borrower.get_borrow_limit();
