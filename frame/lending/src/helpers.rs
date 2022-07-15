@@ -425,38 +425,6 @@ impl<T: Config> Pallet<T> {
 
 	/// Creates a new [`BorrowerData`] for the given market and account. See [`BorrowerData`]
 	/// for more information.
-	pub fn create_borrower_data(
-		market_id: &<Self as Lending>::MarketId,
-		account: &<Self as DeFiEngine>::AccountId,
-	) -> Result<BorrowerData, DispatchError> {
-		let (_, market) = Self::get_market(market_id)?;
-		if !market.is_collateralized() {
-			Err(Error::<T>::MethodCannotBeUsedForUndercollateralizedMarket)?;
-		}
-		let collateral_balance_value = Self::get_price(
-			market.collateral_asset,
-			Self::collateral_of_account(market_id, account)?,
-		)?;
-
-		let account_total_debt_with_interest =
-			Self::total_debt_with_interest(market_id, account)?.unwrap_or_zero();
-		let borrow_balance_value = Self::get_price(
-			T::Vault::asset_id(&market.borrow_asset_vault)?,
-			account_total_debt_with_interest,
-		)?;
-
-		let borrower = BorrowerData::new(
-			collateral_balance_value,
-			borrow_balance_value,
-			market.get_collateral_factor().unwrap(),
-			market.get_under_collateralized_warn_percent().unwrap(),
-		);
-
-		Ok(borrower)
-	}
-	// @mikolaichuk
-	/// Creates a new [`BorrowerData`] for the given market and account. See [`BorrowerData`]
-	/// for more information.
 	pub fn create_borrower_data_for_collateralized_market(
 		market_id: &<Self as Lending>::MarketId,
 		account: &<Self as DeFiEngine>::AccountId,
@@ -485,7 +453,6 @@ impl<T: Config> Pallet<T> {
 		Ok(borrower)
 	}
 
-	// @mikolaichuk
 	/// Creates a new [`BorrowerData`] for the given market and account. See [`BorrowerData`]
 	/// for more information.
 	pub fn create_borrower_data_for_undercollateralized_market(
@@ -501,7 +468,14 @@ impl<T: Config> Pallet<T> {
 		market_id: &<Self as Lending>::MarketId,
 		account: &<Self as DeFiEngine>::AccountId,
 	) -> Result<bool, DispatchError> {
-		let borrower = Self::create_borrower_data_for_collateralized_market(market_id, account)?;
+		let (_, market) = Self::get_market(market_id)?;
+        if market.is_collateralized() {
+            let borrower = Self::create_borrower_data_for_collateralized_market(market_id, account)?;
+		    let should_liquidate = borrower.should_liquidate()?;
+		    return Ok(should_liquidate);
+        }
+
+        let borrower = Self::create_borrower_data_for_undercollateralized_market(market_id, account)?;
 		let should_liquidate = borrower.should_liquidate()?;
 		Ok(should_liquidate)
 	}
