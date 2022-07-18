@@ -37,12 +37,17 @@ pallet-currency-factory = { path = "../currency-factory", default-features = fal
 pallet-oracle = { default-features = false, path = "../oracle" }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
 pallet-vault = { path = "../vault", default-features = false }
+frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
 primitives = { path = "../../runtime/primitives" }
 proptest = "1.0"
 
 [features]
 default = ["std"]
-runtime-benchmarks = ["frame-benchmarking"]
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+]
 std = [
   "frame-support/std",
   "frame-system/std",

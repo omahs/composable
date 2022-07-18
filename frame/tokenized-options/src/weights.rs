@@ -1,7 +1,7 @@
 use frame_support::weights::Weight;
 use sp_std::marker::PhantomData;
 
-const WEIGHT: i32 = 0;
+const WEIGHT: i32 = 1_000;
 
 pub trait WeightInfo {
 	fn create_asset_vault() -> Weight;
@@ -16,6 +16,13 @@ pub trait WeightInfo {
 /// Weights for pallet_tokenized_options using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+	// Storage: TokenizedOptions AssetToVault (r:1 w:1)
+	// Storage: Vault VaultCount (r:1 w:1)
+	// Storage: Factory CurrencyCounter (r:1 w:1)
+	// Storage: System Account (r:2 w:2)
+	// Storage: Vault LpTokensToVaults (r:0 w:1)
+	// Storage: Vault Allocations (r:0 w:1)
+	// Storage: Vault Vaults (r:0 w:1)
 	fn create_asset_vault() -> Weight {
 		WEIGHT as Weight
 	}

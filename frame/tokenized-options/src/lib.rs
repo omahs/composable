@@ -77,6 +77,9 @@ mod types;
 mod validation;
 mod weights;
 
+#[cfg(any(feature = "runtime-benchmarks", test))]
+mod benchmarking;
+
 pub use pallet::*;
 
 #[frame_support::pallet]
