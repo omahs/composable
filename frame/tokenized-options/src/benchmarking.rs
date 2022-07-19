@@ -43,9 +43,6 @@ pub fn recode_unwrap_u128<
 >(
 	raw: I,
 ) -> O {
-	// next does not holds, because in wasm it is 16 and 8, in native 16 and 5. But that works fine
-	// overall assert_eq!(I::max_encoded_len(), O::max_encoded_len(), "<I as
-	// MaxEncodedLen>::max_encoded_len() must be equal <O as MaxEncodedLen>::max_encoded_len()");
 	O::decode(&mut &raw.encode()[..]).unwrap()
 }
 
@@ -84,6 +81,62 @@ fn vault_benchmarking_setup<T: Config + pallet_oracle::Config>(asset_id: T::MayB
 	).unwrap();
 }
 
+fn valid_option_config<T: Config>() -> OptionConfigOf<T> {
+	OptionConfigOf::<T> {
+		base_asset_id: recode_unwrap_u128(B),
+		quote_asset_id: recode_unwrap_u128(C),
+		base_asset_strike_price: BalanceOf::<T>::from(50000u128 * UNIT),
+		quote_asset_strike_price: UNIT.into(),
+		option_type: OptionType::Call,
+		exercise_type: ExerciseType::European,
+		expiring_date: recode_unwrap_u128(6000u64),
+		epoch: Epoch { 
+			deposit: recode_unwrap_u128(0u64), 
+			purchase: recode_unwrap_u128(3000u64), 
+			exercise: recode_unwrap_u128(6000u64), 
+			end: recode_unwrap_u128(9000u64) 
+		},
+		base_asset_amount_per_option: UNIT.into(),
+		quote_asset_amount_per_option: UNIT.into(),
+		total_issuance_seller: 0u128.into(),
+		total_premium_paid: 0u128.into(),
+		exercise_amount: 0u128.into(),
+		base_asset_spot_price: 0u128.into(),
+		total_issuance_buyer: 0u128.into(),
+		total_shares_amount: 0u128.into(),
+	}
+}
+
+
+fn default_option_benchmarking_setup<T: Config>() -> OptionIdOf<T> {
+	let origin = OriginFor::<T>::from(RawOrigin::Root);
+
+	let option_config: OptionConfigOf<T> = valid_option_config::<T>();
+
+	TokenizedOptions::<T>::create_option(
+		origin, 
+		option_config.clone(),
+	).unwrap();
+
+	let option_hash = TokenizedOptions::<T>::generate_id(
+		option_config.base_asset_id,
+		option_config.quote_asset_id,
+		option_config.base_asset_strike_price,
+		option_config.quote_asset_strike_price,
+		option_config.option_type,
+		option_config.expiring_date,
+		option_config.exercise_type,
+	);
+
+	// Check creation ended correctly
+	OptionHashToOptionId::<T>::contains_key(option_hash);
+
+	OptionHashToOptionId::<T>::get(option_hash).unwrap()
+}
+
+// ----------------------------------------------------------------------------------------------------
+//		Benchmark tests
+// ----------------------------------------------------------------------------------------------------
 
 benchmarks! {
 	where_clause {
@@ -119,6 +172,48 @@ benchmarks! {
 		}.into())
 	}
 
+	create_option {
+		let origin = OriginFor::<T>::from(RawOrigin::Root);
+
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(B), 50_000);
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(C), 1);
+
+		let option_config = OptionConfigOf::<T> {
+			base_asset_id: recode_unwrap_u128(B),
+			quote_asset_id: recode_unwrap_u128(C),
+			base_asset_strike_price: BalanceOf::<T>::from(50000u128 * UNIT),
+			quote_asset_strike_price: UNIT.into(),
+			option_type: OptionType::Call,
+			exercise_type: ExerciseType::European,
+			expiring_date: recode_unwrap_u128(6000u64),
+			epoch: Epoch { 
+				deposit: recode_unwrap_u128(0u64), 
+				purchase: recode_unwrap_u128(3000u64), 
+				exercise: recode_unwrap_u128(6000u64), 
+				end: recode_unwrap_u128(9000u64) 
+			},
+			base_asset_amount_per_option: UNIT.into(),
+			quote_asset_amount_per_option: UNIT.into(),
+			total_issuance_seller: 0u128.into(),
+			total_premium_paid: 0u128.into(),
+			exercise_amount: 0u128.into(),
+			base_asset_spot_price: 0u128.into(),
+			total_issuance_buyer: 0u128.into(),
+			total_shares_amount: 0u128.into(),
+		};
+	}: {
+		TokenizedOptions::<T>::create_option(
+			origin, 
+			option_config.clone(),
+		)?
+	}
+	verify {
+		assert_last_event::<T>(Event::CreatedOption {
+			// First 1..01 and 1..02 are for vaults lp_tokens
+			option_id: recode_unwrap_u128(100000000003u128),
+            option_config,
+		}.into())
+	}
 
 }
 
