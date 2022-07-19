@@ -8,6 +8,7 @@ cachix use composable-community
 ```
 
 ## Run
+Some started commands
 
 ```shell
 nix build .#devnet-container
