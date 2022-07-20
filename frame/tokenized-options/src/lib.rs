@@ -157,7 +157,7 @@ pub mod pallet {
 		/// Type of time moment. We use [`SwapBytes`] trait to store this type in
 		/// big endian format and take advantage of the fact that storage keys are
 		/// stored in lexical order.
-		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
+		type Moment: SwapBytes + Default + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
 
 		/// The Unix time provider.
 		type Time: Time<Moment = MomentOf<Self>>;
@@ -215,6 +215,10 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
 	// ----------------------------------------------------------------------------------------------------
+	#[allow(clippy::disallowed_types)]
+	#[pallet::storage]
+	pub(crate) type PreviousMoment<T: Config> = StorageValue<_, MomentOf<T>, ValueQuery>;
+
 	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [`VaultId`](Config::VaultId).
 	#[pallet::storage]
 	#[pallet::getter(fn asset_id_to_vault_id)]
@@ -383,6 +387,7 @@ pub mod pallet {
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
 			let mut used_weight = 0;
 			let now = T::Time::now();
+			PreviousMoment::<T>::set(now);
 
 			while let Some((moment_swapped, option_id, moment_type)) = <Scheduler<T>>::iter().next()
 			{
@@ -1625,7 +1630,7 @@ pub mod pallet {
 		}
 
 		fn option_status(option: &OptionToken<T>) -> WindowType {
-			option.epoch.window_type(T::Time::now())
+			option.epoch.window_type(PreviousMoment::<T>::get())
 		}
 
 		pub fn call_option_collateral_amount(
