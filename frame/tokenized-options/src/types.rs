@@ -24,7 +24,7 @@ pub enum ExerciseType {
 
 /// Indicates the type of phases of the option.
 #[derive(Clone, Copy, Encode, Decode, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum WindowType {
+pub enum Status {
 	NotStarted,
 	Deposit,
 	Purchase,
@@ -62,7 +62,7 @@ pub struct OptionToken<T: Config> {
 
 	// Helper attributes
 	pub epoch: Epoch<T::Moment>,
-	pub status: WindowType,
+	pub status: Status,
 	pub base_asset_amount_per_option: T::Balance,
 	pub quote_asset_amount_per_option: T::Balance,
 	pub total_issuance_seller: T::Balance,
@@ -98,6 +98,7 @@ pub struct OptionConfig<AssetId, Balance, Moment> {
 	pub expiring_date: Moment,
 	pub exercise_type: ExerciseType,
 	pub epoch: Epoch<Moment>,
+	pub status: Status,
 	pub base_asset_amount_per_option: Balance,
 	pub quote_asset_amount_per_option: Balance,
 	pub total_issuance_seller: Balance,

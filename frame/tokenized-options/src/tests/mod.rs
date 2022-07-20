@@ -177,6 +177,7 @@ struct OptionsConfigBuilder {
 	pub exercise_type: ExerciseType,
 	pub expiring_date: Moment,
 	pub epoch: Epoch<Moment>,
+	pub status: Status,
 	pub base_asset_amount_per_option: Balance,
 	pub quote_asset_amount_per_option: Balance,
 	pub total_issuance_seller: Balance,
@@ -200,6 +201,7 @@ impl Default for OptionsConfigBuilder {
 			// Use this when https://github.com/paritytech/substrate/pull/10128 is merged
 			// epoch: Epoch { deposit: 0u64, purchase: 3000u64, exercise: 6000u64, end: 9000u64 },
 			epoch: Epoch { deposit: 0u64, purchase: 2000u64, exercise: 5000u64, end: 9000u64 },
+			status: Status::NotStarted,
 			base_asset_amount_per_option: 1u128 * UNIT,
 			quote_asset_amount_per_option: 1u128 * UNIT,
 			total_issuance_seller: 0u128,
@@ -223,6 +225,7 @@ impl OptionsConfigBuilder {
 			exercise_type: self.exercise_type,
 			expiring_date: self.expiring_date,
 			epoch: self.epoch,
+			status: self.status,
 			base_asset_amount_per_option: self.base_asset_amount_per_option,
 			quote_asset_amount_per_option: self.quote_asset_amount_per_option,
 			total_issuance_seller: self.total_issuance_seller,
@@ -363,6 +366,9 @@ impl OptionInitializer for sp_io::TestExternalities {
 				TokenizedOptions::create_option(Origin::signed(ADMIN), config4).ok();
 				TokenizedOptions::create_option(Origin::signed(ADMIN), config5).ok();
 				TokenizedOptions::create_option(Origin::signed(ADMIN), config6).ok();
+
+				// Make the options go from NotStarted to Deposit phase
+				run_to_block(2);
 			});
 		});
 
@@ -499,7 +505,7 @@ prop_compose! {
 // Move the block number to `n` calling the desired hooks
 pub fn run_to_block(n: u64) {
 	while System::block_number() < n {
-		if System::block_number() > 1 {
+		if System::block_number() > 0 {
 			Timestamp::on_finalize(System::block_number());
 			System::on_finalize(System::block_number());
 		}

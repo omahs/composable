@@ -249,7 +249,7 @@ pub mod pallet {
 	/// to its currently active window type [`WindowType`](WindowType). Scheduler is a timestamp-ordered list.
 	#[pallet::storage]
 	pub(crate) type Scheduler<T: Config> =
-		StorageDoubleMap<_, Identity, Swapped<MomentOf<T>>, Identity, OptionIdOf<T>, WindowType>;
+		StorageDoubleMap<_, Identity, Swapped<MomentOf<T>>, Identity, OptionIdOf<T>, Status>;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Events
@@ -1124,7 +1124,7 @@ pub mod pallet {
 				exercise_type: option_config.exercise_type,
 				expiring_date: option_config.expiring_date,
 				epoch: option_config.epoch,
-				status: WindowType::NotStarted,
+				status: Status::NotStarted,
 				base_asset_amount_per_option: option_config.base_asset_amount_per_option,
 				quote_asset_amount_per_option: option_config.quote_asset_amount_per_option,
 				total_issuance_seller: option_config.total_issuance_seller,
@@ -1163,7 +1163,7 @@ pub mod pallet {
 
 			// Check if we are in deposit window
 			ensure!(
-				Self::option_status(option) == WindowType::Deposit,
+				Self::option_status(option) == Status::Deposit,
 				Error::<T>::NotIntoDepositWindow
 			);
 
@@ -1250,7 +1250,7 @@ pub mod pallet {
 
 			// Check if we are in deposit window
 			ensure!(
-				Self::option_status(option) == WindowType::Deposit,
+				Self::option_status(option) == Status::Deposit,
 				Error::<T>::NotIntoDepositWindow
 			);
 
@@ -1343,7 +1343,7 @@ pub mod pallet {
 
 			// Check if we are in purchase window
 			ensure!(
-				Self::option_status(option) == WindowType::Purchase,
+				Self::option_status(option) == Status::Purchase,
 				Error::<T>::NotIntoPurchaseWindow
 			);
 
@@ -1471,7 +1471,7 @@ pub mod pallet {
 
 			// Check if we are in exercise window
 			ensure!(
-				Self::option_status(option) == WindowType::Exercise,
+				Self::option_status(option) == Status::Exercise,
 				Error::<T>::NotIntoExerciseWindow
 			);
 
@@ -1521,7 +1521,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			// Check if we are in exercise window
 			ensure!(
-				Self::option_status(option) == WindowType::Exercise,
+				Self::option_status(option) == Status::Exercise,
 				Error::<T>::NotIntoExerciseWindow
 			);
 
@@ -1626,7 +1626,7 @@ pub mod pallet {
 			))
 		}
 
-		fn option_status(option: &OptionToken<T>) -> WindowType {
+		fn option_status(option: &OptionToken<T>) -> Status {
 			option.status
 		}
 
@@ -1712,21 +1712,21 @@ pub mod pallet {
 		}
 
 		fn schedule_option(epoch: Epoch<MomentOf<T>>, option_id: OptionIdOf<T>) {
-			<Scheduler<T>>::insert(Swapped::from(epoch.deposit), option_id, WindowType::Deposit);
-			<Scheduler<T>>::insert(Swapped::from(epoch.purchase), option_id, WindowType::Purchase);
-			<Scheduler<T>>::insert(Swapped::from(epoch.exercise), option_id, WindowType::Exercise);
-			<Scheduler<T>>::insert(Swapped::from(epoch.end), option_id, WindowType::End);
+			<Scheduler<T>>::insert(Swapped::from(epoch.deposit), option_id, Status::Deposit);
+			<Scheduler<T>>::insert(Swapped::from(epoch.purchase), option_id, Status::Purchase);
+			<Scheduler<T>>::insert(Swapped::from(epoch.exercise), option_id, Status::Exercise);
+			<Scheduler<T>>::insert(Swapped::from(epoch.end), option_id, Status::End);
 		}
 
-		fn option_status_change(option_id: OptionIdOf<T>, moment_type: WindowType) -> Weight {
+		fn option_status_change(option_id: OptionIdOf<T>, moment_type: Status) -> Weight {
 			OptionIdToOption::<T>::mutate(option_id, |option| match option {
 				Some(option) => match moment_type {
 					// This variant shouldn't happen because we don't schedule it.
-					WindowType::NotStarted => 0,
-					WindowType::Deposit => Self::option_deposit_start(option_id, option),
-					WindowType::Purchase => Self::option_purchase_start(option_id, option),
-					WindowType::Exercise => Self::option_exercise_start(option_id, option),
-					WindowType::End => Self::option_end(option_id, option),
+					Status::NotStarted => 0,
+					Status::Deposit => Self::option_deposit_start(option_id, option),
+					Status::Purchase => Self::option_purchase_start(option_id, option),
+					Status::Exercise => Self::option_exercise_start(option_id, option),
+					Status::End => Self::option_end(option_id, option),
 				},
 				// This variant shouldn't happen because we don't delete options now;
 				// and we'll delete them in the future only after they finish.
@@ -1735,13 +1735,13 @@ pub mod pallet {
 		}
 
 		fn option_deposit_start(option_id: OptionIdOf<T>, option: &mut OptionToken<T>) -> Weight {
-			option.status = WindowType::Deposit;
+			option.status = Status::Deposit;
 			Self::deposit_event(Event::OptionDepositStart { option_id });
 			0
 		}
 
 		fn option_purchase_start(option_id: OptionIdOf<T>, option: &mut OptionToken<T>) -> Weight {
-			option.status = WindowType::Purchase;
+			option.status = Status::Purchase;
 			Self::deposit_event(Event::OptionPurchaseStart { option_id });
 			0
 		}
@@ -1753,13 +1753,13 @@ pub mod pallet {
 			// `do_settle_option` should never return an error, but if happens, it should be handled.
 			Self::do_settle_option(option_id, option).expect("TODO");
 
-			option.status = WindowType::Exercise;
+			option.status = Status::Exercise;
 			Self::deposit_event(Event::OptionExerciseStart { option_id });
 			0
 		}
 
 		fn option_end(option_id: OptionIdOf<T>, option: &mut OptionToken<T>) -> Weight {
-			option.status = WindowType::End;
+			option.status = Status::End;
 			Self::deposit_event(Event::OptionEnd { option_id });
 			0
 		}

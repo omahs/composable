@@ -1,7 +1,8 @@
 use crate as pallet_tokenized_options;
 use crate::mock::{accounts::*, assets::*};
+use crate::tests::run_to_block;
 use composable_traits::{defi::DeFiComposableConfig, governance::SignedRawOrigin, oracle::Price};
-use frame_support::traits::EnsureOneOf;
+use frame_support::traits::{EnsureOneOf, Hooks};
 use frame_support::{
 	ord_parameter_types, parameter_types,
 	traits::{Everything, GenesisBuild},
@@ -370,7 +371,16 @@ impl ExtBuilder {
 
 		let mut ext: sp_io::TestExternalities = storage.into();
 
-		ext.execute_with(|| System::set_block_number(1));
+		ext.execute_with(|| {
+			System::set_block_number(0);
+			System::on_initialize(System::block_number());
+			Timestamp::on_initialize(System::block_number());
+			TokenizedOptions::on_initialize(System::block_number());
+			Timestamp::set(Origin::none(), 0).unwrap();
+			Timestamp::on_finalize(System::block_number());
+			System::on_finalize(System::block_number());
+			run_to_block(1);
+		});
 
 		ext
 	}

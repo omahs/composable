@@ -127,6 +127,9 @@ fn test_settle_options_call_with_initialization_success() {
 				option_config.clone()
 			));
 
+			// Make the option goes from NotStarted to Deposit phase
+			run_to_block(2);
+
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,
 				option_config.quote_asset_id,
@@ -208,6 +211,9 @@ fn test_settle_options_put_with_initialization_success() {
 				Origin::signed(ADMIN),
 				option_config.clone()
 			));
+
+			// Make the option goes from NotStarted to Deposit phase
+			run_to_block(2);
 
 			let option_hash = TokenizedOptions::generate_id(
 				option_config.base_asset_id,

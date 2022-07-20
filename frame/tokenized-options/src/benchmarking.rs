@@ -103,6 +103,7 @@ fn valid_option_config<T: Config>() -> OptionConfigOf<T> {
 			exercise: recode_unwrap_u128(5000u64), 
 			end: recode_unwrap_u128(9000u64) 
 		},
+		status: Status::NotStarted,
 		base_asset_amount_per_option: UNIT.into(),
 		quote_asset_amount_per_option: UNIT.into(),
 		total_issuance_seller: 0u128.into(),
@@ -196,6 +197,7 @@ benchmarks! {
 				exercise: recode_unwrap_u128(6000u64), 
 				end: recode_unwrap_u128(9000u64) 
 			},
+			status: Status::NotStarted,
 			base_asset_amount_per_option: UNIT.into(),
 			quote_asset_amount_per_option: UNIT.into(),
 			total_issuance_seller: 0u128.into(),

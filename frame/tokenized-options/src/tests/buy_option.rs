@@ -128,6 +128,9 @@ fn test_buy_option_with_initialization_success() {
 
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
+			// Make the option goes from NotStarted to Deposit phase
+			run_to_block(2);
+
 			// Sell option and make checks
 			let option_amount = 1u128;
 			sell_option_success_checks(option_id, option_amount, BOB);
