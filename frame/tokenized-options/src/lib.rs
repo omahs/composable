@@ -380,7 +380,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		/// At each block we perform timestamp checks to update the Scheduler.
-		fn on_idle(_n: T::BlockNumber, remaining_weight: Weight) -> Weight {
+		fn on_initialize(_n: T::BlockNumber) -> Weight {
 			let mut used_weight = 0;
 			let now = T::Time::now();
 
@@ -398,12 +398,9 @@ pub mod pallet {
 				used_weight = used_weight
 					.saturating_add(T::DbWeight::get().writes(1))
 					.saturating_add(Self::option_status_change(option_id, moment_type));
-
-				if used_weight >= remaining_weight {
-					break;
-				}
 			}
-			used_weight.min(remaining_weight)
+			let max_weight = <T as frame_system::Config>::BlockWeights::get().max_block;
+			used_weight.min(max_weight)
 		}
 	}
 
