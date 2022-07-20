@@ -90,10 +90,17 @@ fn valid_option_config<T: Config>() -> OptionConfigOf<T> {
 		option_type: OptionType::Call,
 		exercise_type: ExerciseType::European,
 		expiring_date: recode_unwrap_u128(6000u64),
+		// Use this when https://github.com/paritytech/substrate/pull/10128 is merged
+		// epoch: Epoch { 
+		// 	deposit: recode_unwrap_u128(0u64), 
+		// 	purchase: recode_unwrap_u128(3000u64), 
+		// 	exercise: recode_unwrap_u128(6000u64), 
+		// 	end: recode_unwrap_u128(9000u64) 
+		// },
 		epoch: Epoch { 
 			deposit: recode_unwrap_u128(0u64), 
-			purchase: recode_unwrap_u128(3000u64), 
-			exercise: recode_unwrap_u128(6000u64), 
+			purchase: recode_unwrap_u128(2000u64), 
+			exercise: recode_unwrap_u128(5000u64), 
 			end: recode_unwrap_u128(9000u64) 
 		},
 		base_asset_amount_per_option: UNIT.into(),
@@ -127,9 +134,6 @@ fn default_option_benchmarking_setup<T: Config>() -> OptionIdOf<T> {
 		option_config.expiring_date,
 		option_config.exercise_type,
 	);
-
-	// Check creation ended correctly
-	OptionHashToOptionId::<T>::contains_key(option_hash);
 
 	OptionHashToOptionId::<T>::get(option_hash).unwrap()
 }

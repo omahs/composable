@@ -197,7 +197,9 @@ impl Default for OptionsConfigBuilder {
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
 			expiring_date: 6000u64,
-			epoch: Epoch { deposit: 0u64, purchase: 3000u64, exercise: 6000u64, end: 9000u64 },
+			// Use this when https://github.com/paritytech/substrate/pull/10128 is merged
+			// epoch: Epoch { deposit: 0u64, purchase: 3000u64, exercise: 6000u64, end: 9000u64 },
+			epoch: Epoch { deposit: 0u64, purchase: 2000u64, exercise: 5000u64, end: 9000u64 },
 			base_asset_amount_per_option: 1u128 * UNIT,
 			quote_asset_amount_per_option: 1u128 * UNIT,
 			total_issuance_seller: 0u128,
@@ -503,15 +505,17 @@ pub fn run_to_block(n: u64) {
 		}
 		System::set_block_number(System::block_number() + 1);
 		// Assuming millisecond timestamps, one second for each block
-		let _ = Timestamp::set(Origin::none(), System::block_number() * 1000);
 		System::on_initialize(System::block_number());
 		Timestamp::on_initialize(System::block_number());
+		TokenizedOptions::on_initialize(System::block_number());
+		Timestamp::set(Origin::none(), System::block_number() * 1000).unwrap();
 
-		let max_weight = <<MockRuntime as frame_system::pallet::Config>::BlockWeights as Get<
-			frame_system::limits::BlockWeights,
-		>>::get()
-		.max_block;
-		TokenizedOptions::on_idle(System::block_number(), max_weight);
+
+		// let max_weight = <<MockRuntime as frame_system::pallet::Config>::BlockWeights as Get<
+		// 	frame_system::limits::BlockWeights,
+		// >>::get()
+		// .max_block;
+		// TokenizedOptions::on_idle(System::block_number(), max_weight);
 	}
 }
 
@@ -522,15 +526,15 @@ pub fn run_for_seconds(n: u64) {
 		System::on_finalize(System::block_number());
 	}
 	System::set_block_number(System::block_number() + 1);
-	let _ = Timestamp::set(Origin::none(), n * 1000);
 	System::on_initialize(System::block_number());
 	Timestamp::on_initialize(System::block_number());
+	Timestamp::set(Origin::none(), n * 1000).unwrap();
 
-	let max_weight = <<MockRuntime as frame_system::pallet::Config>::BlockWeights as Get<
-		frame_system::limits::BlockWeights,
-	>>::get()
-	.max_block;
-	TokenizedOptions::on_idle(System::block_number(), max_weight);
+	// let max_weight = <<MockRuntime as frame_system::pallet::Config>::BlockWeights as Get<
+	// 	frame_system::limits::BlockWeights,
+	// >>::get()
+	// .max_block;
+	// TokenizedOptions::on_idle(System::block_number(), max_weight);
 }
 
 // Simulate extrinsic call `create_asset_vault`, but returning values
