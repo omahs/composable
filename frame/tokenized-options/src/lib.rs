@@ -397,7 +397,7 @@ pub mod pallet {
 
 				used_weight = used_weight
 					.saturating_add(T::DbWeight::get().writes(1))
-					.saturating_add(Self::option_state_change(option_id, moment_type));
+					.saturating_add(Self::option_status_change(option_id, moment_type));
 
 				if used_weight >= remaining_weight {
 					break;
@@ -1164,11 +1164,7 @@ pub mod pallet {
 
 			// Check if we are in deposit window
 			ensure!(
-				option
-					.epoch
-					.window_type(T::Time::now())
-					.ok_or(Error::<T>::NotIntoDepositWindow)?
-					== WindowType::Deposit,
+				Self::option_status(option) == WindowType::Deposit,
 				Error::<T>::NotIntoDepositWindow
 			);
 
@@ -1255,11 +1251,7 @@ pub mod pallet {
 
 			// Check if we are in deposit window
 			ensure!(
-				option
-					.epoch
-					.window_type(T::Time::now())
-					.ok_or(Error::<T>::NotIntoDepositWindow)?
-					== WindowType::Deposit,
+				Self::option_status(option) == WindowType::Deposit,
 				Error::<T>::NotIntoDepositWindow
 			);
 
@@ -1352,11 +1344,7 @@ pub mod pallet {
 
 			// Check if we are in purchase window
 			ensure!(
-				option
-					.epoch
-					.window_type(T::Time::now())
-					.ok_or(Error::<T>::NotIntoPurchaseWindow)?
-					== WindowType::Purchase,
+				Self::option_status(option) == WindowType::Purchase,
 				Error::<T>::NotIntoPurchaseWindow
 			);
 
@@ -1484,11 +1472,7 @@ pub mod pallet {
 
 			// Check if we are in exercise window
 			ensure!(
-				option
-					.epoch
-					.window_type(T::Time::now())
-					.ok_or(Error::<T>::NotIntoExerciseWindow)?
-					== WindowType::Exercise,
+				Self::option_status(option) == WindowType::Exercise,
 				Error::<T>::NotIntoExerciseWindow
 			);
 
@@ -1538,11 +1522,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			// Check if we are in exercise window
 			ensure!(
-				option
-					.epoch
-					.window_type(T::Time::now())
-					.ok_or(Error::<T>::NotIntoExerciseWindow)?
-					== WindowType::Exercise,
+				Self::option_status(option) == WindowType::Exercise,
 				Error::<T>::NotIntoExerciseWindow
 			);
 
@@ -1647,6 +1627,10 @@ pub mod pallet {
 			))
 		}
 
+		fn option_status(option: &OptionToken<T>) -> WindowType {
+			option.epoch.window_type(T::Time::now())
+		}
+
 		pub fn call_option_collateral_amount(
 			base_asset_spot_price: BalanceOf<T>,
 			option: &OptionToken<T>,
@@ -1735,8 +1719,9 @@ pub mod pallet {
 			Ok((1000u128 * 10u128.pow(12)).into())
 		}
 
-		fn option_state_change(option_id: OptionIdOf<T>, moment_type: WindowType) -> Weight {
+		fn option_status_change(option_id: OptionIdOf<T>, moment_type: WindowType) -> Weight {
 			match moment_type {
+				WindowType::NotStarted => 0,
 				WindowType::Deposit => Self::option_deposit_start(option_id),
 				WindowType::Purchase => Self::option_purchase_start(option_id),
 				WindowType::Exercise => Self::option_exercise_start(option_id),

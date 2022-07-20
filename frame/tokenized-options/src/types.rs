@@ -25,6 +25,7 @@ pub enum ExerciseType {
 /// Indicates the type of phases of the option.
 #[derive(Clone, Copy, Encode, Decode, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum WindowType {
+	NotStarted,
 	Deposit,
 	Purchase,
 	Exercise,
@@ -46,17 +47,17 @@ pub struct Epoch<Moment> {
 }
 
 impl<Moment: Ord> Epoch<Moment> {
-	pub fn window_type(&self, moment: Moment) -> Option<WindowType> {
+	pub fn window_type(&self, moment: Moment) -> WindowType {
 		if moment < self.deposit {
-			None
+			WindowType::NotStarted
 		} else if moment < self.purchase {
-			Some(WindowType::Deposit)
+			WindowType::Deposit
 		} else if moment < self.exercise {
-			Some(WindowType::Purchase)
+			WindowType::Purchase
 		} else if moment < self.end {
-			Some(WindowType::Exercise)
+			WindowType::Exercise
 		} else {
-			Some(WindowType::End)
+			WindowType::End
 		}
 	}
 }
