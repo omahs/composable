@@ -46,22 +46,6 @@ pub struct Epoch<Moment> {
 	pub end: Moment,
 }
 
-impl<Moment: Ord> Epoch<Moment> {
-	pub fn window_type(&self, moment: Moment) -> WindowType {
-		if moment < self.deposit {
-			WindowType::NotStarted
-		} else if moment < self.purchase {
-			WindowType::Deposit
-		} else if moment < self.exercise {
-			WindowType::Purchase
-		} else if moment < self.end {
-			WindowType::Exercise
-		} else {
-			WindowType::End
-		}
-	}
-}
-
 /// Represent the option with the attributes to be configured
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, Debug)]
 #[scale_info(skip_type_params(T))]
@@ -78,6 +62,7 @@ pub struct OptionToken<T: Config> {
 
 	// Helper attributes
 	pub epoch: Epoch<T::Moment>,
+	pub status: WindowType,
 	pub base_asset_amount_per_option: T::Balance,
 	pub quote_asset_amount_per_option: T::Balance,
 	pub total_issuance_seller: T::Balance,

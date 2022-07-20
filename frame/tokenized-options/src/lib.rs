@@ -157,7 +157,7 @@ pub mod pallet {
 		/// Type of time moment. We use [`SwapBytes`] trait to store this type in
 		/// big endian format and take advantage of the fact that storage keys are
 		/// stored in lexical order.
-		type Moment: SwapBytes + Default + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
+		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
 
 		/// The Unix time provider.
 		type Time: Time<Moment = MomentOf<Self>>;
@@ -215,10 +215,6 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
 	// ----------------------------------------------------------------------------------------------------
-	#[allow(clippy::disallowed_types)]
-	#[pallet::storage]
-	pub(crate) type PreviousMoment<T: Config> = StorageValue<_, MomentOf<T>, ValueQuery>;
-
 	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [`VaultId`](Config::VaultId).
 	#[pallet::storage]
 	#[pallet::getter(fn asset_id_to_vault_id)]
@@ -383,11 +379,11 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		// TODO: use on_post_inherent after https://github.com/paritytech/substrate/pull/10128 is merged.
 		/// At each block we perform timestamp checks to update the Scheduler.
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
 			let mut used_weight = 0;
 			let now = T::Time::now();
-			PreviousMoment::<T>::set(now);
 
 			while let Some((moment_swapped, option_id, moment_type)) = <Scheduler<T>>::iter().next()
 			{
@@ -1128,6 +1124,7 @@ pub mod pallet {
 				exercise_type: option_config.exercise_type,
 				expiring_date: option_config.expiring_date,
 				epoch: option_config.epoch,
+				status: WindowType::NotStarted,
 				base_asset_amount_per_option: option_config.base_asset_amount_per_option,
 				quote_asset_amount_per_option: option_config.quote_asset_amount_per_option,
 				total_issuance_seller: option_config.total_issuance_seller,
@@ -1630,7 +1627,7 @@ pub mod pallet {
 		}
 
 		fn option_status(option: &OptionToken<T>) -> WindowType {
-			option.epoch.window_type(PreviousMoment::<T>::get())
+			option.status
 		}
 
 		pub fn call_option_collateral_amount(
@@ -1710,6 +1707,10 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::AssetPriceNotFound.into())
 		}
 
+		pub fn fake_option_price() -> Result<BalanceOf<T>, DispatchError> {
+			Ok((1000u128 * 10u128.pow(12)).into())
+		}
+
 		fn schedule_option(epoch: Epoch<MomentOf<T>>, option_id: OptionIdOf<T>) {
 			<Scheduler<T>>::insert(Swapped::from(epoch.deposit), option_id, WindowType::Deposit);
 			<Scheduler<T>>::insert(Swapped::from(epoch.purchase), option_id, WindowType::Purchase);
@@ -1717,46 +1718,48 @@ pub mod pallet {
 			<Scheduler<T>>::insert(Swapped::from(epoch.end), option_id, WindowType::End);
 		}
 
-		pub fn fake_option_price() -> Result<BalanceOf<T>, DispatchError> {
-			Ok((1000u128 * 10u128.pow(12)).into())
-		}
-
 		fn option_status_change(option_id: OptionIdOf<T>, moment_type: WindowType) -> Weight {
-			match moment_type {
-				WindowType::NotStarted => 0,
-				WindowType::Deposit => Self::option_deposit_start(option_id),
-				WindowType::Purchase => Self::option_purchase_start(option_id),
-				WindowType::Exercise => Self::option_exercise_start(option_id),
-				WindowType::End => Self::option_end(option_id),
-			}
+			OptionIdToOption::<T>::mutate(option_id, |option| match option {
+				Some(option) => match moment_type {
+					// This variant shouldn't happen because we don't schedule it.
+					WindowType::NotStarted => 0,
+					WindowType::Deposit => Self::option_deposit_start(option_id, option),
+					WindowType::Purchase => Self::option_purchase_start(option_id, option),
+					WindowType::Exercise => Self::option_exercise_start(option_id, option),
+					WindowType::End => Self::option_end(option_id, option),
+				},
+				// This variant shouldn't happen because we don't delete options now;
+				// and we'll delete them in the future only after they finish.
+				None => 0,
+			})
 		}
 
-		fn option_deposit_start(option_id: OptionIdOf<T>) -> Weight {
+		fn option_deposit_start(option_id: OptionIdOf<T>, option: &mut OptionToken<T>) -> Weight {
+			option.status = WindowType::Deposit;
 			Self::deposit_event(Event::OptionDepositStart { option_id });
 			0
 		}
 
-		fn option_purchase_start(option_id: OptionIdOf<T>) -> Weight {
+		fn option_purchase_start(option_id: OptionIdOf<T>, option: &mut OptionToken<T>) -> Weight {
+			option.status = WindowType::Purchase;
 			Self::deposit_event(Event::OptionPurchaseStart { option_id });
 			0
 		}
 
-		fn option_exercise_start(option_id: OptionIdOf<T>) -> Weight {
+		fn option_exercise_start(option_id: OptionIdOf<T>, option: &mut OptionToken<T>) -> Weight {
 			// Check if option is expired is redundant if we trust the Scheduler behavior
 
 			// TODO: Handle the result to address overflow errors or other types of errors.
 			// `do_settle_option` should never return an error, but if happens, it should be handled.
-			OptionIdToOption::<T>::try_mutate(option_id, |option| match option {
-				Some(option) => Self::do_settle_option(option_id, option),
-				None => Err(Error::<T>::OptionDoesNotExists.into()),
-			});
+			Self::do_settle_option(option_id, option).expect("TODO");
 
+			option.status = WindowType::Exercise;
 			Self::deposit_event(Event::OptionExerciseStart { option_id });
-
 			0
 		}
 
-		fn option_end(option_id: OptionIdOf<T>) -> Weight {
+		fn option_end(option_id: OptionIdOf<T>, option: &mut OptionToken<T>) -> Weight {
+			option.status = WindowType::End;
 			Self::deposit_event(Event::OptionEnd { option_id });
 			0
 		}

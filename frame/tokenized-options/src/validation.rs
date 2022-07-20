@@ -7,9 +7,7 @@ use composable_support::validation::Validate;
 
 use composable_traits::oracle::Oracle;
 use core::marker::PhantomData;
-use frame_support::traits::Time;
 use sp_runtime::traits::Zero;
-use sp_std::cmp::max;
 
 // -----------------------------------------------------------------------------------------------
 //		ValidateVaultDoesNotExist
@@ -133,9 +131,7 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAttributes<T>>
 			return Err("ValidateOptionAttributes");
 		}
 
-		let start = max(<T as Config>::Time::now(), input.epoch.deposit);
-
-		if start >= input.epoch.purchase
+		if input.epoch.deposit >= input.epoch.purchase
 			|| input.epoch.purchase >= input.epoch.exercise
 			|| input.epoch.exercise >= input.epoch.end
 		{
