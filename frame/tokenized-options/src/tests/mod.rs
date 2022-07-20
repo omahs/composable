@@ -516,7 +516,6 @@ pub fn run_to_block(n: u64) {
 		TokenizedOptions::on_initialize(System::block_number());
 		Timestamp::set(Origin::none(), System::block_number() * 1000).unwrap();
 
-
 		// let max_weight = <<MockRuntime as frame_system::pallet::Config>::BlockWeights as Get<
 		// 	frame_system::limits::BlockWeights,
 		// >>::get()

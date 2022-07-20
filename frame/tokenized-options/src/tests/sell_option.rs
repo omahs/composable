@@ -106,7 +106,6 @@ fn test_sell_option_with_initialization_success() {
 		.build()
 		.initialize_oracle_prices()
 		.execute_with(|| {
-
 			// Get BTC and USDC vault config
 			let btc_vault_config = VaultConfigBuilder::default().build();
 			let usdc_vault_config = VaultConfigBuilder::default().asset_id(USDC).build();
@@ -129,7 +128,6 @@ fn test_sell_option_with_initialization_success() {
 				Origin::signed(ADMIN),
 				option_config.clone()
 			));
-
 
 			// Make the option goes from NotStarted to Deposit phase
 			run_to_block(2);

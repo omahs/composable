@@ -72,10 +72,10 @@ fn test_epoch_basic_example_totally_sold() {
 			let option_id1 = generate_option_and_get_id(
 				OptionType::Call,
 				50000u128 * UNIT,
-			// Use this when https://github.com/paritytech/substrate/pull/10128 is merged
-			// Epoch { deposit: 0u64, purchase: 3000u64, exercise: 6000u64, end: 9000u64 },
-			Epoch { deposit: 0u64, purchase: 2000u64, exercise: 5000u64, end: 9000u64 },
-		);
+				// Use this when https://github.com/paritytech/substrate/pull/10128 is merged
+				// Epoch { deposit: 0u64, purchase: 3000u64, exercise: 6000u64, end: 9000u64 },
+				Epoch { deposit: 0u64, purchase: 2000u64, exercise: 5000u64, end: 9000u64 },
+			);
 
 			// Make the option goes from NotStarted to Deposit phase
 			run_to_block(2);
@@ -167,7 +167,7 @@ fn test_epoch_basic_example_no_totally_sold() {
 				// Epoch { deposit: 0u64, purchase: 3000u64, exercise: 6000u64, end: 20000u64 },
 				Epoch { deposit: 0u64, purchase: 2000u64, exercise: 5000u64, end: 9000u64 },
 			);
-			
+
 			// Make the option goes from NotStarted to Deposit phase
 			run_to_block(2);
 

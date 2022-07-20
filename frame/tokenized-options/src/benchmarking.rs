@@ -2,27 +2,20 @@
 // #![cfg(feature = "runtime-benchmarks")]
 
 use crate::*;
-use crate::{Pallet as TokenizedOptions, self as pallet_tokenized_options, types::*};
+use crate::{self as pallet_tokenized_options, types::*, Pallet as TokenizedOptions};
 
-use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller};
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_system::{EventRecord, Pallet as System, RawOrigin};
-use composable_traits::{
-	vault::{VaultConfig},
-	defi::{DeFiComposableConfig},
-	oracle::Price
-};
-use std::collections::BTreeMap;
-use sp_runtime::Perquintill;
-use frame_support::{
-	traits::{EnsureOrigin,
-		fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
-		fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
-	},
+use composable_traits::{defi::DeFiComposableConfig, oracle::Price, vault::VaultConfig};
+use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller};
+use frame_support::traits::{
+	fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
+	fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
+	EnsureOrigin,
 };
 use frame_system::pallet_prelude::*;
-
-
+use frame_system::{EventRecord, Pallet as System, RawOrigin};
+use sp_runtime::Perquintill;
+use std::collections::BTreeMap;
 
 // ----------------------------------------------------------------------------------------------------
 //		Helper functions
@@ -62,11 +55,13 @@ fn set_oracle_price<T: Config + pallet_oracle::Config>(asset_id: T::MayBeAssetId
 	);
 }
 
-fn vault_benchmarking_setup<T: Config + pallet_oracle::Config>(asset_id: T::MayBeAssetId, price: u64)  {
+fn vault_benchmarking_setup<T: Config + pallet_oracle::Config>(
+	asset_id: T::MayBeAssetId,
+	price: u64,
+) {
 	let origin = OriginFor::<T>::from(RawOrigin::Root);
 
 	set_oracle_price::<T>(asset_id, price * (UNIT as u64));
-
 
 	let vault_config: VaultConfig<T::AccountId, T::MayBeAssetId> = VaultConfig {
 		asset_id,
@@ -75,10 +70,7 @@ fn vault_benchmarking_setup<T: Config + pallet_oracle::Config>(asset_id: T::MayB
 		strategies: BTreeMap::new(),
 	};
 
-	TokenizedOptions::<T>::create_asset_vault(
-		origin, 
-		vault_config,
-	).unwrap();
+	TokenizedOptions::<T>::create_asset_vault(origin, vault_config).unwrap();
 }
 
 fn valid_option_config<T: Config>() -> OptionConfigOf<T> {
@@ -91,17 +83,17 @@ fn valid_option_config<T: Config>() -> OptionConfigOf<T> {
 		exercise_type: ExerciseType::European,
 		expiring_date: recode_unwrap_u128(6000u64),
 		// Use this when https://github.com/paritytech/substrate/pull/10128 is merged
-		// epoch: Epoch { 
-		// 	deposit: recode_unwrap_u128(0u64), 
-		// 	purchase: recode_unwrap_u128(3000u64), 
-		// 	exercise: recode_unwrap_u128(6000u64), 
-		// 	end: recode_unwrap_u128(9000u64) 
+		// epoch: Epoch {
+		// 	deposit: recode_unwrap_u128(0u64),
+		// 	purchase: recode_unwrap_u128(3000u64),
+		// 	exercise: recode_unwrap_u128(6000u64),
+		// 	end: recode_unwrap_u128(9000u64)
 		// },
-		epoch: Epoch { 
-			deposit: recode_unwrap_u128(0u64), 
-			purchase: recode_unwrap_u128(2000u64), 
-			exercise: recode_unwrap_u128(5000u64), 
-			end: recode_unwrap_u128(9000u64) 
+		epoch: Epoch {
+			deposit: recode_unwrap_u128(0u64),
+			purchase: recode_unwrap_u128(2000u64),
+			exercise: recode_unwrap_u128(5000u64),
+			end: recode_unwrap_u128(9000u64),
 		},
 		status: Status::NotStarted,
 		base_asset_amount_per_option: UNIT.into(),
@@ -115,16 +107,12 @@ fn valid_option_config<T: Config>() -> OptionConfigOf<T> {
 	}
 }
 
-
 fn default_option_benchmarking_setup<T: Config>() -> OptionIdOf<T> {
 	let origin = OriginFor::<T>::from(RawOrigin::Root);
 
 	let option_config: OptionConfigOf<T> = valid_option_config::<T>();
 
-	TokenizedOptions::<T>::create_option(
-		origin, 
-		option_config.clone(),
-	).unwrap();
+	TokenizedOptions::<T>::create_option(origin, option_config.clone()).unwrap();
 
 	let option_hash = TokenizedOptions::<T>::generate_id(
 		option_config.base_asset_id,
@@ -147,11 +135,11 @@ benchmarks! {
 	where_clause {
 		where
 			T: pallet_tokenized_options::Config
-				+ DeFiComposableConfig 
+				+ DeFiComposableConfig
 				+ frame_system::Config
 				+ pallet_oracle::Config
 	}
-	
+
 	create_asset_vault {
 		let origin = OriginFor::<T>::from(RawOrigin::Root);
 
@@ -166,14 +154,14 @@ benchmarks! {
 		};
 	}: {
 		TokenizedOptions::<T>::create_asset_vault(
-			origin, 
+			origin,
 			vault_config,
 		)?
 	}
 	verify {
 		assert_last_event::<T>(Event::CreatedAssetVault {
 			vault_id: recode_unwrap_u128(1u128),
-            asset_id: recode_unwrap_u128(B),
+			asset_id: recode_unwrap_u128(B),
 		}.into())
 	}
 
@@ -191,11 +179,11 @@ benchmarks! {
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
 			expiring_date: recode_unwrap_u128(6000u64),
-			epoch: Epoch { 
-				deposit: recode_unwrap_u128(0u64), 
-				purchase: recode_unwrap_u128(3000u64), 
-				exercise: recode_unwrap_u128(6000u64), 
-				end: recode_unwrap_u128(9000u64) 
+			epoch: Epoch {
+				deposit: recode_unwrap_u128(0u64),
+				purchase: recode_unwrap_u128(3000u64),
+				exercise: recode_unwrap_u128(6000u64),
+				end: recode_unwrap_u128(9000u64)
 			},
 			status: Status::NotStarted,
 			base_asset_amount_per_option: UNIT.into(),
@@ -209,7 +197,7 @@ benchmarks! {
 		};
 	}: {
 		TokenizedOptions::<T>::create_option(
-			origin, 
+			origin,
 			option_config.clone(),
 		)?
 	}
@@ -217,7 +205,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::CreatedOption {
 			// First 1..01 and 1..02 are for vaults lp_tokens
 			option_id: recode_unwrap_u128(100000000003u128),
-            option_config,
+			option_config,
 		}.into())
 	}
 
