@@ -526,13 +526,14 @@ pub fn run_to_block(n: u64) {
 
 // Move the block number by 1 and the timestamp by `n` seconds
 pub fn run_for_seconds(n: u64) {
-	if System::block_number() > 1 {
+	if System::block_number() > 0 {
 		Timestamp::on_finalize(System::block_number());
 		System::on_finalize(System::block_number());
 	}
 	System::set_block_number(System::block_number() + 1);
 	System::on_initialize(System::block_number());
 	Timestamp::on_initialize(System::block_number());
+	TokenizedOptions::on_initialize(System::block_number());
 	Timestamp::set(Origin::none(), n * 1000).unwrap();
 
 	// let max_weight = <<MockRuntime as frame_system::pallet::Config>::BlockWeights as Get<

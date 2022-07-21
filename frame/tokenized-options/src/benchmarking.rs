@@ -7,13 +7,13 @@ use crate::{self as pallet_tokenized_options, types::*, Pallet as TokenizedOptio
 use codec::{Decode, Encode, MaxEncodedLen};
 use composable_traits::{defi::DeFiComposableConfig, oracle::Price, vault::VaultConfig};
 use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller};
-use frame_support::traits::{
+use frame_support::traits::{Hooks,
 	fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
 	fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
 	EnsureOrigin,
 };
 use frame_system::pallet_prelude::*;
-use frame_system::{EventRecord, Pallet as System, RawOrigin};
+use frame_system::{EventRecord, Pallet as System, RawOrigin, Origin};
 use sp_runtime::Perquintill;
 use std::collections::BTreeMap;
 
@@ -53,6 +53,23 @@ fn set_oracle_price<T: Config + pallet_oracle::Config>(asset_id: T::MayBeAssetId
 		asset_id,
 		Price { price: <T as pallet_oracle::Config>::PriceValue::from(price), block: 0_u32.into() },
 	);
+}
+
+fn next_block<T: Config + pallet_timestamp::Config>(n: T::BlockNumber) {
+	while System::block_number() < n {
+		if System::block_number() > 0 {
+			<pallet_timestamp::Pallet<T>>::on_finalize(System::block_number());
+			System::on_finalize(System::block_number());
+		}
+		System::<T>::set_block_number(n);
+		<pallet_timestamp::Pallet<T>>::set_timestamp(n.into() * 1000.into());
+
+		System::set_block_number(frame_system::Pallet::<T>::block_number() + 1.into());
+		System::on_initialize(System::block_number());
+		<pallet_timestamp::Pallet<T>>::on_initialize(System::block_number());
+		TokenizedOptions::on_initialize(System::block_number());
+		<pallet_timestamp::Pallet<T>>::set(Origin::None, n.into() * 1000.into()).unwrap();
+	}
 }
 
 fn vault_benchmarking_setup<T: Config + pallet_oracle::Config>(
@@ -206,6 +223,29 @@ benchmarks! {
 			// First 1..01 and 1..02 are for vaults lp_tokens
 			option_id: recode_unwrap_u128(100000000003u128),
 			option_config,
+		}.into())
+	}
+
+	sell_option {
+		let caller: <T as frame_system::Config>::AccountId = whitelisted_caller::<T::AccountId>();
+		let origin = OriginFor::<T>::from(RawOrigin::Signed(caller));
+
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(B), 50_000);
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(C), 1);
+		let option_id = default_option_benchmarking_setup::<T>();
+		let option_amount: BalanceOf<T> = 1u128.into();
+	}: {
+		TokenizedOptions::<T>::sell_option(
+			origin,
+			option_amount,
+			option_id
+		)?
+	}
+	verify {
+		assert_last_event::<T>(Event::SellOption {
+			seller: whitelisted_caller(),
+			option_amount,
+			option_id,
 		}.into())
 	}
 
