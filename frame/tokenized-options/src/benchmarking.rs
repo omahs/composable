@@ -13,7 +13,7 @@ use frame_support::traits::{Hooks,
 	EnsureOrigin,
 };
 use frame_system::pallet_prelude::*;
-use frame_system::{EventRecord, Pallet as System, RawOrigin, Origin};
+use frame_system::{EventRecord, Pallet as System, RawOrigin};
 use sp_runtime::Perquintill;
 use std::collections::BTreeMap;
 
@@ -55,22 +55,51 @@ fn set_oracle_price<T: Config + pallet_oracle::Config>(asset_id: T::MayBeAssetId
 	);
 }
 
-fn next_block<T: Config + pallet_timestamp::Config>(n: T::BlockNumber) {
-	while System::block_number() < n {
-		if System::block_number() > 0 {
-			<pallet_timestamp::Pallet<T>>::on_finalize(System::block_number());
-			System::on_finalize(System::block_number());
-		}
-		System::<T>::set_block_number(n);
-		<pallet_timestamp::Pallet<T>>::set_timestamp(n.into() * 1000.into());
 
-		System::set_block_number(frame_system::Pallet::<T>::block_number() + 1.into());
-		System::on_initialize(System::block_number());
-		<pallet_timestamp::Pallet<T>>::on_initialize(System::block_number());
-		TokenizedOptions::on_initialize(System::block_number());
-		<pallet_timestamp::Pallet<T>>::set(Origin::None, n.into() * 1000.into()).unwrap();
-	}
+fn initial_setup<T: Config + pallet_timestamp::Config>() {
+	System::<T>::set_block_number(0u32.into());
+	System::<T>::on_initialize(System::<T>::block_number());
+	<pallet_timestamp::Pallet<T>>::on_initialize(System::<T>::block_number());
+	TokenizedOptions::<T>::on_initialize(System::<T>::block_number());
+	<pallet_timestamp::Pallet<T>>::set(OriginFor::<T>::from(RawOrigin::None), 0u32.into()).unwrap();
+	<pallet_timestamp::Pallet<T>>::on_finalize(System::<T>::block_number());
+	System::<T>::on_finalize(System::<T>::block_number());
+	produce_block::<T>(1_u32.into(), 1000_u32.into());
 }
+
+fn produce_block<T: Config + pallet_timestamp::Config>(
+	n: T::BlockNumber,
+	time: <T as pallet_timestamp::Config>::Moment,
+) {
+	if System::<T>::block_number() > 0u32.into() {
+		<pallet_timestamp::Pallet<T>>::on_finalize(System::<T>::block_number());
+		System::<T>::on_finalize(System::<T>::block_number());
+	}
+	
+	System::<T>::set_block_number(n);
+	System::<T>::on_initialize(System::<T>::block_number());
+	TokenizedOptions::<T>::on_initialize(System::<T>::block_number());
+	// <pallet_timestamp::Pallet<T>>::set_timestamp(time);
+	<pallet_timestamp::Pallet<T>>::set(OriginFor::<T>::from(RawOrigin::None), time).unwrap();
+}
+
+// fn run_to_block<T: Config + pallet_timestamp::Config>(n: u32) {
+// 	let block_n: T::BlockNumber = n.into();
+// 	while System::<T>::block_number() < block_n {
+// 		if System::<T>::block_number() > 0u32.into() {
+// 			<pallet_timestamp::Pallet<T>>::on_finalize(System::<T>::block_number());
+// 			System::<T>::on_finalize(System::<T>::block_number());
+// 		}
+// 		// System::<T>::set_block_number(block_n);
+// 		// <pallet_timestamp::Pallet<T>>::set_timestamp((n * 1000u32).into());
+
+// 		System::<T>::set_block_number((frame_system::Pallet::<T>::block_number() + 1_u32.into()));
+// 		System::<T>::on_initialize(System::<T>::block_number());
+// 		<pallet_timestamp::Pallet<T>>::on_initialize(System::<T>::block_number());
+// 		TokenizedOptions::<T>::on_initialize(System::<T>::block_number());
+// 		<pallet_timestamp::Pallet<T>>::set(OriginFor::<T>::from(RawOrigin::None), (n * 1000u32).into()).unwrap();
+// 	}
+// }
 
 fn vault_benchmarking_setup<T: Config + pallet_oracle::Config>(
 	asset_id: T::MayBeAssetId,
@@ -124,7 +153,7 @@ fn valid_option_config<T: Config>() -> OptionConfigOf<T> {
 	}
 }
 
-fn default_option_benchmarking_setup<T: Config>() -> OptionIdOf<T> {
+fn default_option_benchmarking_setup<T: Config + pallet_timestamp::Config>() -> OptionIdOf<T> {
 	let origin = OriginFor::<T>::from(RawOrigin::Root);
 
 	let option_config: OptionConfigOf<T> = valid_option_config::<T>();
@@ -141,6 +170,9 @@ fn default_option_benchmarking_setup<T: Config>() -> OptionIdOf<T> {
 		option_config.exercise_type,
 	);
 
+	let block = 2u32;
+	produce_block::<T>(block.into(), (block * 1000).into());
+
 	OptionHashToOptionId::<T>::get(option_hash).unwrap()
 }
 
@@ -152,9 +184,10 @@ benchmarks! {
 	where_clause {
 		where
 			T: pallet_tokenized_options::Config
-				+ DeFiComposableConfig
-				+ frame_system::Config
-				+ pallet_oracle::Config
+			+ frame_system::Config
+			+ DeFiComposableConfig
+			+ pallet_oracle::Config
+			+ pallet_timestamp::Config
 	}
 
 	create_asset_vault {
@@ -227,11 +260,14 @@ benchmarks! {
 	}
 
 	sell_option {
+		initial_setup::<T>();
 		let caller: <T as frame_system::Config>::AccountId = whitelisted_caller::<T::AccountId>();
-		let origin = OriginFor::<T>::from(RawOrigin::Signed(caller));
+		let origin = OriginFor::<T>::from(RawOrigin::Signed(caller.clone()));
 
 		vault_benchmarking_setup::<T>(recode_unwrap_u128(B), 50_000);
 		vault_benchmarking_setup::<T>(recode_unwrap_u128(C), 1);
+		AssetsOf::<T>::mint_into(recode_unwrap_u128(B), &caller, (UNIT * 1u128).into())?;
+
 		let option_id = default_option_benchmarking_setup::<T>();
 		let option_amount: BalanceOf<T> = 1u128.into();
 	}: {
