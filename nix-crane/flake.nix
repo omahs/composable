@@ -33,6 +33,12 @@
             targets = [ "wasm32-unknown-unknown" ];
           });
 
+        rust-nightly-dev = rust-bin.selectLatestNightlyWith (toolchain:
+          toolchain.default.override {
+            extensions = [ "rust-src" "clippy" "rustfmt" ];
+            targets = [ "wasm32-unknown-unknown" ];
+          });  
+
         # Crane lib instantiated with current nixpkgs
         crane-lib = crane.mkLib pkgs;
 
@@ -56,6 +62,19 @@
             };
           };
         };
+
+        # for containers which are intented for testing, debug and development (including running isolated runtime)
+        container-tools =     
+        [
+          coreutils
+          bash
+          procps
+          findutils
+          nettools
+          bottom
+          nix   
+          procps
+        ];
 
         src = let
           blacklist = [
@@ -150,6 +169,7 @@
           hash = "sha256-k+6mXjAsHbS4gnHljGmEkMcok77zBd8jhyp56mXyKgI=";
         };
 
+        nix-to-container-image = import ./nix-to-container-image.nix;
       in rec {
         packages = {
           inherit wasm-optimizer;
@@ -177,6 +197,33 @@
                 cp target/release/composable $out/bin/composable
               '';
             });
+
+          # also mdbook has releases for all targets,
+          # so it simple to build it as it is rust
+          # and also we then can have fork easy
+          # and nix allows to use any version of rust
+          # so if will need to special docs for substrate, we will have it
+          # and, anyway cargo install also compiles
+          mdbook = with packages; 
+            crane-stable.buildPackage {
+              src = fetchFromGitHub {
+                owner = "rust-lang";
+                repo = "mdBook";
+                rev = "40c06f5e774924bef97d339cf8c64343c9056d86";
+                hash = "sha256-ggcyOsA4cyo5l87cZmOMI0w1gCzmWy9NRJiWxjBdB1E=";
+              };          
+            };
+
+          taplo = with packages; 
+            crane-stable.buildPackage {
+              src = fetchFromGitHub {
+                owner = "tamasfe";
+                repo = "taplo";
+                rev = "eeb62dcbada89f13de73cfc063ffe67a890c4bc6";
+                hash = "sha256-ggcyOsA4cyo5l87cZmOMI0w1gCzmWy9NRJiWxjBdB1E=";
+              };          
+            };            
+
           polkadot-node = stdenv.mkDerivation {
             name = "polkadot-${polkadot.version}";
             version = polkadot.version;
@@ -194,6 +241,7 @@
               chmod +x $out/bin/polkadot
             '';
           };
+
           polkadot-launch = let
             src = fetchFromGitHub {
               owner = "paritytech";
@@ -215,8 +263,7 @@
             '';
           };
           devnet = let
-            original-config = builtins.fromJSON
-              (builtins.readFile ./../scripts/polkadot-launch/composable.json);
+            original-config = import ./composable.nix;
             patched-config = lib.recursiveUpdate original-config {
               relaychain = { bin = "${packages.polkadot-node}/bin/polkadot"; };
               parachains = builtins.map (parachain:
@@ -237,14 +284,47 @@
           };
           devnet-container = dockerTools.buildLayeredImage {
             name = "composable-devnet-container";
-            contents = [
-              # added so we can into it and do some debug
-              coreutils
-              bash
-              procps
-              findutils
-            ];
-            config = { Cmd = [ "${packages.devnet}/bin/composable-devnet" ]; };
+            contents = [                                     
+              # just allow to bash into it and run with custom entries
+              packages.devnet
+              packages.polkadot-launch
+              ] ++ container-tools;
+              config = { Cmd = [ "${packages.devnet}/bin/composable-devnet" ]; };
+          };
+          
+          # image which will be base for remote development
+          # we do not start from nixos:
+          # - no all people like devcontainer to be nix (gh know better)
+          # - devcontainer has setup in shell for code, users, groups and remote stuff
+          # - it has nice cli/shell setup, unlike bare nixos docker        
+          # we want devcontainer to be built of nix:
+          # - so it has same version or rust as our env and ci
+          # - it has same all tooling we have
+          # - and we do not need to maintain separate script for that
+          codespace-base-container = dockerTools.pullImage ((nix-to-container-image system) // {
+            imageName = "mcr.microsoft.com/vscode/devcontainers/base";
+            os = "linux";
+            imageDigest = "sha256:269cbbb2056243e2a88e21501d9a8166d1825d42abf6b67846b49b1856f4b133";
+            sha256 = "0vraf6iwbddpcy4l9msks6lmi35k7wfgpafikb56k3qinvvcjm9b";
+            finalImageTag = "0.202.7-bullseye";             
+          });
+          
+          codespace-container = dockerTools.buildLayeredImage {
+            name = "composable-codespace";
+            fromImage = packages.codespace-base-container;
+            contents = [                                          
+              # be very carefull with this, so this must be version compatible with base and what vscode will inject
+              # ISSUE: for some reason stable overrides nighly, need to set different order somehow
+              #rust-stable
+              rust-nightly-dev
+              cachix
+              rust-analyzer
+              rustup # just if it wants to make ad hoc updates
+              nodejs
+              bottom
+              packages.mdbook
+              packages.taplo
+              ];
           };
           default = packages.composable-node;
         };
@@ -272,6 +352,8 @@
               rust-stable
               wasm-optimizer
               composable-node
+              mdbook
+              taplo
             ];
             NIX_PATH = "nixpkgs=${pkgs.path}";
           };
