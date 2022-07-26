@@ -1105,7 +1105,9 @@ impl Convert<CurrencyId, alloc::string::String> for AssetToDenom {
 }
 
 parameter_types! {
+  pub const CosmwasmPalletId: PalletId = PalletId(*b"cosmwasm");
   pub const ChainId: &'static str = "composable-network-dali";
+  pub const MaxFrames: u32 = 64;
 	pub const MaxCodeSize: u32 = 512 * 1024;
   pub const MaxInstrumentedCodeSize: u32 = 1024 * 1024;
   pub const MaxMessageSize: u32 = 256 * 1024;
@@ -1119,10 +1121,15 @@ parameter_types! {
   pub const CodeBranchTableSizeLimit: u32 = 256;
   // Not really required as it's embedded.
   pub const CodeStackLimit: u32 = u32::MAX;
+  pub const StorageByteReadPrice: u32 = 1;
+  pub const StorageByteWritePrice: u32 = 1;
 }
 
 impl cosmwasm::Config for Runtime {
 	type Event = Event;
+	type AccountId = AccountId;
+	type PalletId = CosmwasmPalletId;
+	type MaxFrames = MaxFrames;
 	type MaxCodeSize = MaxCodeSize;
 	type MaxInstrumentedCodeSize = MaxInstrumentedCodeSize;
 	type MaxMessageSize = MaxMessageSize;
@@ -1141,7 +1148,11 @@ impl cosmwasm::Config for Runtime {
 	type CodeParameterLimit = CodeParameterLimit;
 	type CodeBranchTableSizeLimit = CodeBranchTableSizeLimit;
 	type CodeStackLimit = CodeStackLimit;
+	type StorageByteReadPrice = StorageByteReadPrice;
+	type StorageByteWritePrice = StorageByteWritePrice;
 	type UnixTime = Timestamp;
+	// TODO: proper weights
+	type WeightInfo = ();
 }
 
 construct_runtime!(
