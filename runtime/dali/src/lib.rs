@@ -1121,8 +1121,11 @@ parameter_types! {
   pub const CodeBranchTableSizeLimit: u32 = 256;
   // Not really required as it's embedded.
   pub const CodeStackLimit: u32 = u32::MAX;
-  pub const StorageByteReadPrice: u32 = 1;
-  pub const StorageByteWritePrice: u32 = 1;
+
+  // TODO: benchmark for proper values
+  pub const CodeStorageByteDeposit: u32 = 1;
+  pub const ContractStorageByteReadPrice: u32 = 1;
+  pub const ContractStorageByteWritePrice: u32 = 1;
 }
 
 impl cosmwasm::Config for Runtime {
@@ -1138,6 +1141,7 @@ impl cosmwasm::Config for Runtime {
 	type Balance = Balance;
 	type AssetId = CurrencyId;
 	type Assets = Assets;
+	type NativeAsset = Balances;
 	type ChainId = ChainId;
 	type MaxContractLabelSize = MaxContractLabelSize;
 	type MaxContractTrieIdSize = MaxContractTrieIdSize;
@@ -1148,8 +1152,9 @@ impl cosmwasm::Config for Runtime {
 	type CodeParameterLimit = CodeParameterLimit;
 	type CodeBranchTableSizeLimit = CodeBranchTableSizeLimit;
 	type CodeStackLimit = CodeStackLimit;
-	type StorageByteReadPrice = StorageByteReadPrice;
-	type StorageByteWritePrice = StorageByteWritePrice;
+	type CodeStorageByteDeposit = CodeStorageByteDeposit;
+	type ContractStorageByteReadPrice = ContractStorageByteReadPrice;
+	type ContractStorageByteWritePrice = ContractStorageByteWritePrice;
 	type UnixTime = Timestamp;
 	// TODO: proper weights
 	type WeightInfo = ();
