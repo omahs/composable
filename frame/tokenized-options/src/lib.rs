@@ -73,12 +73,14 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-mod types;
-mod validation;
 mod weights;
 
-#[cfg(any(feature = "runtime-benchmarks", test))]
+mod types;
+mod validation;
+
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+
 
 pub use pallet::*;
 

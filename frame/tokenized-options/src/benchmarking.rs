@@ -1,5 +1,5 @@
 //! Benchmarks for Template Pallet
-// #![cfg(feature = "runtime-benchmarks")]
+#![cfg(feature = "runtime-benchmarks")]
 
 use crate::*;
 use crate::{self as pallet_tokenized_options, types::*, Pallet as TokenizedOptions};
@@ -15,7 +15,7 @@ use frame_support::traits::{Hooks,
 use frame_system::pallet_prelude::*;
 use frame_system::{EventRecord, Pallet as System, RawOrigin};
 use sp_runtime::Perquintill;
-use std::collections::BTreeMap;
+use sp_std::collections::btree_map::BTreeMap;
 
 // ----------------------------------------------------------------------------------------------------
 //		Helper functions
@@ -82,24 +82,6 @@ fn produce_block<T: Config + pallet_timestamp::Config>(
 	// <pallet_timestamp::Pallet<T>>::set_timestamp(time);
 	<pallet_timestamp::Pallet<T>>::set(OriginFor::<T>::from(RawOrigin::None), time).unwrap();
 }
-
-// fn run_to_block<T: Config + pallet_timestamp::Config>(n: u32) {
-// 	let block_n: T::BlockNumber = n.into();
-// 	while System::<T>::block_number() < block_n {
-// 		if System::<T>::block_number() > 0u32.into() {
-// 			<pallet_timestamp::Pallet<T>>::on_finalize(System::<T>::block_number());
-// 			System::<T>::on_finalize(System::<T>::block_number());
-// 		}
-// 		// System::<T>::set_block_number(block_n);
-// 		// <pallet_timestamp::Pallet<T>>::set_timestamp((n * 1000u32).into());
-
-// 		System::<T>::set_block_number((frame_system::Pallet::<T>::block_number() + 1_u32.into()));
-// 		System::<T>::on_initialize(System::<T>::block_number());
-// 		<pallet_timestamp::Pallet<T>>::on_initialize(System::<T>::block_number());
-// 		TokenizedOptions::<T>::on_initialize(System::<T>::block_number());
-// 		<pallet_timestamp::Pallet<T>>::set(OriginFor::<T>::from(RawOrigin::None), (n * 1000u32).into()).unwrap();
-// 	}
-// }
 
 fn vault_benchmarking_setup<T: Config + pallet_oracle::Config>(
 	asset_id: T::MayBeAssetId,

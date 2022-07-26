@@ -183,6 +183,7 @@ runtime-benchmarks = [
   "democracy/runtime-benchmarks",
   "utility/runtime-benchmarks",
   "vault/runtime-benchmarks",
+  "tokenized-options/runtime-benchmarks",
   "vesting/runtime-benchmarks",
   "assets/runtime-benchmarks",
   "bonded-finance/runtime-benchmarks",
