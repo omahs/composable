@@ -1,30 +1,19 @@
 use std::collections::HashMap;
 
 use crate::mock::runtime::{
-	Assets, Balance, Balances, Event, ExtBuilder, MockRuntime, Moment, Origin, System,
+	Assets, ExtBuilder, MockRuntime, Origin, 
 	TokenizedOptions, Vault,
 };
 
 use crate::mock::{accounts::*, assets::*};
 
 use crate::{
-	pallet::{self, OptionHashToOptionId, Sellers},
-	tests::{
-		buy_option::buy_option_success_checks,
-		delete_sell_option::delete_sell_option_success_checks,
-		sell_option::sell_option_success_checks, *,
-	},
+	pallet::OptionHashToOptionId,
+	tests::*,
 };
 
-use composable_traits::vault::CapabilityVault;
-use composable_traits::{
-	tokenized_options::TokenizedOptions as TokenizedOptionsTrait, vault::Vault as VaultTrait,
-};
-use frame_support::{assert_err, assert_noop, assert_ok, traits::fungibles::Inspect};
-
-use frame_system::ensure_signed;
-use sp_core::{sr25519::Public, H256};
-use sp_runtime::ArithmeticError;
+use composable_traits::vault::Vault as VaultTrait;
+use frame_support::{assert_ok, traits::fungibles::Inspect};
 
 // ----------------------------------------------------------------------------------------------------
 //		Settle Options Tests

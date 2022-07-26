@@ -1,5 +1,5 @@
 use crate::mock::runtime::{
-	Assets, Balance, Balances, Event, ExtBuilder, MockRuntime, Moment, Origin, System,
+	Assets, Balance, Event, ExtBuilder, MockRuntime, Origin, System,
 	TokenizedOptions, Vault,
 };
 
@@ -12,13 +12,10 @@ use crate::{
 
 use composable_traits::vault::CapabilityVault;
 
-use composable_traits::{
-	tokenized_options::TokenizedOptions as TokenizedOptionsTrait, vault::Vault as VaultTrait,
-};
+use composable_traits::vault::Vault as VaultTrait;
 
 use frame_support::{assert_noop, traits::fungibles::Inspect};
-use frame_system::ensure_signed;
-use sp_core::{sr25519::Public, H256};
+use sp_core::sr25519::Public;
 use sp_runtime::ArithmeticError;
 
 // ----------------------------------------------------------------------------------------------------

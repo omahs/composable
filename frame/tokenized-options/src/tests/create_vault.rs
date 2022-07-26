@@ -2,15 +2,13 @@ use crate::{
 	mock::{
 		accounts::*,
 		assets::*,
-		runtime::{Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions, VaultId},
+		runtime::{Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions},
 	},
 	pallet::{self, AssetToVault, Error},
 	tests::*,
 };
-use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
-use frame_system::ensure_signed;
 
-use frame_support::{assert_err, assert_noop, error::BadOrigin};
+use frame_support::{assert_noop, error::BadOrigin};
 
 // ----------------------------------------------------------------------------------------------------
 //		Create Vault Tests

@@ -5,11 +5,11 @@ use crate::{
 		accounts::*,
 		assets::*,
 		runtime::{
-			get_oracle_price, set_oracle_price, Assets, Balance, MockRuntime, Moment, OptionId,
+			get_oracle_price, set_oracle_price, Assets, Balance, Moment, OptionId,
 			Origin, System, Timestamp, TokenizedOptions, Vault, VaultId,
 		},
 	},
-	pallet::{self, AssetToVault, Error, OptionIdToOption},
+	pallet::{AssetToVault, Error, OptionIdToOption},
 	types::*,
 };
 use composable_traits::{
@@ -20,7 +20,7 @@ use frame_system::ensure_signed;
 
 use frame_support::{
 	assert_ok,
-	traits::{fungibles::Mutate, Get, Hooks},
+	traits::{fungibles::Mutate, Hooks},
 };
 use itertools::Itertools;
 use proptest::{

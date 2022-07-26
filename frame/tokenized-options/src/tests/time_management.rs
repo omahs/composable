@@ -1,9 +1,8 @@
-use super::{OptionsConfigBuilder, VaultConfigBuilder, VaultInitializer};
+use super::{OptionsConfigBuilder, VaultInitializer};
 use crate::{
 	mock::{
-		accounts::ADMIN,
 		runtime::{
-			BlockNumber, Event, ExtBuilder, MockRuntime, Moment, OptionId, Origin, System,
+			BlockNumber, Event, ExtBuilder, MockRuntime, Moment, OptionId, System,
 			Timestamp, TokenizedOptions,
 		},
 	},

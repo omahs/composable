@@ -3,17 +3,14 @@ use crate::{
 		accounts::*,
 		assets::*,
 		runtime::{
-			Balance, Event, ExtBuilder, MockRuntime, Moment, Origin, System, TokenizedOptions,
+			Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions,
 		},
 	},
 	pallet,
 	tests::*,
 	Error, OptionHashToOptionId, OptionIdToOption,
 };
-use frame_support::{assert_err, assert_noop, assert_ok, error::BadOrigin};
-
-use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
-use frame_system::ensure_signed;
+use frame_support::{assert_noop, assert_ok, error::BadOrigin};
 
 // ----------------------------------------------------------------------------------------------------
 //		Create Options Tests

@@ -1,22 +1,17 @@
 use crate::mock::runtime::{
-	Assets, Balance, Balances, Event, ExtBuilder, MockRuntime, Moment, Origin, System,
-	TokenizedOptions, Vault,
+	Assets, Balance, Event, ExtBuilder, MockRuntime, Origin, System,
+	TokenizedOptions, 
 };
 
 use crate::mock::{accounts::*, assets::*};
 
 use crate::{
-	pallet::{self, OptionHashToOptionId, Sellers},
+	pallet::{self, OptionHashToOptionId},
 	tests::*,
 };
-use composable_traits::vault::CapabilityVault;
-use composable_traits::{
-	tokenized_options::TokenizedOptions as TokenizedOptionsTrait, vault::Vault as VaultTrait,
-};
-use frame_support::{assert_err, assert_noop, assert_ok, traits::fungibles::Inspect};
+use frame_support::{assert_noop, assert_ok, traits::fungibles::Inspect};
 
-use frame_system::ensure_signed;
-use sp_core::{sr25519::Public, H256};
+use sp_core::sr25519::Public;
 use sp_runtime::ArithmeticError;
 
 // ----------------------------------------------------------------------------------------------------
