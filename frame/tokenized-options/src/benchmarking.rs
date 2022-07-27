@@ -1,16 +1,16 @@
-//! Benchmarks for Template Pallet
-#![cfg(feature = "runtime-benchmarks")]
+//! Benchmarks for TokenizedOptions Pallet
+// #![cfg(feature = "runtime-benchmarks")]
 
 use crate::*;
 use crate::{self as pallet_tokenized_options, types::*, Pallet as TokenizedOptions};
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use composable_traits::{defi::DeFiComposableConfig, oracle::Price, vault::VaultConfig};
-use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller};
-use frame_support::traits::{Hooks,
+use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller, account};
+use frame_support::traits::{
 	fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
 	fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
-	EnsureOrigin,
+	EnsureOrigin, Hooks,
 };
 use frame_system::pallet_prelude::*;
 use frame_system::{EventRecord, Pallet as System, RawOrigin};
@@ -55,7 +55,6 @@ fn set_oracle_price<T: Config + pallet_oracle::Config>(asset_id: T::MayBeAssetId
 	);
 }
 
-
 fn initial_setup<T: Config + pallet_timestamp::Config>() {
 	System::<T>::set_block_number(0u32.into());
 	System::<T>::on_initialize(System::<T>::block_number());
@@ -75,7 +74,7 @@ fn produce_block<T: Config + pallet_timestamp::Config>(
 		<pallet_timestamp::Pallet<T>>::on_finalize(System::<T>::block_number());
 		System::<T>::on_finalize(System::<T>::block_number());
 	}
-	
+
 	System::<T>::set_block_number(n);
 	System::<T>::on_initialize(System::<T>::block_number());
 	TokenizedOptions::<T>::on_initialize(System::<T>::block_number());
@@ -152,8 +151,7 @@ fn default_option_benchmarking_setup<T: Config + pallet_timestamp::Config>() -> 
 		option_config.exercise_type,
 	);
 
-	let block = 2u32;
-	produce_block::<T>(block.into(), (block * 1000).into());
+	produce_block::<T>(2u32.into(), (2u32 * 1000).into());
 
 	OptionHashToOptionId::<T>::get(option_hash).unwrap()
 }
@@ -261,7 +259,40 @@ benchmarks! {
 	}
 	verify {
 		assert_last_event::<T>(Event::SellOption {
-			seller: whitelisted_caller(),
+			seller: caller,
+			option_amount,
+			option_id,
+		}.into())
+	}
+
+	buy_option {
+		initial_setup::<T>();
+
+		let seller_account: <T as frame_system::Config>::AccountId = whitelisted_caller::<T::AccountId>();
+		let seller_origin = OriginFor::<T>::from(RawOrigin::Signed(seller_account.clone()));
+
+		let buyer_account: <T as frame_system::Config>::AccountId = account("BUYER", 1, 0);
+		let buyer_origin = OriginFor::<T>::from(RawOrigin::Signed(buyer_account.clone()));
+
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(B), 50_000);
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(C), 1);
+		AssetsOf::<T>::mint_into(recode_unwrap_u128(B), &seller_account, (UNIT * 1u128).into())?;
+		AssetsOf::<T>::mint_into(recode_unwrap_u128(C), &buyer_account, (UNIT * 1000u128).into())?;
+
+		let option_id = default_option_benchmarking_setup::<T>();
+		let option_amount: BalanceOf<T> = 1u128.into();
+		TokenizedOptions::<T>::sell_option(seller_origin, option_amount, option_id).unwrap();
+		produce_block::<T>(3u32.into(), (3u32 * 1000).into());
+	}: {
+		TokenizedOptions::<T>::buy_option(
+			buyer_origin,
+			option_amount,
+			option_id
+		)?
+	}
+	verify {
+		assert_last_event::<T>(Event::BuyOption {
+			buyer: buyer_account,
 			option_amount,
 			option_id,
 		}.into())

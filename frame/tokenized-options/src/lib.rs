@@ -114,9 +114,9 @@ pub use crate::weights::WeightInfo;
 mod types;
 mod validation;
 
-#[cfg(feature = "runtime-benchmarks")]
 #[allow(dead_code)]
 #[allow(unused_imports)]
+#[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarking;
 
 
