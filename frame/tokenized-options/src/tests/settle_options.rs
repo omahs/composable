@@ -1,16 +1,10 @@
 use std::collections::HashMap;
 
-use crate::mock::runtime::{
-	Assets, ExtBuilder, MockRuntime, Origin, 
-	TokenizedOptions, Vault,
-};
+use crate::mock::runtime::{Assets, ExtBuilder, MockRuntime, Origin, TokenizedOptions, Vault};
 
 use crate::mock::{accounts::*, assets::*};
 
-use crate::{
-	pallet::OptionHashToOptionId,
-	tests::*,
-};
+use crate::{pallet::OptionHashToOptionId, tests::*};
 
 use composable_traits::vault::Vault as VaultTrait;
 use frame_support::{assert_ok, traits::fungibles::Inspect};

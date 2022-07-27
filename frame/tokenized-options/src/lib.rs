@@ -64,7 +64,6 @@
 //! <!-- Original author: @nickkuk and @scoda95 -->
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![cfg_attr(
 	not(test),
 	deny(
@@ -110,7 +109,6 @@ mod mock;
 mod weights;
 pub use crate::weights::WeightInfo;
 
-
 mod types;
 mod validation;
 
@@ -118,7 +116,6 @@ mod validation;
 #[allow(unused_imports)]
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarking;
-
 
 pub use pallet::*;
 

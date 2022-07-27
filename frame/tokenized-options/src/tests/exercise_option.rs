@@ -1,6 +1,5 @@
 use crate::mock::runtime::{
-	Assets, Balance, Event, ExtBuilder, MockRuntime, Origin, System,
-	TokenizedOptions, 
+	Assets, Balance, Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions,
 };
 
 use crate::mock::{accounts::*, assets::*};

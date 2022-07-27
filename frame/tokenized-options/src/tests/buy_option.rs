@@ -1,20 +1,17 @@
 use crate::mock::runtime::{
-	Assets, Balance, Event, ExtBuilder, MockRuntime, Origin, System,
-	TokenizedOptions, 
+	Assets, Balance, Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions,
 };
 
 use crate::mock::{accounts::*, assets::*};
 
 use crate::{
 	pallet::{self, OptionHashToOptionId},
-	tests::{
-		sell_option::sell_option_success_checks, *,
-	},
+	tests::{sell_option::sell_option_success_checks, *},
 };
 
 use frame_support::{assert_noop, assert_ok, traits::fungibles::Inspect};
 
-use sp_core::{sr25519::Public};
+use sp_core::sr25519::Public;
 use sp_runtime::ArithmeticError;
 
 // ----------------------------------------------------------------------------------------------------

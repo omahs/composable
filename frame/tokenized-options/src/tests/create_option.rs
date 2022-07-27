@@ -2,9 +2,7 @@ use crate::{
 	mock::{
 		accounts::*,
 		assets::*,
-		runtime::{
-			Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions,
-		},
+		runtime::{Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions},
 	},
 	pallet,
 	tests::*,
