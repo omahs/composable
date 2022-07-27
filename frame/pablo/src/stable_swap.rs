@@ -142,8 +142,7 @@ impl<T: Config> StableSwap<T> {
 		DispatchError,
 	> {
 		let zero = T::Balance::zero();
-		ensure!(base_amount > zero, Error::<T>::AssetAmountMustBePositiveNumber);
-		ensure!(quote_amount > zero, Error::<T>::AssetAmountMustBePositiveNumber);
+		ensure!(base_amount > zero || quote_amount > zero, Error::<T>::AssetAmountMustBePositiveNumber);
 		let (mint_amount, base_fee, quote_fee) = Self::calculate_mint_amount_and_fees(
 			&pool_info,
 			&pool_account,
