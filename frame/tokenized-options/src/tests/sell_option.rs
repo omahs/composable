@@ -48,7 +48,7 @@ pub fn sell_option_success_checks(option_id: AssetId, option_amount: Balance, wh
 	assert_ok!(TokenizedOptions::sell_option(Origin::signed(who), option_amount, option_id));
 
 	System::assert_last_event(Event::TokenizedOptions(pallet::Event::SellOption {
-		seller: who,
+		user: who,
 		option_amount,
 		option_id,
 	}));

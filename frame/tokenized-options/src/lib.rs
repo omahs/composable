@@ -301,17 +301,17 @@ pub mod pallet {
 		CreatedOption { option_id: OptionIdOf<T>, option_config: OptionConfigOf<T> },
 
 		/// Emitted after a successful call to the [`sell_option`](Pallet::sell_option) extrinsic.
-		SellOption { seller: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
+		SellOption { user: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
 
 		/// Emitted after a successful call to the [`delete_sell_option`](Pallet::delete_sell_option) extrinsic.
 		DeleteSellOption {
-			seller: AccountIdOf<T>,
+			user: AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: OptionIdOf<T>,
 		},
 
 		/// Emitted after a successful call to the [`buy_option`](Pallet::buy_option) extrinsic.
-		BuyOption { buyer: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
+		BuyOption { user: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
 
 		/// Emitted after a successful call to the [`settle_option`](Pallet::settle_option) function.
 		SettleOption { option_id: OptionIdOf<T> },
@@ -1265,7 +1265,7 @@ pub mod pallet {
 			option.total_issuance_seller = new_total_issuance_seller;
 
 			Self::deposit_event(Event::SellOption {
-				seller: from.clone(),
+				user: from.clone(),
 				option_amount,
 				option_id,
 			});
@@ -1358,7 +1358,7 @@ pub mod pallet {
 			option.total_issuance_seller = new_total_issuance_seller;
 
 			Self::deposit_event(Event::DeleteSellOption {
-				seller: from.clone(),
+				user: from.clone(),
 				option_amount,
 				option_id,
 			});
@@ -1418,7 +1418,7 @@ pub mod pallet {
 			// Mint option token into user's account
 			AssetsOf::<T>::mint_into(option_id, from, option_amount)?;
 
-			Self::deposit_event(Event::BuyOption { buyer: from.clone(), option_amount, option_id });
+			Self::deposit_event(Event::BuyOption { user: from.clone(), option_amount, option_id });
 
 			Ok(())
 		}

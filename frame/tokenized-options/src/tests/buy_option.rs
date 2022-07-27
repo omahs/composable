@@ -38,7 +38,7 @@ pub fn buy_option_success_checks(option_id: AssetId, option_amount: Balance, who
 	assert_ok!(TokenizedOptions::buy_option(Origin::signed(who), option_amount, option_id));
 
 	System::assert_last_event(Event::TokenizedOptions(pallet::Event::BuyOption {
-		buyer: who,
+		user: who,
 		option_amount,
 		option_id,
 	}));

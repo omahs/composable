@@ -241,25 +241,53 @@ benchmarks! {
 
 	sell_option {
 		initial_setup::<T>();
-		let caller: <T as frame_system::Config>::AccountId = whitelisted_caller::<T::AccountId>();
-		let origin = OriginFor::<T>::from(RawOrigin::Signed(caller.clone()));
+		let seller_account: <T as frame_system::Config>::AccountId = whitelisted_caller::<T::AccountId>();
+		let seller_origin = OriginFor::<T>::from(RawOrigin::Signed(seller_account.clone()));
 
 		vault_benchmarking_setup::<T>(recode_unwrap_u128(B), 50_000);
 		vault_benchmarking_setup::<T>(recode_unwrap_u128(C), 1);
-		AssetsOf::<T>::mint_into(recode_unwrap_u128(B), &caller, (UNIT * 1u128).into())?;
+		AssetsOf::<T>::mint_into(recode_unwrap_u128(B), &seller_account, (UNIT * 1u128).into())?;
 
 		let option_id = default_option_benchmarking_setup::<T>();
 		let option_amount: BalanceOf<T> = 1u128.into();
 	}: {
 		TokenizedOptions::<T>::sell_option(
-			origin,
+			seller_origin,
 			option_amount,
 			option_id
 		)?
 	}
 	verify {
 		assert_last_event::<T>(Event::SellOption {
-			seller: caller,
+			user: seller_account,
+			option_amount,
+			option_id,
+		}.into())
+	}
+
+	delete_sell_option {
+		initial_setup::<T>();
+
+		let seller_account: <T as frame_system::Config>::AccountId = whitelisted_caller::<T::AccountId>();
+		let seller_origin = OriginFor::<T>::from(RawOrigin::Signed(seller_account.clone()));
+
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(B), 50_000);
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(C), 1);
+		AssetsOf::<T>::mint_into(recode_unwrap_u128(B), &seller_account, (UNIT * 1u128).into())?;
+
+		let option_id = default_option_benchmarking_setup::<T>();
+		let option_amount: BalanceOf<T> = 1u128.into();
+		TokenizedOptions::<T>::sell_option(seller_origin.clone(), option_amount, option_id).unwrap();
+	}: {
+		TokenizedOptions::<T>::delete_sell_option(
+			seller_origin,
+			option_amount,
+			option_id
+		)?
+	}
+	verify {
+		assert_last_event::<T>(Event::DeleteSellOption {
+			user: seller_account,
 			option_amount,
 			option_id,
 		}.into())
@@ -292,7 +320,7 @@ benchmarks! {
 	}
 	verify {
 		assert_last_event::<T>(Event::BuyOption {
-			buyer: buyer_account,
+			user: buyer_account,
 			option_amount,
 			option_id,
 		}.into())

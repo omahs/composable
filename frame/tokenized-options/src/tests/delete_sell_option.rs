@@ -50,7 +50,7 @@ pub fn delete_sell_option_success_checks(option_id: AssetId, option_amount: Bala
 	assert_ok!(TokenizedOptions::delete_sell_option(Origin::signed(who), option_amount, option_id));
 
 	System::assert_last_event(Event::TokenizedOptions(pallet::Event::DeleteSellOption {
-		seller: who,
+		user: who,
 		option_amount,
 		option_id,
 	}));
