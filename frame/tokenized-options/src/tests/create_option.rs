@@ -1,5 +1,5 @@
 use crate::{
-	mock::{
+	mocks::{
 		accounts::*,
 		assets::*,
 		runtime::{Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions},

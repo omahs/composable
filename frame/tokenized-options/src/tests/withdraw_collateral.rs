@@ -1,8 +1,8 @@
-use crate::mock::runtime::{
+use crate::mocks::runtime::{
 	Assets, Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions, Vault,
 };
 
-use crate::mock::{accounts::*, assets::*};
+use crate::mocks::{accounts::*, assets::*};
 use sp_std::cmp::min;
 
 use crate::{

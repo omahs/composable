@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::mock::runtime::{Assets, ExtBuilder, MockRuntime, Origin, TokenizedOptions, Vault};
+use crate::mocks::runtime::{Assets, ExtBuilder, MockRuntime, Origin, TokenizedOptions, Vault};
 
-use crate::mock::{accounts::*, assets::*};
+use crate::mocks::{accounts::*, assets::*};
 
 use crate::{pallet::OptionHashToOptionId, tests::*};
 

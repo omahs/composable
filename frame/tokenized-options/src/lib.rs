@@ -98,19 +98,18 @@
 	unused_extern_crates
 )]
 
+pub use crate::weights::WeightInfo;
+mod types;
+mod validation;
+mod weights;
+
 // #[allow(unused_imports)]
+#[cfg(test)]
+mod mocks;
+
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests;
-
-#[cfg(test)]
-mod mock;
-
-mod weights;
-pub use crate::weights::WeightInfo;
-
-mod types;
-mod validation;
 
 #[allow(dead_code)]
 #[allow(unused_imports)]
@@ -1264,11 +1263,7 @@ pub mod pallet {
 
 			option.total_issuance_seller = new_total_issuance_seller;
 
-			Self::deposit_event(Event::SellOption {
-				user: from.clone(),
-				option_amount,
-				option_id,
-			});
+			Self::deposit_event(Event::SellOption { user: from.clone(), option_amount, option_id });
 
 			Ok(())
 		}

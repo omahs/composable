@@ -398,7 +398,7 @@ benchmarks! {
 		// During this block's on_initialize, the option passes to exercise phase
 		produce_block::<T>(6u32.into(), (6u32 * 1000).into());
 
-		// Not needed, but why not 
+		// Not needed, but why not
 		TokenizedOptions::<T>::exercise_option(buyer_origin, option_amount, option_id).unwrap();
 
 	}: {
@@ -418,6 +418,6 @@ benchmarks! {
 
 impl_benchmark_test_suite!(
 	TokenizedOptions,
-	crate::mock::runtime::ExtBuilder::default().build(),
-	crate::mock::runtime::MockRuntime,
+	crate::mocks::runtime::ExtBuilder::default().build(),
+	crate::mocks::runtime::MockRuntime,
 );

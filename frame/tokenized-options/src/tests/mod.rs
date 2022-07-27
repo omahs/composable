@@ -1,7 +1,7 @@
 #![allow(clippy::disallowed_methods, clippy::identity_op)]
 
 use crate::{
-	mock::{
+	mocks::{
 		accounts::*,
 		assets::*,
 		runtime::{

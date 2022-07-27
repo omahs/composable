@@ -1,8 +1,8 @@
-use crate::mock::runtime::{
+use crate::mocks::runtime::{
 	Assets, Balance, Event, ExtBuilder, MockRuntime, Origin, System, TokenizedOptions,
 };
 
-use crate::mock::{accounts::*, assets::*};
+use crate::mocks::{accounts::*, assets::*};
 
 use crate::{
 	pallet::{self, OptionHashToOptionId},

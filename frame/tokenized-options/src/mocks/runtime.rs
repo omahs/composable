@@ -1,5 +1,5 @@
 use crate as pallet_tokenized_options;
-use crate::mock::{accounts::*, assets::*};
+use crate::mocks::{accounts::*, assets::*};
 use crate::tests::run_to_block;
 use composable_traits::{defi::DeFiComposableConfig, governance::SignedRawOrigin, oracle::Price};
 use frame_support::traits::{EnsureOneOf, Hooks};

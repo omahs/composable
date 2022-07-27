@@ -1,6 +1,6 @@
 use super::{OptionsConfigBuilder, VaultInitializer};
 use crate::{
-	mock::runtime::{
+	mocks::runtime::{
 		BlockNumber, Event, ExtBuilder, MockRuntime, Moment, OptionId, System, Timestamp,
 		TokenizedOptions,
 	},
