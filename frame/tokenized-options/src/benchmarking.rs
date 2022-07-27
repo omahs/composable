@@ -369,6 +369,51 @@ benchmarks! {
 		}.into())
 	}
 
+	withdraw_collateral {
+		initial_setup::<T>();
+
+		let seller_account: <T as frame_system::Config>::AccountId = whitelisted_caller::<T::AccountId>();
+		let seller_origin = OriginFor::<T>::from(RawOrigin::Signed(seller_account.clone()));
+
+		let buyer_account: <T as frame_system::Config>::AccountId = account("BUYER", 1, 0);
+		let buyer_origin = OriginFor::<T>::from(RawOrigin::Signed(buyer_account.clone()));
+
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(B), 50_000);
+		vault_benchmarking_setup::<T>(recode_unwrap_u128(C), 1);
+		AssetsOf::<T>::mint_into(recode_unwrap_u128(B), &seller_account, (UNIT * 1u128).into())?;
+		AssetsOf::<T>::mint_into(recode_unwrap_u128(C), &buyer_account, (UNIT * 1000u128).into())?;
+
+		let option_id = default_option_benchmarking_setup::<T>();
+		let option_amount: BalanceOf<T> = 1u128.into();
+
+		TokenizedOptions::<T>::sell_option(seller_origin.clone(), option_amount, option_id).unwrap();
+		produce_block::<T>(3u32.into(), (3u32 * 1000).into());
+
+		TokenizedOptions::<T>::buy_option(buyer_origin.clone(), option_amount, option_id).unwrap();
+
+		// Set timestamp to 5000 (exercise phase can start)
+		// This can be deleted when https://github.com/paritytech/substrate/pull/10128 is merged
+		produce_block::<T>(5u32.into(), (5u32 * 1000).into());
+
+		// During this block's on_initialize, the option passes to exercise phase
+		produce_block::<T>(6u32.into(), (6u32 * 1000).into());
+
+		// Not needed, but why not 
+		TokenizedOptions::<T>::exercise_option(buyer_origin, option_amount, option_id).unwrap();
+
+	}: {
+		TokenizedOptions::<T>::withdraw_collateral(
+			seller_origin,
+			option_id
+		)?
+	}
+	verify {
+		assert_last_event::<T>(Event::WithdrawCollateral {
+			user: seller_account,
+			option_id,
+		}.into())
+	}
+
 }
 
 impl_benchmark_test_suite!(
