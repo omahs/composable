@@ -16,11 +16,13 @@ pub static DAVE: Public =
 pub static EVEN: Public =
 	Public(hex!("0000000000000000000000000000000000000000000000000000000000000005"));
 
-// 	pub type AccountId = u128;
-
-// 	pub static ADMIN: AccountId = 0;
-// 	pub static ALICE: AccountId = 1;
-// 	pub static BOB: AccountId = 2;
-// 	pub static CHARLIE: AccountId = 3;
-// 	pub static DAVE: AccountId = 4;
-// 	pub static EVEN: AccountId = 5;
+pub const fn account_id_from_u64(n: u64) -> AccountId {
+	let bytes_src = n.to_be_bytes();
+	let mut bytes_dst = [0u8; 32];
+	let mut k = 0;
+	while k < bytes_src.len() {
+		bytes_dst[k + 24] = bytes_src[k];
+		k += 1;
+	}
+	Public(bytes_dst)
+}
