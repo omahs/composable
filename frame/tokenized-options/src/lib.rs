@@ -1197,10 +1197,7 @@ pub mod pallet {
 			);
 
 			// Check if we are in deposit window
-			ensure!(
-				Self::option_status(option) == Status::Deposit,
-				Error::<T>::NotIntoDepositWindow
-			);
+			ensure!(option.status == Status::Deposit, Error::<T>::NotIntoDepositWindow);
 
 			// Different behaviors based on Call or Put option
 			let (asset_id, asset_amount) = match option.option_type {
@@ -1213,11 +1210,9 @@ pub mod pallet {
 			let asset_amount =
 				asset_amount.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
 
-			// Get vault_id and protocol account for depositing collateral
+			// Get vault_id for depositing collateral
 			let vault_id =
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
-
-			let protocol_account = Self::account_id(asset_id);
 
 			// Calculate the amount of shares the user should get and make checks
 			let shares_amount = VaultOf::<T>::calculate_lp_tokens_to_mint(&vault_id, asset_amount)?;
@@ -1247,6 +1242,7 @@ pub mod pallet {
 			})?;
 
 			// Transfer collateral to protocol account
+			let protocol_account = Self::account_id(asset_id);
 			AssetsOf::<T>::transfer(asset_id, from, &protocol_account, asset_amount, true)
 				.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
 
@@ -1280,10 +1276,7 @@ pub mod pallet {
 			);
 
 			// Check if we are in deposit window
-			ensure!(
-				Self::option_status(option) == Status::Deposit,
-				Error::<T>::NotIntoDepositWindow
-			);
+			ensure!(option.status == Status::Deposit, Error::<T>::NotIntoDepositWindow);
 
 			// Check if user has deposited any collateral before and retrieve position
 			let seller_position =
@@ -1296,13 +1289,15 @@ pub mod pallet {
 			};
 
 			// Get vault_id for withdrawing collateral
-			let protocol_account = Self::account_id(asset_id);
-
 			let vault_id =
 				Self::asset_id_to_vault_id(asset_id).ok_or(Error::<T>::AssetVaultDoesNotExists)?;
 
-			// Calculate amount to withdraw and make checks
-			let shares_amount = Self::calculate_shares_to_burn(option_amount, seller_position)?;
+			// Calculate shares amount to withdraw
+			let shares_amount = Self::convert_and_multiply_by_rational(
+				seller_position.shares_amount,
+				option_amount,
+				seller_position.option_amount,
+			)?;
 
 			let asset_amount = VaultOf::<T>::lp_share_value(&vault_id, shares_amount)?;
 
@@ -1335,8 +1330,8 @@ pub mod pallet {
 			} else {
 				*position = None;
 			}
-
 			// Protocol account withdraw from the vault and burn shares_amount
+			let protocol_account = Self::account_id(asset_id);
 			VaultOf::<T>::withdraw(&vault_id, &protocol_account, shares_amount)
 				.map_err(|_| Error::<T>::VaultWithdrawNotAllowed)?;
 
@@ -1373,18 +1368,13 @@ pub mod pallet {
 			let stablecoin_id = T::StablecoinAssetId::get();
 
 			// Check if we are in purchase window
-			ensure!(
-				Self::option_status(option) == Status::Purchase,
-				Error::<T>::NotIntoPurchaseWindow
-			);
+			ensure!(option.status == Status::Purchase, Error::<T>::NotIntoPurchaseWindow);
 
 			// Fake call to pricing pallet (to replace with actual call to pricing pallet)
 			let option_premium = Self::fake_option_price().expect("Error pricing option");
 
 			let option_premium =
 				option_premium.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
-
-			let protocol_account = Self::account_id(stablecoin_id);
 
 			// Check option availability
 			let total_issuance_buyer = AssetsOf::<T>::total_issuance(option_id);
@@ -1406,6 +1396,7 @@ pub mod pallet {
 			option.total_premium_paid = new_total_premium_paid;
 
 			// Transfer premium to protocol account
+			let protocol_account = Self::account_id(stablecoin_id);
 			AssetsOf::<T>::transfer(stablecoin_id, from, &protocol_account, option_premium, true)
 				.map_err(|_| Error::<T>::UserHasNotEnoughFundsToDeposit)?;
 
@@ -1501,10 +1492,7 @@ pub mod pallet {
 			);
 
 			// Check if we are in exercise window
-			ensure!(
-				Self::option_status(option) == Status::Exercise,
-				Error::<T>::NotIntoExerciseWindow
-			);
+			ensure!(option.status == Status::Exercise, Error::<T>::NotIntoExerciseWindow);
 
 			// Different behaviors based on Call or Put option
 			let asset_id = match option.option_type {
@@ -1551,10 +1539,7 @@ pub mod pallet {
 			position: &mut Option<SellerPosition<T>>,
 		) -> Result<(), DispatchError> {
 			// Check if we are in exercise window
-			ensure!(
-				Self::option_status(option) == Status::Exercise,
-				Error::<T>::NotIntoExerciseWindow
-			);
+			ensure!(option.status == Status::Exercise, Error::<T>::NotIntoExerciseWindow);
 
 			// Check if user has any collateral and retrieve position
 			let seller_position =
@@ -1632,12 +1617,12 @@ pub mod pallet {
 		//		Helper Functions
 		// ----------------------------------------------------------------------------------------------------
 		/// Protocol account for a particular asset.
-		pub fn account_id(asset_id: AssetIdOf<T>) -> AccountIdOf<T> {
+		pub(crate) fn account_id(asset_id: AssetIdOf<T>) -> AccountIdOf<T> {
 			T::PalletId::get().into_sub_account_truncating(asset_id)
 		}
 
 		/// Calculate the hash of an option providing the required attributes.
-		pub fn generate_id(
+		pub(crate) fn generate_id(
 			base_asset_id: AssetIdOf<T>,
 			quote_asset_id: AssetIdOf<T>,
 			base_asset_strike_price: BalanceOf<T>,
@@ -1657,11 +1642,7 @@ pub mod pallet {
 			))
 		}
 
-		fn option_status(option: &OptionToken<T>) -> Status {
-			option.status
-		}
-
-		pub fn call_option_collateral_amount(
+		pub(crate) fn call_option_collateral_amount(
 			base_asset_spot_price: BalanceOf<T>,
 			option: &OptionToken<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
@@ -1681,7 +1662,7 @@ pub mod pallet {
 			Ok(collateral_for_option)
 		}
 
-		pub fn put_option_collateral_amount(
+		pub(crate) fn put_option_collateral_amount(
 			base_asset_spot_price: BalanceOf<T>,
 			option: &OptionToken<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
@@ -1698,7 +1679,7 @@ pub mod pallet {
 			Ok(collateral_for_option)
 		}
 
-		pub fn convert_and_multiply_by_rational(
+		pub(crate) fn convert_and_multiply_by_rational(
 			a: BalanceOf<T>,
 			b: BalanceOf<T>,
 			c: BalanceOf<T>,
@@ -1711,23 +1692,6 @@ pub mod pallet {
 
 			let res = <T::Convert as Convert<u128, T::Balance>>::convert(res);
 			Ok(res)
-		}
-
-		pub fn calculate_shares_to_burn(
-			option_amount: BalanceOf<T>,
-			seller_position: &SellerPosition<T>,
-		) -> Result<BalanceOf<T>, DispatchError> {
-			let a =
-				<T::Convert as Convert<BalanceOf<T>, u128>>::convert(seller_position.shares_amount);
-			let b = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(option_amount);
-			let c =
-				<T::Convert as Convert<BalanceOf<T>, u128>>::convert(seller_position.option_amount);
-
-			let shares_amount =
-				multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
-
-			let shares_amount = <T::Convert as Convert<u128, BalanceOf<T>>>::convert(shares_amount);
-			Ok(shares_amount)
 		}
 
 		fn get_price(asset_id: AssetIdOf<T>) -> Result<BalanceOf<T>, DispatchError> {

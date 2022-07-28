@@ -862,7 +862,7 @@ fn test_withdraw_collateral_dust_issue() {
 			// Check creation ended correctly
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
-			let user_number = 5000;
+			let user_number = 50;
 			let seller_option_number: u128 = 70;
 			let buyer_option_number: u128 = 50;
 
@@ -905,8 +905,8 @@ fn test_withdraw_collateral_dust_issue() {
 			// Go to exercise window (option has expired so settlement can start)
 			// Before settlement, simulate a huge gain or huge loss for the vault
 			let vault_id = AssetToVault::<MockRuntime>::get(BTC).unwrap();
-			//Assets::mint_into(Origin::root(), BTC, Vault::account_id(&vault_id), 10000u128 * UNIT).unwrap();
-			Assets::burn_from(Origin::root(), BTC, Vault::account_id(&vault_id), 35000u128 * UNIT)
+			//Assets::mint_into(Origin::root(), BTC, Vault::account_id(&vault_id), 100u128 * UNIT).unwrap();
+			Assets::burn_from(Origin::root(), BTC, Vault::account_id(&vault_id), 350u128 * UNIT)
 				.unwrap();
 			run_to_block(6);
 
