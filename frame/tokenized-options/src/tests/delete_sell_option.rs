@@ -41,8 +41,12 @@ pub fn delete_sell_option_success_checks(option_id: AssetId, option_amount: Bala
 	let initial_vault_balance = Assets::balance(asset_id, &Vault::account_id(&vault_id));
 	let initial_user_position = Sellers::<MockRuntime>::try_get(option_id, who).unwrap_or_default();
 
-	let shares_amount =
-		TokenizedOptions::calculate_shares_to_burn(option_amount, &initial_user_position).unwrap();
+	let shares_amount = TokenizedOptions::convert_and_multiply_by_rational(
+		initial_user_position.shares_amount,
+		option_amount,
+		initial_user_position.option_amount,
+	)
+	.unwrap();
 
 	let asset_amount = Vault::lp_share_value(&vault_id, shares_amount).unwrap();
 

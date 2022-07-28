@@ -1168,6 +1168,28 @@ impl pallet_ibc_ping::Config for Runtime {
 	type IbcHandler = Ibc;
 }
 
+parameter_types! {
+	pub const TokenizedOptionsPalletId: PalletId = PalletId(*b"options_");
+	pub const StablecoinAssetId: CurrencyId = CurrencyId::USDC;
+}
+
+// impl tokenized_options::Config for Runtime {
+// 	type Event = Event;
+// 	type PalletId = TokenizedOptionsPalletId;
+// 	type WeightInfo = (); // Not sure what to put here right now
+// 	type Oracle = Oracle;
+// 	type Moment = Moment;
+// 	type Convert = ConvertInto;
+// 	type Time = Timestamp;
+// 	type StablecoinAssetId = StablecoinAssetId;
+// 	type LocalAssets = CurrencyFactory;
+// 	type ProtocolOrigin = EnsureRootOrHalfCouncil;
+// 	type CurrencyFactory = CurrencyFactory;
+// 	type Assets = Assets;
+// 	type VaultId = u64;
+// 	type Vault = Vault;
+// }
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1230,6 +1252,7 @@ construct_runtime!(
 		Pablo: pablo::{Pallet, Call, Storage, Event<T>} = 65,
 		DexRouter: dex_router::{Pallet, Call, Storage, Event<T>} = 66,
 		StakingRewards: pallet_staking_rewards::{Pallet, Call, Storage, Event<T>} = 67,
+		// TokenizedOptions: tokenized_options::{Pallet, Call, Storage, Event<T>} = 68,
 
 		CallFilter: call_filter::{Pallet, Call, Storage, Event<T>} = 100,
 
@@ -1312,6 +1335,7 @@ mod benches {
 		[dex_router, DexRouter]
 		[pallet_ibc, Ibc]
 		[ibc_transfer, Transfer]
+		// [tokenized_options, TokenizedOptions]
 	);
 }
 
