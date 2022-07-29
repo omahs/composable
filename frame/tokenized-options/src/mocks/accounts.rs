@@ -1,20 +1,14 @@
-use hex_literal::hex;
 use sp_core::sr25519::{Public, Signature};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
-pub static ADMIN: Public =
-	Public(hex!("0000000000000000000000000000000000000000000000000000000000000000"));
-pub static ALICE: Public =
-	Public(hex!("0000000000000000000000000000000000000000000000000000000000000001"));
-pub static BOB: Public =
-	Public(hex!("0000000000000000000000000000000000000000000000000000000000000002"));
-pub static CHARLIE: Public =
-	Public(hex!("0000000000000000000000000000000000000000000000000000000000000003"));
-pub static DAVE: Public =
-	Public(hex!("0000000000000000000000000000000000000000000000000000000000000004"));
-pub static EVEN: Public =
-	Public(hex!("0000000000000000000000000000000000000000000000000000000000000005"));
+pub const ADMIN: AccountId = account_id_from_u64(0);
+pub const ALICE: AccountId = account_id_from_u64(1);
+pub const BOB: AccountId = account_id_from_u64(2);
+pub const CHARLIE: AccountId = account_id_from_u64(3);
+pub const DAVE: AccountId = account_id_from_u64(4);
+pub const EVEN: AccountId = account_id_from_u64(5);
 
 pub const fn account_id_from_u64(n: u64) -> AccountId {
 	let bytes_src = n.to_be_bytes();

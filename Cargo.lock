@@ -8674,7 +8674,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hex-literal",
  "itertools",
  "orml-tokens",
  "orml-traits",
