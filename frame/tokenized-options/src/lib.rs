@@ -75,7 +75,6 @@
 		clippy::panic
 	)
 )] // allow in tests
-#![warn(clippy::unseparated_literal_suffix)]
 #![deny(
 	dead_code,
 	bad_style,
