@@ -943,6 +943,16 @@ pub mod pallet {
 		}
 
 		#[transactional]
+		fn update_accounts_deposited_one_asset_storage(
+			who: &Self::AccountId, 
+			pool_id: Self::PoolId,
+			lp_amount: Self::Balance,
+			deposit: bool,
+		) -> Result<(), DispatchError> {
+
+		}
+
+		#[transactional]
 		fn add_liquidity(
 			who: &Self::AccountId,
 			pool_id: Self::PoolId,
@@ -1061,8 +1071,6 @@ pub mod pallet {
 			}
 			todo!();
 		}
-
-		// fn update
 
 		#[transactional]
 		fn remove_liquidity(
