@@ -108,6 +108,15 @@ pub trait Amm {
 		keep_alive: bool,
 	) -> Result<(), DispatchError>;
 
+	fn remove_liquidity_one_asset(
+		who: &Self::AccountId,
+		pool_id: Self::PoolId,
+		lp_available: Self::Balance,
+		lp_amount: Self::Balance,
+		min_base_amount: Self::Balance,
+		min_quote_amount: Self::Balance,
+	) -> Result<(), DispatchError>;
+
 	/// Withdraw coins from the pool.
 	/// Withdrawal amount are based on current deposit ratios.
 	/// `amount` - quantity of LP tokens to burn in the withdrawal,

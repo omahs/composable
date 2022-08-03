@@ -367,10 +367,17 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::PoolId, PriceCumulativeStateOf<T>, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn assets)]
+	#[pallet::getter(fn accounts)]
 	#[pallet::unbounded]
-	pub type AccountsDepositedOneAsset<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, (T::AssetId, T::Balance), OptionQuery>;
+	pub type AccountsDepositedOneAsset<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		T::PoolId,
+		T::Balance,
+		OptionQuery,
+	>;
 
 	pub(crate) enum PriceRatio {
 		Swapped,
@@ -485,11 +492,10 @@ pub mod pallet {
 			min_quote_amount: T::Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			match AccountsDepositedOneAsset::<T>::try_get(&who) {
-				Ok((asset_id, lp_available)) => <Self as Amm>::remove_liquidity_one_asset(
+			match AccountsDepositedOneAsset::<T>::try_get(&who, &pool_id) {
+				Ok(lp_available) => <Self as Amm>::remove_liquidity_one_asset(
 					&who,
 					pool_id,
-					asset_id,
 					lp_available,
 					lp_amount,
 					min_base_amount,
@@ -999,13 +1005,11 @@ pub mod pallet {
 		fn remove_liquidity_one_asset(
 			who: &Self::AccountId,
 			pool_id: Self::PoolId,
-			asset_id: Self::AssetId,
 			lp_available: Self::Balance,
 			lp_amount: Self::Balance,
 			min_base_amount: Self::Balance,
 			min_quote_amount: Self::Balance,
 		) -> Result<(), DispatchError> {
-			let currency_pair = Self::currency_pair(pool_id)?;
 			let mut lp_redeemed = lp_amount;
 			let pool = Self::get_pool(pool_id)?;
 			let pool_account = Self::account_id(&pool_id);
@@ -1031,7 +1035,13 @@ pub mod pallet {
 						base_amount >= min_base_amount,
 						Error::<T>::CannotRespectMinimumRequested
 					);
-					StableSwap::<T>::remove_liquidity_one_asset(who, &info, &pool_account, base_amount, lp_redeemed)?;
+					StableSwap::<T>::remove_liquidity_one_asset(
+						who,
+						&info,
+						&pool_account,
+						base_amount,
+						lp_redeemed,
+					)?;
 					Self::disburse_fees(&pool_account, &info.owner, &fee)?;
 					Self::update_twap(pool_id)?;
 					Self::deposit_event(Event::<T>::LiquidityRemoved {
@@ -1042,15 +1052,17 @@ pub mod pallet {
 						total_issuance: updated_lp,
 					});
 				},
-				PoolConfiguration::ConstantProduct(info) => {
+				PoolConfiguration::ConstantProduct(_info) => {
 					todo!();
 				},
-				PoolConfiguration::LiquidityBootstrapping(info) => {
+				PoolConfiguration::LiquidityBootstrapping(_info) => {
 					todo!();
 				},
 			}
 			todo!();
 		}
+
+		// fn update
 
 		#[transactional]
 		fn remove_liquidity(
