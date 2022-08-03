@@ -1,6 +1,6 @@
 use crate::{Config, Error, PoolConfiguration, PoolCount, Pools};
 use composable_maths::dex::stable_swap::{compute_base, compute_d};
-use composable_support::math::safe::{safe_multiply_by_rational, SafeAdd, SafeSub};
+use composable_support::math::safe::{safe_multiply_by_rational, SafeAdd, SafeDiv, SafeSub};
 use composable_traits::{
 	currency::{CurrencyFactory, RangeId},
 	defi::CurrencyPair,
@@ -142,7 +142,10 @@ impl<T: Config> StableSwap<T> {
 		DispatchError,
 	> {
 		let zero = T::Balance::zero();
-		ensure!(base_amount > zero || quote_amount > zero, Error::<T>::AssetAmountMustBePositiveNumber);
+		ensure!(
+			base_amount > zero || quote_amount > zero,
+			Error::<T>::AssetAmountMustBePositiveNumber
+		);
 		let (mint_amount, base_fee, quote_fee) = Self::calculate_mint_amount_and_fees(
 			&pool_info,
 			&pool_account,
@@ -155,6 +158,77 @@ impl<T: Config> StableSwap<T> {
 		T::Assets::transfer(pool_info.pair.quote, who, &pool_account, quote_amount, keep_alive)?;
 		T::Assets::mint_into(pool_info.lp_token, who, mint_amount)?;
 		Ok((base_amount, quote_amount, mint_amount, base_fee, quote_fee))
+	}
+
+	pub fn calculate_one_asset_amount_and_fees(
+		pool: &StableSwapPoolInfo<T::AccountId, T::AssetId>,
+		pool_account: &T::AccountId,
+		lp_amount: T::Balance,
+	) -> Result<(T::Balance /* base_amount */, Fee<T::AssetId, T::Balance>/* fee */, T::Balance /* updated_lp */), DispatchError> {
+		// calculate amplification coefficient
+		let amplification_coefficient = T::Convert::convert(pool.amplification_coefficient.into());
+		// calculate current balance of base asset
+		let pool_base_aum = T::Assets::balance(pool.pair.base, &pool_account);
+		// calculate current balance of quote asset
+		let pool_quote_aum = T::Assets::balance(pool.pair.quote, &pool_account);
+		// calculate current invariant
+		let d0 = Self::get_invariant(pool_base_aum, pool_quote_aum, amplification_coefficient)?;
+		// calculate total issued lp tokens
+		let lp_issued = T::Assets::total_issuance(pool.lp_token);
+		// calculate new invariant
+		let d1 = d0.safe_sub(&T::Convert::convert(safe_multiply_by_rational(
+			T::Convert::convert(d0),
+			T::Convert::convert(lp_amount),
+			T::Convert::convert(lp_issued),
+		)?))?;
+		// calculate new balance of base asset
+		let new_base_amount = T::Convert::convert(compute_base(
+			T::Convert::convert(pool_quote_aum),
+			T::Convert::convert(amplification_coefficient),
+			T::Convert::convert(d1),
+		)?);
+		let base_to_withdraw_w_o_fees = pool_base_aum.safe_sub(&new_base_amount)?;
+		// calculate ideal balance of base asset
+		let ideal_base_balance = T::Convert::convert(safe_multiply_by_rational(
+			T::Convert::convert(d1),
+			T::Convert::convert(pool_base_aum),
+			T::Convert::convert(d0),
+		)?);
+		// calculate ideal balance of quote asset
+		let ideal_quote_balance = T::Convert::convert(safe_multiply_by_rational(
+			T::Convert::convert(d1),
+			T::Convert::convert(pool_quote_aum),
+			T::Convert::convert(d0),
+		)?);
+		let share: Permill = Permill::from_rational(2_u32, 4_u32);
+		let updated_fee_config = pool.fee_config.mul(share);
+
+		let base_difference = Self::abs_difference(ideal_base_balance, new_base_amount)?;
+		let quote_difference = Self::abs_difference(ideal_quote_balance, pool_quote_aum)?;
+		let base_fee = updated_fee_config.calculate_fees(pool.pair.base, base_difference);
+		let quote_fee = updated_fee_config.calculate_fees(pool.pair.quote, quote_difference);
+		let new_base_balance = new_base_amount.safe_sub(&base_fee.fee)?;
+		let new_quote_balance = pool_quote_aum.safe_sub(&quote_fee.fee)?;
+		let base_to_withdraw = new_base_balance.safe_sub(&T::Convert::convert(compute_base(
+			T::Convert::convert(new_quote_balance),
+			T::Convert::convert(amplification_coefficient),
+			T::Convert::convert(d1),
+		)?))?;
+
+		let total_issuance = lp_issued.safe_sub(&lp_amount)?;
+		let fee = updated_fee_config.calculate_fees(pool.pair.base, base_to_withdraw_w_o_fees.safe_sub(&base_to_withdraw)?);
+		Ok((base_to_withdraw, fee, total_issuance))
+	}
+
+	pub fn remove_liquidity_one_asset(
+		who: &T::AccountId,
+		pool: &StableSwapPoolInfo<T::AccountId, T::AssetId>,
+		pool_account: &T::AccountId,
+		base_amount: T::Balance,
+		lp_amount: T::Balance) -> Result<(), DispatchError> {
+		T::Assets::transfer(pool.pair.base, &pool_account, who, base_amount, false)?;
+		T::Assets::burn_from(pool.lp_token, who, lp_amount)?;	
+		Ok(())
 	}
 
 	pub fn remove_liquidity(

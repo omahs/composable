@@ -271,7 +271,7 @@ pub mod pallet {
 			+ Ord;
 
 		/// Type representing the Balance of an account.
-		type Balance: BalanceLike + SafeSub;
+		type Balance: BalanceLike + SafeSub + Zero;
 
 		/// An isomorphism: Balance<->u128
 		type Convert: Convert<u128, BalanceOf<Self>> + Convert<BalanceOf<Self>, u128>;
@@ -365,6 +365,12 @@ pub mod pallet {
 	#[pallet::unbounded]
 	pub type PriceCumulativeState<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PoolId, PriceCumulativeStateOf<T>, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn assets)]
+	#[pallet::unbounded]
+	pub type AccountsDepositedOneAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, (T::AssetId, T::Balance), OptionQuery>;
 
 	pub(crate) enum PriceRatio {
 		Swapped,
@@ -479,13 +485,26 @@ pub mod pallet {
 			min_quote_amount: T::Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let _ = <Self as Amm>::remove_liquidity(
-				&who,
-				pool_id,
-				lp_amount,
-				min_base_amount,
-				min_quote_amount,
-			)?;
+			match AccountsDepositedOneAsset::<T>::try_get(&who) {
+				Ok((asset_id, lp_available)) => <Self as Amm>::remove_liquidity_one_asset(
+					&who,
+					pool_id,
+					asset_id,
+					lp_available,
+					lp_amount,
+					min_base_amount,
+					min_quote_amount,
+				)?,
+				_ => {
+					<Self as Amm>::remove_liquidity(
+						&who,
+						pool_id,
+						lp_amount,
+						min_base_amount,
+						min_quote_amount,
+					)?;
+				},
+			}
 			Ok(())
 		}
 
@@ -974,6 +993,63 @@ pub mod pallet {
 				minted_lp,
 			});
 			Ok(())
+		}
+
+		// #[transactional]
+		fn remove_liquidity_one_asset(
+			who: &Self::AccountId,
+			pool_id: Self::PoolId,
+			asset_id: Self::AssetId,
+			lp_available: Self::Balance,
+			lp_amount: Self::Balance,
+			min_base_amount: Self::Balance,
+			min_quote_amount: Self::Balance,
+		) -> Result<(), DispatchError> {
+			let currency_pair = Self::currency_pair(pool_id)?;
+			let mut lp_redeemed = lp_amount;
+			let pool = Self::get_pool(pool_id)?;
+			let pool_account = Self::account_id(&pool_id);
+			if lp_amount > lp_available {
+				<Self as Amm>::remove_liquidity(
+					&who,
+					pool_id,
+					lp_redeemed - lp_available,
+					min_base_amount,
+					min_quote_amount,
+				)?;
+				lp_redeemed = lp_available;
+			}
+			match pool {
+				PoolConfiguration::StableSwap(info) => {
+					let (base_amount, fee, updated_lp) =
+						StableSwap::<T>::calculate_one_asset_amount_and_fees(
+							&info,
+							&pool_account,
+							lp_redeemed,
+						)?;
+					ensure!(
+						base_amount >= min_base_amount,
+						Error::<T>::CannotRespectMinimumRequested
+					);
+					StableSwap::<T>::remove_liquidity_one_asset(who, &info, &pool_account, base_amount, lp_redeemed)?;
+					Self::disburse_fees(&pool_account, &info.owner, &fee)?;
+					Self::update_twap(pool_id)?;
+					Self::deposit_event(Event::<T>::LiquidityRemoved {
+						pool_id,
+						who: who.clone(),
+						base_amount,
+						quote_amount: T::Balance::zero(),
+						total_issuance: updated_lp,
+					});
+				},
+				PoolConfiguration::ConstantProduct(info) => {
+					todo!();
+				},
+				PoolConfiguration::LiquidityBootstrapping(info) => {
+					todo!();
+				},
+			}
+			todo!();
 		}
 
 		#[transactional]

@@ -571,8 +571,8 @@ fn add_liquidity_with_one_asset() {
 		);
 		let pool = Pablo::pools(pool_id).expect("pool not found");
 		let pool = match pool {
-				StableSwap(pool) => pool,
-				_ => panic!("expected stable_swap pool"),
+			StableSwap(pool) => pool,
+			_ => panic!("expected stable_swap pool"),
 		};
 		assert_ok!(Tokens::mint_into(USDT, &BOB, usdt_balance));
 		assert_ok!(Tokens::mint_into(USDC, &BOB, usdc_balance));
@@ -583,7 +583,7 @@ fn add_liquidity_with_one_asset() {
 			usdt_balance,
 			0,
 			false
-		));	
+		));
 		let lp = Tokens::balance(pool.lp_token, &BOB);
 		let expected_lp = usdt_balance + usdc_balance;
 		assert_ok!(default_acceptable_computation_error(lp, expected_lp));
