@@ -1,6 +1,6 @@
 use super::{
 	block_producer::{BlockProducer, BlocksConfig},
-	OptionsConfigBuilder, VaultInitializer,
+	random_epoch, OptionsConfigBuilder, VaultInitializer,
 };
 use crate::{
 	mocks::runtime::{
@@ -12,19 +12,6 @@ use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTr
 use frame_support::assert_ok;
 use proptest::prelude::{prop, proptest, ProptestConfig, Strategy};
 use std::{collections::HashMap, ops::Range};
-
-fn random_epoch(
-	start_rng: Range<Moment>,
-	duration_rng: Range<Moment>,
-) -> impl Strategy<Value = Epoch<Moment>> {
-	(start_rng, prop::array::uniform3(duration_rng)).prop_map(|(start, duration)| {
-		let deposit = start;
-		let purchase = deposit + duration[0];
-		let exercise = purchase + duration[1];
-		let end = exercise + duration[2];
-		Epoch { deposit, purchase, exercise, end }
-	})
-}
 
 fn random_epochs(
 	n_rng: Range<usize>,
