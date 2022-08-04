@@ -1,22 +1,29 @@
-use super::{block_producer::BlockProducer, OptionsConfigBuilder, VaultInitializer};
+use super::{
+	block_producer::{BlockProducer, BlocksConfig},
+	OptionsConfigBuilder, VaultInitializer,
+};
 use crate::{
-	mocks::runtime::{Event, ExtBuilder, Moment, OptionId, System, Timestamp, TokenizedOptions},
+	mocks::runtime::{
+		Event, ExtBuilder, MockRuntime, Moment, OptionId, System, Timestamp, TokenizedOptions,
+	},
 	types::Epoch,
 };
 use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
 use frame_support::assert_ok;
-use proptest::prelude::*;
+use proptest::prelude::{prop, proptest, ProptestConfig, Strategy};
 use std::{collections::HashMap, ops::Range};
 
-prop_compose! {
-	fn random_epoch(start_rng: Range<Moment>, duration_rng: Range<Moment>)
-	(start in start_rng, duration in prop::array::uniform4(duration_rng)) -> Epoch<Moment> {
+fn random_epoch(
+	start_rng: Range<Moment>,
+	duration_rng: Range<Moment>,
+) -> impl Strategy<Value = Epoch<Moment>> {
+	(start_rng, prop::array::uniform3(duration_rng)).prop_map(|(start, duration)| {
 		let deposit = start;
 		let purchase = deposit + duration[0];
 		let exercise = purchase + duration[1];
 		let end = exercise + duration[2];
 		Epoch { deposit, purchase, exercise, end }
-	}
+	})
 }
 
 fn random_epochs(
@@ -27,35 +34,29 @@ fn random_epochs(
 	prop::collection::vec(random_epoch(start_rng, duration_rng), n_rng)
 }
 
-fn random_durations(
-	m_rng: Range<usize>,
-	duration_rng: Range<Moment>,
-) -> impl Strategy<Value = Vec<Moment>> {
-	prop::collection::vec(duration_rng, m_rng)
-}
-
 proptest! {
-	#![proptest_config(ProptestConfig {
-		cases: 10, .. ProptestConfig::default()
-	})]
+	#![proptest_config(ProptestConfig::with_cases(1))]
 	#[test]
-	fn test_time_management(epochs in random_epochs(50..200, 0..1000, 10..100), durations in random_durations(100..500, 10..50)) {
+	fn test_time_management(
+		epochs in random_epochs(50..200, 0..1000, 10..100),
+		moments in random_moments(100..500, 10..50)
+	) {
 		ExtBuilder::default()
 			.build()
 			.initialize_oracle_prices()
 			.initialize_all_vaults()
-			.execute_with(|| do_test_time_management(epochs, durations));
+			.execute_with(|| do_test_time_management(epochs, moments));
 	}
 }
 
-fn do_test_time_management(mut epochs: Vec<Epoch<Moment>>, durations: Vec<Moment>) {
+fn do_test_time_management(mut epochs: Vec<Epoch<Moment>>, moments: Vec<Moment>) {
+	let mut block_producer = BlockProducer::<TokenizedOptionsBlocksConfig>::new(moments);
 	let mut tester = Tester::default();
-	for block in BlockProducer::new(durations) {
-		if block.is_initial() {
+	while block_producer.next_block() {
+		if block_producer.is_init_block() {
 			let options = initialize_options(std::mem::take(&mut epochs));
 			tester.set_options(options);
 		}
-		drop(block);
 		tester.block_test();
 	}
 	tester.final_test();
@@ -120,4 +121,39 @@ impl Tester {
 			assert_eq!(counter, self.options.len());
 		}
 	}
+}
+
+enum TokenizedOptionsBlocksConfig {}
+
+impl BlocksConfig for TokenizedOptionsBlocksConfig {
+	type Runtime = MockRuntime;
+	type Hooked = TokenizedOptions;
+}
+
+/// Generates random block timestamps for block count and
+/// time interval ranges. First block is produced on zero moment;
+/// last block will have timestamp on infinity.
+fn random_moments(
+	block_count_rng: Range<usize>,
+	interval_rng: Range<u32>,
+) -> impl Strategy<Value = Vec<Moment>> {
+	block_count_rng.prop_flat_map(move |block_count| {
+		prop::collection::vec(interval_rng.clone(), block_count.saturating_sub(2)).prop_map(
+			move |intervals| match block_count {
+				0 => vec![],
+				1 => vec![Moment::max_value()],
+				_ => {
+					let mut moment: Moment = 0;
+					let mut moments = Vec::<Moment>::with_capacity(block_count);
+					moments.push(moment);
+					for interval in intervals {
+						moment = moment.saturating_add(Moment::from(interval));
+						moments.push(moment);
+					}
+					moments.push(Moment::max_value());
+					moments
+				},
+			},
+		)
+	})
 }
