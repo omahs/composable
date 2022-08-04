@@ -68,13 +68,16 @@ pub mod pallet {
 		WeightInfo,
 	};
 	use codec::FullCodec;
-	use composable_support::math::safe::{safe_multiply_by_rational, SafeArithmetic, SafeSub};
+	use composable_support::math::safe::{
+		safe_multiply_by_rational, SafeAdd, SafeArithmetic, SafeSub,
+	};
 	use composable_traits::{
 		currency::{CurrencyFactory, LocalAssets},
 		defi::{CurrencyPair, Rate},
 		dex::{
 			Amm, ConstantProductPoolInfo, Fee, LiquidityBootstrappingPoolInfo, PriceAggregate,
-			RedeemableAssets, RemoveLiquiditySimulationResult, StableSwapPoolInfo,
+			RedeemableAssets, RemoveLiquiditySimulationResult, SingleAssetAccountsStorageAction,
+			StableSwapPoolInfo,
 		},
 	};
 	use core::fmt::Debug;
@@ -376,7 +379,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::PoolId,
 		T::Balance,
-		OptionQuery,
+		ValueQuery,
 	>;
 
 	pub(crate) enum PriceRatio {
@@ -944,12 +947,36 @@ pub mod pallet {
 
 		#[transactional]
 		fn update_accounts_deposited_one_asset_storage(
-			who: &Self::AccountId, 
+			who: &Self::AccountId,
 			pool_id: Self::PoolId,
 			lp_amount: Self::Balance,
-			deposit: bool,
+			action: SingleAssetAccountsStorageAction,
 		) -> Result<(), DispatchError> {
-
+			match action {
+				SingleAssetAccountsStorageAction::Depositing =>
+					if AccountsDepositedOneAsset::<T>::contains_key(&who, &pool_id) {
+						AccountsDepositedOneAsset::<T>::try_mutate(
+							&who,
+							&pool_id,
+							|exist_amount| exist_amount.safe_add(&lp_amount),
+						)?;
+					} else {
+						AccountsDepositedOneAsset::<T>::insert(&who, &pool_id, lp_amount);
+					},
+				SingleAssetAccountsStorageAction::Withdrawing => {
+					let exist_amount = AccountsDepositedOneAsset::<T>::get(&who, &pool_id);
+					if exist_amount == lp_amount {
+						AccountsDepositedOneAsset::<T>::remove(&who, &pool_id);
+					} else {
+						AccountsDepositedOneAsset::<T>::try_mutate(
+							&who,
+							&pool_id,
+							|exist_amount| exist_amount.safe_sub(&lp_amount),
+						)?;
+					}
+				},
+			}
+			Ok(())
 		}
 
 		#[transactional]

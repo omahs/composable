@@ -96,6 +96,13 @@ pub trait Amm {
 		keep_alive: bool,
 	) -> Result<Self::Balance, DispatchError>;
 
+	fn update_accounts_deposited_one_asset_storage(
+		who: &Self::AccountId, 
+		pool_id: Self::PoolId,
+		lp_amount: Self::Balance,
+		action: SingleAssetAccountsStorageAction,
+	) -> Result<(), DispatchError>;
+
 	/// Deposit coins into the pool
 	/// `amounts` - list of amounts of coins to deposit,
 	/// `min_mint_amount` - minimum amout of LP tokens to mint from the deposit.
@@ -382,6 +389,13 @@ pub struct LiquidityBootstrappingPoolInfo<AccountId, AssetId, BlockNumber> {
 pub enum DexRoute<PoolId, MaxHops: Get<u32>> {
 	Direct(BoundedVec<PoolId, MaxHops>),
 }
+
+#[derive(Encode, Decode, MaxEncodedLen, TypeInfo, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum SingleAssetAccountsStorageAction {
+	Depositing,
+	Withdrawing,
+}
+
 
 pub trait DexRouter<AssetId, PoolId, Balance, MaxHops> {
 	/// If route is `None` then delete existing entry for `asset_pair`
