@@ -948,25 +948,25 @@ pub mod pallet {
 		#[transactional]
 		fn update_accounts_deposited_one_asset_storage(
 			who: &Self::AccountId,
-			pool_id: Self::PoolId,
+			pool_id: &Self::PoolId,
 			lp_amount: Self::Balance,
 			action: SingleAssetAccountsStorageAction,
 		) -> Result<(), DispatchError> {
 			match action {
 				SingleAssetAccountsStorageAction::Depositing =>
-					if AccountsDepositedOneAsset::<T>::contains_key(&who, &pool_id) {
+					if AccountsDepositedOneAsset::<T>::contains_key(who, pool_id) {
 						AccountsDepositedOneAsset::<T>::try_mutate(
 							&who,
 							&pool_id,
 							|exist_amount| exist_amount.safe_add(&lp_amount),
 						)?;
 					} else {
-						AccountsDepositedOneAsset::<T>::insert(&who, &pool_id, lp_amount);
+						AccountsDepositedOneAsset::<T>::insert(who, pool_id, lp_amount);
 					},
 				SingleAssetAccountsStorageAction::Withdrawing => {
-					let exist_amount = AccountsDepositedOneAsset::<T>::get(&who, &pool_id);
+					let exist_amount = AccountsDepositedOneAsset::<T>::get(who, pool_id);
 					if exist_amount == lp_amount {
-						AccountsDepositedOneAsset::<T>::remove(&who, &pool_id);
+						AccountsDepositedOneAsset::<T>::remove(who, pool_id);
 					} else {
 						AccountsDepositedOneAsset::<T>::try_mutate(
 							&who,
@@ -1027,6 +1027,14 @@ pub mod pallet {
 						keep_alive,
 					)?,
 			};
+			if base_amount == T::Balance::zero() || quote_amount == T::Balance::zero() {
+				Self::update_accounts_deposited_one_asset_storage(
+					&who,
+					&pool_id,
+					minted_lp,
+					SingleAssetAccountsStorageAction::Depositing,
+				)?;
+			}
 			Self::update_twap(pool_id)?;
 			Self::deposit_event(Event::<T>::LiquidityAdded {
 				who: who.clone(),
@@ -1078,6 +1086,12 @@ pub mod pallet {
 						&pool_account,
 						base_amount,
 						lp_redeemed,
+					)?;
+					Self::update_accounts_deposited_one_asset_storage(
+						&who,
+						&pool_id,
+						lp_redeemed,
+						SingleAssetAccountsStorageAction::Withdrawing,
 					)?;
 					Self::disburse_fees(&pool_account, &info.owner, &fee)?;
 					Self::update_twap(pool_id)?;

@@ -98,7 +98,7 @@ pub trait Amm {
 
 	fn update_accounts_deposited_one_asset_storage(
 		who: &Self::AccountId, 
-		pool_id: Self::PoolId,
+		pool_id: &Self::PoolId,
 		lp_amount: Self::Balance,
 		action: SingleAssetAccountsStorageAction,
 	) -> Result<(), DispatchError>;
