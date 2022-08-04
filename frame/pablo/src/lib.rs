@@ -1046,7 +1046,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// #[transactional]
+		#[transactional]
 		fn remove_liquidity_one_asset(
 			who: &Self::AccountId,
 			pool_id: Self::PoolId,

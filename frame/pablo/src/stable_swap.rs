@@ -1,6 +1,6 @@
 use crate::{Config, Error, PoolConfiguration, PoolCount, Pools};
 use composable_maths::dex::stable_swap::{compute_base, compute_d};
-use composable_support::math::safe::{safe_multiply_by_rational, SafeAdd, SafeDiv, SafeSub};
+use composable_support::math::safe::{safe_multiply_by_rational, SafeAdd, SafeSub};
 use composable_traits::{
 	currency::{CurrencyFactory, RangeId},
 	defi::CurrencyPair,
@@ -164,14 +164,7 @@ impl<T: Config> StableSwap<T> {
 		pool: &StableSwapPoolInfo<T::AccountId, T::AssetId>,
 		pool_account: &T::AccountId,
 		lp_amount: T::Balance,
-	) -> Result<
-		(
-			T::Balance,                  /* base_amount */
-			Fee<T::AssetId, T::Balance>, /* fee */
-			T::Balance,                  /* updated_lp */
-		),
-		DispatchError,
-	> {
+	) -> Result<(T::Balance /* base_amount */, Fee<T::AssetId, T::Balance>/* fee */, T::Balance /* updated_lp */), DispatchError> {
 		// calculate amplification coefficient
 		let amplification_coefficient = T::Convert::convert(pool.amplification_coefficient.into());
 		// calculate current balance of base asset
@@ -194,6 +187,7 @@ impl<T: Config> StableSwap<T> {
 			T::Convert::convert(amplification_coefficient),
 			T::Convert::convert(d1),
 		)?);
+		// amount iof base asset to withdraw without fees
 		let base_to_withdraw_w_o_fees = pool_base_aum.safe_sub(&new_base_amount)?;
 		// calculate ideal balance of base asset
 		let ideal_base_balance = T::Convert::convert(safe_multiply_by_rational(
@@ -223,8 +217,7 @@ impl<T: Config> StableSwap<T> {
 		)?))?;
 
 		let total_issuance = lp_issued.safe_sub(&lp_amount)?;
-		let fee = updated_fee_config
-			.calculate_fees(pool.pair.base, base_to_withdraw_w_o_fees.safe_sub(&base_to_withdraw)?);
+		let fee = updated_fee_config.calculate_fees(pool.pair.base, base_to_withdraw_w_o_fees.safe_sub(&base_to_withdraw)?);
 		Ok((base_to_withdraw, fee, total_issuance))
 	}
 
@@ -233,10 +226,9 @@ impl<T: Config> StableSwap<T> {
 		pool: &StableSwapPoolInfo<T::AccountId, T::AssetId>,
 		pool_account: &T::AccountId,
 		base_amount: T::Balance,
-		lp_amount: T::Balance,
-	) -> Result<(), DispatchError> {
+		lp_amount: T::Balance) -> Result<(), DispatchError> {
 		T::Assets::transfer(pool.pair.base, &pool_account, who, base_amount, false)?;
-		T::Assets::burn_from(pool.lp_token, who, lp_amount)?;
+		T::Assets::burn_from(pool.lp_token, who, lp_amount)?;	
 		Ok(())
 	}
 
