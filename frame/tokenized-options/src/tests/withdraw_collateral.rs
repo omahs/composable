@@ -862,9 +862,9 @@ fn test_withdraw_collateral_dust_issue() {
 			// Check creation ended correctly
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
-			let user_number = 50;
-			let seller_option_number: u128 = 70;
-			let buyer_option_number: u128 = 50;
+			let user_number = 50000;
+			let seller_option_number: u128 = 6001;
+			let buyer_option_number: u128 = 3001;
 
 			for i in 1..user_number {
 				Assets::mint_into(
@@ -874,6 +874,7 @@ fn test_withdraw_collateral_dust_issue() {
 					seller_option_number * UNIT,
 				)
 				.unwrap();
+
 				assert_ok!(TokenizedOptions::sell_option(
 					Origin::signed(account_id_from_u64(i)),
 					seller_option_number,
@@ -892,6 +893,7 @@ fn test_withdraw_collateral_dust_issue() {
 					buyer_option_number * 1000 * UNIT,
 				)
 				.unwrap();
+
 				assert_ok!(TokenizedOptions::buy_option(
 					Origin::signed(account_id_from_u64(i)),
 					buyer_option_number,
@@ -903,19 +905,37 @@ fn test_withdraw_collateral_dust_issue() {
 			set_oracle_price(option_config.base_asset_id, 55000u128 * UNIT);
 
 			// Go to exercise window (option has expired so settlement can start)
-			// Before settlement, simulate a huge gain or huge loss for the vault
+			// Before settlement, simulate a gain or loss for the vault
 			let vault_id = AssetToVault::<MockRuntime>::get(BTC).unwrap();
-			//Assets::mint_into(Origin::root(), BTC, Vault::account_id(&vault_id), 100u128 * UNIT).unwrap();
-			Assets::burn_from(Origin::root(), BTC, Vault::account_id(&vault_id), 350u128 * UNIT)
-				.unwrap();
+			// assert_ok!(Assets::mint_into(Origin::root(), BTC, Vault::account_id(&vault_id), 1101113u128 * UNIT));
+			assert_ok!(Assets::burn_from(Origin::root(), BTC, Vault::account_id(&vault_id), 1000u128 * UNIT));
+
 			run_to_block(6);
 
 			for i in 1..user_number {
 				if i == user_number - 1 {
-					// Here I stopped the debug and put a breakpoint at the line 1592 of the pallet to check whether the
-					// `user_shares_amount` is a lot more than the `lp_token_issuance`.
-					assert_eq!(0, 0);
+					// Get last user position to compare how many shares is going to lose for accumulated dust
+					let initial_user_position = Sellers::<MockRuntime>::try_get(option_id, account_id_from_u64(i)).unwrap();
+					let option = OptionIdToOption::<MockRuntime>::try_get(option_id).unwrap();
+
+					let shares_for_buyers = option.total_shares_amount * initial_user_position.option_amount
+					/ option.total_issuance_seller;
+
+					let user_shares = initial_user_position.shares_amount - shares_for_buyers;
+
+					let protocol_account = TokenizedOptions::account_id(BTC);
+					let lp_token_issuance =
+					Assets::balance(Vault::lp_asset_id(&vault_id).unwrap(), &protocol_account);
+					
+					if user_shares > lp_token_issuance {
+						println!("user_shares: {:?}", user_shares - lp_token_issuance);
+						assert!(user_shares - lp_token_issuance < 1000);
+					} else {
+						println!("lp_tokens: {:?}", lp_token_issuance - user_shares);
+						assert!(lp_token_issuance - user_shares < 1000);
+					}
 				}
+
 				assert_ok!(TokenizedOptions::withdraw_collateral(
 					Origin::signed(account_id_from_u64(i)),
 					option_id
