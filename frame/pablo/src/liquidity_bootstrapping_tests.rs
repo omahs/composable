@@ -91,6 +91,7 @@ fn with_pool<T>(
 	})
 }
 
+#[allow(clippy::too_many_arguments)]
 fn within_sale_with_liquidity<T>(
 	owner: AccountId,
 	sale_duration: BlockNumber,
@@ -245,7 +246,7 @@ mod remove_liquidity {
 			assert_ok!(Tokens::mint_into(PROJECT_TOKEN, &owner, initial_project_tokens));
 			assert_ok!(Tokens::mint_into(USDT, &owner, initial_usdt));
 			assert_noop!(
-				Pablo::remove_liquidity(Origin::signed(owner), pool_id, 0, 0, 0),
+				Pablo::remove_liquidity(Origin::signed(owner), pool_id, 0, 0, 0, false),
 				Error::<Test>::InvalidSaleState
 			);
 		});
@@ -271,7 +272,7 @@ mod remove_liquidity {
 				assert_ok!(Tokens::mint_into(PROJECT_TOKEN, &owner, initial_project_tokens));
 				assert_ok!(Tokens::mint_into(USDT, &owner, initial_usdt));
 				end_sale();
-				assert_ok!(Pablo::remove_liquidity(Origin::signed(owner), pool_id, 0, 0, 0));
+				assert_ok!(Pablo::remove_liquidity(Origin::signed(owner), pool_id, 0, 0, 0, false));
 				assert_eq!(Tokens::balance(PROJECT_TOKEN, &owner), initial_project_tokens);
 				assert_eq!(Tokens::balance(USDT, &owner), initial_usdt);
 			},
@@ -300,7 +301,7 @@ mod add_liquidity {
 				pool_id,
 				initial_project_tokens,
 				initial_usdt,
-				0_128,
+				0_u128,
 				false
 			));
 		});
@@ -332,7 +333,7 @@ mod add_liquidity {
 						pool_id,
 						initial_project_tokens,
 						initial_usdt,
-						0_128,
+						0_u128,
 						false
 					),
 					Error::<Test>::InvalidSaleState

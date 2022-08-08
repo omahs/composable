@@ -1,35 +1,36 @@
-#![cfg_attr(
-	not(test),
-	warn(
-		clippy::disallowed_methods,
-		clippy::disallowed_types,
-		clippy::indexing_slicing,
-		clippy::todo,
-		clippy::unwrap_used,
-		clippy::panic
-	)
-)]
-#![warn(clippy::unseparated_literal_suffix)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(
 	bad_style,
 	bare_trait_objects,
 	const_err,
 	improper_ctypes,
-	non_shorthand_field_patterns,
 	no_mangle_generic_items,
+	non_shorthand_field_patterns,
 	overflowing_literals,
 	path_statements,
 	patterns_in_fns_without_body,
 	private_in_public,
+	trivial_casts,
+	trivial_numeric_casts,
 	unconditional_recursion,
 	unused_allocation,
 	unused_comparisons,
+	unused_extern_crates,
 	unused_parens,
 	while_true,
-	trivial_casts,
-	trivial_numeric_casts,
-	unused_extern_crates
+	clippy::unseparated_literal_suffix
+)]
+#![cfg_attr(
+	test,
+	allow(
+		clippy::disallowed_methods,
+		clippy::disallowed_types,
+		clippy::identity_op,
+		clippy::indexing_slicing,
+		clippy::panic,
+		clippy::todo,
+		clippy::unwrap_used,
+	)
 )]
 #![allow(dead_code)] // TODO: remove when most of the work is completed.
 
@@ -76,23 +77,32 @@ pub mod pallet {
 		defi::{CurrencyPair, Rate},
 		dex::{
 			Amm, ConstantProductPoolInfo, Fee, LiquidityBootstrappingPoolInfo, PriceAggregate,
-			RedeemableAssets, RemoveLiquiditySimulationResult, SingleAssetAccountsStorageAction,
-			StableSwapPoolInfo,
+			RedeemableAssets, RemoveLiquiditySimulationResult, RewardPoolType, StableSwapPoolInfo, SingleAssetAccountsStorageAction,
+			StakingRewardPool, MAX_REWARDS,
 		},
+		staking::{
+			lock::LockConfig, ManageStaking, ProtocolStaking, RewardConfig,
+			RewardPoolConfiguration, RewardRate,
+		},
+		time::{ONE_MONTH, ONE_WEEK},
 	};
 	use core::fmt::Debug;
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
 			fungibles::{Inspect, Mutate, Transfer},
-			Time,
+			Time, TryCollect,
 		},
-		transactional, PalletId, RuntimeDebug,
+		transactional, BoundedBTreeMap, PalletId, RuntimeDebug,
 	};
 
 	use crate::liquidity_bootstrapping::LiquidityBootstrapping;
 	use composable_maths::dex::{
-		constant_product::compute_deposit_lp, price::compute_initial_price_cumulative,
+		constant_product::{
+			compute_asset_for_redeemable_lp_tokens, compute_deposit_lp,
+			compute_deposit_lp_single_asset,
+		},
+		price::compute_initial_price_cumulative,
 	};
 	use composable_support::validation::Validated;
 	use composable_traits::{currency::BalanceLike, dex::FeeConfig};
@@ -102,9 +112,9 @@ pub mod pallet {
 	};
 	use sp_runtime::{
 		traits::{AccountIdConversion, BlockNumberProvider, Convert, One, Zero},
-		ArithmeticError, FixedPointNumber, Permill,
+		ArithmeticError, FixedPointNumber, Perbill, Permill,
 	};
-	use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
+	use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
 	#[derive(RuntimeDebug, Encode, Decode, MaxEncodedLen, Clone, PartialEq, Eq, TypeInfo)]
 	pub enum PoolInitConfiguration<AccountId, AssetId, BlockNumber> {
@@ -151,10 +161,23 @@ pub mod pallet {
 		<T as Config>::AssetId,
 		<T as frame_system::Config>::BlockNumber,
 	>;
+
+	type StakingRewardPoolsOf<T> = BoundedVec<
+		StakingRewardPool<<T as Config>::RewardPoolId>,
+		<T as Config>::MaxStakingRewardPools,
+	>;
+	type RewardConfigsOf<T> = BoundedBTreeMap<
+		<T as Config>::AssetId,
+		RewardConfig<<T as Config>::AssetId, <T as Config>::Balance>,
+		<T as Config>::MaxRewardConfigsPerPool,
+	>;
 	pub(crate) type MomentOf<T> = <<T as Config>::Time as Time>::Moment;
 	pub(crate) type TWAPStateOf<T> = TimeWeightedAveragePrice<MomentOf<T>, <T as Config>::Balance>;
 	pub(crate) type PriceCumulativeStateOf<T> =
 		PriceCumulative<MomentOf<T>, <T as Config>::Balance>;
+
+	type DurationPresets<T> =
+		BoundedBTreeMap<u64, Perbill, <T as Config>::MaxStakingDurationPresets>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -257,9 +280,11 @@ pub mod pallet {
 		MissingAmount,
 		MissingMinExpectedAmount,
 		MoreThanTwoAssetsNotYetSupported,
+		SingleAssetNotYetSupported,
 		NoLpTokenForLbp,
 		WeightsMustBeNonZero,
 		WeightsMustSumToOne,
+		StakingPoolConfigError,
 	}
 
 	#[pallet::config]
@@ -278,6 +303,7 @@ pub mod pallet {
 			+ Debug
 			+ Default
 			+ TypeInfo
+			+ From<u128>
 			+ Ord;
 
 		/// Type representing the Balance of an account.
@@ -343,7 +369,46 @@ pub mod pallet {
 		#[pallet::constant]
 		type TWAPInterval: Get<MomentOf<Self>>;
 
+		type RewardPoolId: FullCodec
+			+ MaxEncodedLen
+			+ Default
+			+ Debug
+			+ TypeInfo
+			+ Eq
+			+ PartialEq
+			+ Ord
+			+ Copy
+			+ Zero
+			+ One
+			+ SafeArithmetic;
+
+		type MaxStakingRewardPools: Get<u32>;
+
+		type MaxRewardConfigsPerPool: Get<u32>;
+
+		type MaxStakingDurationPresets: Get<u32>;
+
+		type ManageStaking: ManageStaking<
+			AccountId = AccountIdOf<Self>,
+			AssetId = <Self as Config>::AssetId,
+			BlockNumber = <Self as frame_system::Config>::BlockNumber,
+			Balance = Self::Balance,
+			RewardConfigsLimit = Self::MaxRewardConfigsPerPool,
+			StakingDurationPresetsLimit = Self::MaxStakingDurationPresets,
+			RewardPoolId = Self::RewardPoolId,
+		>;
+
+		type ProtocolStaking: ProtocolStaking<
+			AccountId = AccountIdOf<Self>,
+			AssetId = <Self as Config>::AssetId,
+			Balance = Self::Balance,
+			RewardPoolId = Self::RewardPoolId,
+		>;
+
 		type WeightInfo: WeightInfo;
+
+		#[pallet::constant]
+		type MsPerBlock: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -388,6 +453,10 @@ pub mod pallet {
 		T::Balance,
 		ValueQuery,
 	>;
+
+	#[pallet::getter(fn staking_reward_pools)]
+	pub type StakingRewardPools<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::PoolId, StakingRewardPoolsOf<T>, OptionQuery>;
 
 	pub(crate) enum PriceRatio {
 		Swapped,
@@ -479,7 +548,7 @@ pub mod pallet {
 			keep_alive: bool,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let _ = <Self as Amm>::add_liquidity(
+			<Self as Amm>::add_liquidity(
 				&who,
 				pool_id,
 				base_amount,
@@ -500,6 +569,7 @@ pub mod pallet {
 			lp_amount: T::Balance,
 			min_base_amount: T::Balance,
 			min_quote_amount: T::Balance,
+			is_single_asset: bool,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			match AccountsDepositedOneAsset::<T>::try_get(&who, &pool_id) {
@@ -529,7 +599,7 @@ pub mod pallet {
 		pub fn enable_twap(origin: OriginFor<T>, pool_id: T::PoolId) -> DispatchResult {
 			T::EnableTwapOrigin::ensure_origin(origin)?;
 			if TWAPState::<T>::contains_key(pool_id) {
-				// pool_id is alread enabled for TWAP
+				// pool_id is already enabled for TWAP
 				return Ok(())
 			}
 			let current_timestamp = T::Time::now();
@@ -608,6 +678,119 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		fn default_pblo_staking_pool_config(
+			pool_id: &T::PoolId,
+			pair: &CurrencyPair<T::AssetId>,
+		) -> Result<
+			RewardPoolConfiguration<
+				T::AccountId,
+				T::AssetId,
+				T::BlockNumber,
+				RewardConfigsOf<T>,
+				DurationPresets<T>,
+			>,
+			DispatchError,
+		> {
+			let max_rewards: T::Balance = T::Convert::convert(MAX_REWARDS);
+			let reward_rate = RewardRate::per_second(T::Convert::convert(0));
+			let reward_configs = [
+				(
+					pair.base,
+					RewardConfig {
+						asset_id: pair.base,
+						max_rewards,
+						reward_rate: reward_rate.clone(),
+					},
+				),
+				(pair.quote, RewardConfig { asset_id: pair.quote, max_rewards, reward_rate }),
+			]
+			.into_iter()
+			.try_collect()
+			.map_err(|_| Error::<T>::StakingPoolConfigError)?;
+			let duration_presets =
+				[(ONE_WEEK, Perbill::from_percent(1)), (ONE_MONTH, Perbill::from_percent(10))]
+					.into_iter()
+					.try_collect()
+					.map_err(|_| Error::<T>::StakingPoolConfigError)?;
+			let lock = LockConfig { duration_presets, unlock_penalty: Perbill::from_percent(5) };
+
+			let five_years_block = 5 * 365 * 24 * 60 * 60 / T::MsPerBlock::get();
+			let end_block =
+				frame_system::Pallet::<T>::current_block_number() + five_years_block.into();
+			Ok(RewardPoolConfiguration::<_, _, _, _, _>::RewardRateBasedIncentive {
+				owner: Self::account_id(pool_id),
+				asset_id: primitives::currency::CurrencyId::PBLO.0.into(),
+				end_block,
+				reward_configs,
+				lock,
+			})
+		}
+
+		fn default_lp_staking_pool_config(
+			pool_id: &T::PoolId,
+		) -> Result<
+			RewardPoolConfiguration<
+				T::AccountId,
+				T::AssetId,
+				T::BlockNumber,
+				RewardConfigsOf<T>,
+				DurationPresets<T>,
+			>,
+			DispatchError,
+		> {
+			let max_rewards: T::Balance = T::Convert::convert(MAX_REWARDS);
+			// let reward_rate = Perbill::from_percent(REWARD_PERCENTAGE); not sure how this
+			// translates to the new model
+			let reward_rate = RewardRate::per_second(T::Convert::convert(0));
+			let pblo_asset_id: T::AssetId = primitives::currency::CurrencyId::PBLO.0.into();
+			let reward_configs = [(
+				pblo_asset_id,
+				RewardConfig { asset_id: pblo_asset_id, max_rewards, reward_rate },
+			)]
+			.into_iter()
+			.try_collect()
+			.map_err(|_| Error::<T>::StakingPoolConfigError)?;
+			let duration_presets =
+				[(ONE_WEEK, Perbill::from_percent(1)), (ONE_MONTH, Perbill::from_percent(10))]
+					.into_iter()
+					.try_collect()
+					.map_err(|_| Error::<T>::StakingPoolConfigError)?;
+			let lock = LockConfig { duration_presets, unlock_penalty: Perbill::from_percent(5) };
+			let five_years_block = 5 * 365 * 24 * 60 * 60 / T::MsPerBlock::get();
+			let end_block =
+				frame_system::Pallet::<T>::current_block_number() + five_years_block.into();
+			Ok(RewardPoolConfiguration::<_, _, _, _, _>::RewardRateBasedIncentive {
+				owner: Self::account_id(pool_id),
+				asset_id: Self::lp_token(*pool_id)?,
+				end_block,
+				reward_configs,
+				lock,
+			})
+		}
+
+		#[transactional]
+		fn create_staking_reward_pool(
+			pool_id: &T::PoolId,
+			pair: CurrencyPair<T::AssetId>,
+		) -> DispatchResult {
+			let pblo_pool_config = Self::default_pblo_staking_pool_config(pool_id, &pair)?;
+			let lp_pool_config = Self::default_lp_staking_pool_config(pool_id)?;
+			let pblo_staking_pool_id = T::ManageStaking::create_staking_pool(pblo_pool_config)?;
+			let lp_staking_pool_id = T::ManageStaking::create_staking_pool(lp_pool_config)?;
+			let pblo_staking_pool = StakingRewardPool {
+				pool_id: pblo_staking_pool_id,
+				pool_type: RewardPoolType::PBLO,
+			};
+			let lp_staking_pool =
+				StakingRewardPool { pool_id: lp_staking_pool_id, pool_type: RewardPoolType::LP };
+			let staking_reward_pools =
+				BoundedVec::try_from(vec![pblo_staking_pool, lp_staking_pool])
+					.map_err(|_| Error::<T>::StakingPoolConfigError)?;
+
+			StakingRewardPools::<T>::insert(pool_id, staking_reward_pools);
+			Ok(())
+		}
+
 		#[transactional]
 		pub fn do_create_pool(
 			init_config: PoolInitConfigurationOf<T>,
@@ -618,26 +801,26 @@ pub mod pallet {
 					pair,
 					amplification_coefficient,
 					fee,
-				} => (
-					owner.clone(),
-					StableSwap::<T>::do_create_pool(
+				} => {
+					let pool_id = StableSwap::<T>::do_create_pool(
 						&owner,
 						pair,
 						amplification_coefficient,
 						FeeConfig::default_from(fee),
-					)?,
-					pair,
-				),
-				PoolInitConfiguration::ConstantProduct { owner, pair, fee, base_weight } => (
-					owner.clone(),
-					Uniswap::<T>::do_create_pool(
+					)?;
+					Self::create_staking_reward_pool(&pool_id, pair)?;
+					(owner, pool_id, pair)
+				},
+				PoolInitConfiguration::ConstantProduct { owner, pair, fee, base_weight } => {
+					let pool_id = Uniswap::<T>::do_create_pool(
 						&owner,
 						pair,
 						FeeConfig::default_from(fee),
 						base_weight,
-					)?,
-					pair,
-				),
+					)?;
+					Self::create_staking_reward_pool(&pool_id, pair)?;
+					(owner, pool_id, pair)
+				},
 				PoolInitConfiguration::LiquidityBootstrapping(pool_config) => {
 					let validated_pool_config =
 						Validated::new(pool_config.clone()).map_err(DispatchError::Other)?;
@@ -694,7 +877,7 @@ pub mod pallet {
 		}
 
 		fn update_twap(pool_id: T::PoolId) -> Result<(), DispatchError> {
-			let currency_pair = Self::currency_pair(pool_id)?; // update price cumulatives
+			let currency_pair = Self::currency_pair(pool_id)?; // update price cumulative
 			let (base_price_cumulative, quote_price_cumulative) =
 				PriceCumulativeState::<T>::try_mutate(
 					pool_id,
@@ -735,13 +918,27 @@ pub mod pallet {
 		#[transactional]
 		fn disburse_fees(
 			who: &T::AccountId,
+			pool_id: &T::PoolId,
 			owner: &T::AccountId,
 			fees: &Fee<T::AssetId, T::Balance>,
 		) -> Result<(), DispatchError> {
 			if !fees.owner_fee.is_zero() {
 				T::Assets::transfer(fees.asset_id, who, owner, fees.owner_fee, false)?;
 			}
-			// TODO other fees handling
+			if !fees.protocol_fee.is_zero() {
+				let staking_reward_pools = StakingRewardPools::<T>::get(&pool_id)
+					.ok_or(Error::<T>::StakingPoolConfigError)?;
+				for staking_reward_pool in staking_reward_pools {
+					if staking_reward_pool.pool_type == RewardPoolType::PBLO {
+						T::ProtocolStaking::transfer_reward(
+							who,
+							&staking_reward_pool.pool_id,
+							fees.asset_id,
+							fees.protocol_fee,
+						)?;
+					}
+				}
+			}
 			Ok(())
 		}
 	}
@@ -805,6 +1002,7 @@ pub mod pallet {
 			pool_id: Self::PoolId,
 			lp_amount: Self::Balance,
 			min_expected_amounts: BTreeMap<Self::AssetId, Self::Balance>,
+			is_single_asset: bool,
 		) -> Result<RedeemableAssets<Self::AssetId, Self::Balance>, DispatchError> {
 			let pool = Self::get_pool(pool_id)?;
 			let pool_account = Self::account_id(&pool_id);
@@ -817,28 +1015,74 @@ pub mod pallet {
 				.get(&currency_pair.quote)
 				.ok_or(Error::<T>::MissingMinExpectedAmount)?;
 			match pool {
-				PoolConfiguration::StableSwap(StableSwapPoolInfo { pair, lp_token, .. }) |
-				PoolConfiguration::ConstantProduct(ConstantProductPoolInfo {
-					pair,
-					lp_token,
-					..
-				}) => {
+				PoolConfiguration::StableSwap(StableSwapPoolInfo { pair, lp_token, .. }) => {
 					let pool_base_aum =
 						T::Convert::convert(T::Assets::balance(pair.base, &pool_account));
 					let pool_quote_aum =
 						T::Convert::convert(T::Assets::balance(pair.quote, &pool_account));
 					let lp_issued = T::Assets::total_issuance(lp_token);
 
-					let base_amount = T::Convert::convert(safe_multiply_by_rational(
-						T::Convert::convert(lp_amount),
-						pool_base_aum,
-						T::Convert::convert(lp_issued),
-					)?);
-					let quote_amount = T::Convert::convert(safe_multiply_by_rational(
-						T::Convert::convert(lp_amount),
-						pool_quote_aum,
-						T::Convert::convert(lp_issued),
-					)?);
+					let (base_amount, quote_amount) = if is_single_asset {
+						return Err(Error::<T>::SingleAssetNotYetSupported.into())
+					} else {
+						let base_amount = T::Convert::convert(safe_multiply_by_rational(
+							T::Convert::convert(lp_amount),
+							pool_base_aum,
+							T::Convert::convert(lp_issued),
+						)?);
+						let quote_amount = T::Convert::convert(safe_multiply_by_rational(
+							T::Convert::convert(lp_amount),
+							pool_quote_aum,
+							T::Convert::convert(lp_issued),
+						)?);
+						(base_amount, quote_amount)
+					};
+
+					ensure!(
+						base_amount >= min_base_amount && quote_amount >= min_quote_amount,
+						Error::<T>::CannotRespectMinimumRequested
+					);
+					Ok(RedeemableAssets {
+						assets: BTreeMap::from([
+							(pair.base, base_amount),
+							(pair.quote, quote_amount),
+						]),
+					})
+				},
+				PoolConfiguration::ConstantProduct(ConstantProductPoolInfo {
+					pair,
+					lp_token,
+					base_weight,
+					..
+				}) => {
+					let pool_base_aum =
+						T::Convert::convert(T::Assets::balance(pair.base, &pool_account));
+					let lp_issued = T::Convert::convert(T::Assets::total_issuance(lp_token));
+
+					let (base_amount, quote_amount) = if is_single_asset {
+						let base_amount = compute_asset_for_redeemable_lp_tokens(
+							pool_base_aum,
+							base_weight,
+							T::Convert::convert(lp_amount),
+							lp_issued,
+						)?;
+						(T::Convert::convert(base_amount), T::Balance::zero())
+					} else {
+						let pool_quote_aum =
+							T::Convert::convert(T::Assets::balance(pair.quote, &pool_account));
+						let base_amount = T::Convert::convert(safe_multiply_by_rational(
+							T::Convert::convert(lp_amount),
+							pool_base_aum,
+							lp_issued,
+						)?);
+						let quote_amount = T::Convert::convert(safe_multiply_by_rational(
+							T::Convert::convert(lp_amount),
+							pool_quote_aum,
+							lp_issued,
+						)?);
+						(base_amount, quote_amount)
+					};
+
 					ensure!(
 						base_amount >= min_base_amount && quote_amount >= min_quote_amount,
 						Error::<T>::CannotRespectMinimumRequested
@@ -869,10 +1113,15 @@ pub mod pallet {
 			pool_id: Self::PoolId,
 			lp_amount: Self::Balance,
 			min_expected_amounts: BTreeMap<Self::AssetId, Self::Balance>,
+			is_single_asset: bool,
 		) -> Result<RemoveLiquiditySimulationResult<Self::AssetId, Self::Balance>, DispatchError> {
 			ensure!(min_expected_amounts.len() < 3, Error::<T>::MoreThanTwoAssetsNotYetSupported);
-			let redeemable_assets =
-				Self::redeemable_assets_for_lp_tokens(pool_id, lp_amount, min_expected_amounts)?;
+			let redeemable_assets = Self::redeemable_assets_for_lp_tokens(
+				pool_id,
+				lp_amount,
+				min_expected_amounts,
+				is_single_asset,
+			)?;
 			let pool = Self::get_pool(pool_id)?;
 			let pool_account = Self::account_id(&pool_id);
 			match pool {
@@ -1002,32 +1251,37 @@ pub mod pallet {
 					let (added_base_amount, added_quote_amount, minted_lp, base_fee, quote_fee) =
 						StableSwap::<T>::add_liquidity(
 							who,
-							info.clone(),
-							pool_account.clone(),
+							&info,
+							&pool_account,
 							base_amount,
 							quote_amount,
 							min_mint_amount,
 							keep_alive,
 						)?;
 					// imbalance fees
-					Self::disburse_fees(&pool_account, &info.owner, &base_fee)?;
-					Self::disburse_fees(&pool_account, &info.owner, &quote_fee)?;
+					Self::disburse_fees(&pool_account, &pool_id, &info.owner, &base_fee)?;
+					Self::disburse_fees(&pool_account, &pool_id, &info.owner, &quote_fee)?;
 					(added_base_amount, added_quote_amount, minted_lp)
 				},
-				PoolConfiguration::ConstantProduct(info) => Uniswap::<T>::add_liquidity(
-					who,
-					info,
-					pool_account,
-					base_amount,
-					quote_amount,
-					min_mint_amount,
-					keep_alive,
-				)?,
+				PoolConfiguration::ConstantProduct(info) => {
+					let (added_base_amount, added_quote_amount, minted_lp, fee) =
+						Uniswap::<T>::add_liquidity(
+							who,
+							&info,
+							&pool_account,
+							base_amount,
+							quote_amount,
+							min_mint_amount,
+							keep_alive,
+						)?;
+					Self::disburse_fees(&pool_account, &pool_id, &info.owner, &fee)?;
+					(added_base_amount, added_quote_amount, minted_lp)
+				},
 				PoolConfiguration::LiquidityBootstrapping(info) =>
 					LiquidityBootstrapping::<T>::add_liquidity(
 						who,
 						info,
-						pool_account,
+						&pool_account,
 						base_amount,
 						quote_amount,
 						min_mint_amount,
@@ -1128,6 +1382,7 @@ pub mod pallet {
 			lp_amount: Self::Balance,
 			min_base_amount: Self::Balance,
 			min_quote_amount: Self::Balance,
+			is_single_asset: bool,
 		) -> Result<(), DispatchError> {
 			let currency_pair = Self::currency_pair(pool_id)?;
 			let redeemable_assets = Self::redeemable_assets_for_lp_tokens(
@@ -1137,6 +1392,7 @@ pub mod pallet {
 					(currency_pair.base, min_base_amount),
 					(currency_pair.quote, min_quote_amount),
 				]),
+				is_single_asset,
 			)?;
 			let pool = Self::get_pool(pool_id)?;
 			let pool_account = Self::account_id(&pool_id);
@@ -1295,7 +1551,7 @@ pub mod pallet {
 					(base_amount, info.owner, fees)
 				},
 			};
-			Self::disburse_fees(who, &owner, &fees)?;
+			Self::disburse_fees(who, &pool_id, &owner, &fees)?;
 			Self::update_twap(pool_id)?;
 			Self::deposit_event(Event::<T>::Swapped {
 				pool_id,
@@ -1408,20 +1664,33 @@ pub mod pallet {
 				Ok(amount_of_lp_token_to_mint)
 			},
 			PoolConfiguration::ConstantProduct(pool) => {
+				let base_amount = T::Convert::convert(base_amount);
 				let pool_base_aum =
 					T::Convert::convert(T::Assets::balance(pool.pair.base, &pool_account));
-				let pool_quote_aum =
-					T::Convert::convert(T::Assets::balance(pool.pair.quote, &pool_account));
-
 				let lp_total_issuance =
 					T::Convert::convert(T::Assets::total_issuance(pool.lp_token));
-				let (_, amount_of_lp_token_to_mint) = compute_deposit_lp(
-					lp_total_issuance,
-					T::Convert::convert(base_amount),
-					T::Convert::convert(quote_amount),
-					pool_base_aum,
-					pool_quote_aum,
-				)?;
+
+				let amount_of_lp_token_to_mint = if quote_amount.is_zero() {
+					let weight = pool.base_weight;
+					compute_deposit_lp_single_asset(
+						base_amount,
+						pool_base_aum,
+						weight,
+						lp_total_issuance,
+					)?
+				} else {
+					let pool_quote_aum =
+						T::Convert::convert(T::Assets::balance(pool.pair.quote, &pool_account));
+
+					let (_, amount_of_lp_token_to_mint) = compute_deposit_lp(
+						lp_total_issuance,
+						base_amount,
+						T::Convert::convert(quote_amount),
+						pool_base_aum,
+						pool_quote_aum,
+					)?;
+					amount_of_lp_token_to_mint
+				};
 				Ok(T::Convert::convert(amount_of_lp_token_to_mint))
 			},
 			PoolConfiguration::LiquidityBootstrapping(_pool) => Ok(T::Balance::zero()),

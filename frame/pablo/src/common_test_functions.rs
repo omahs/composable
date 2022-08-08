@@ -1,3 +1,5 @@
+use core::ops::{AddAssign, DivAssign, MulAssign, Sub, SubAssign};
+
 use crate::{
 	liquidity_bootstrapping_tests::valid_pool,
 	mock,
@@ -11,8 +13,12 @@ use frame_support::{
 	traits::fungibles::{Inspect, Mutate},
 };
 use frame_system::EventRecord;
+use rust_decimal::{
+	prelude::{FromPrimitive, ToPrimitive},
+	Decimal, MathematicalOps,
+};
 use sp_core::H256;
-use sp_runtime::TokenError;
+use sp_runtime::{traits::One, PerThing, Permill, TokenError};
 
 /// `expected_lp_check` takes base_amount, quote_amount and lp_tokens in order and returns
 /// true if lp_tokens are expected for given base_amount, quote_amount.
@@ -26,9 +32,11 @@ pub fn common_add_remove_lp(
 ) {
 	System::set_block_number(System::block_number() + 1);
 	let actual_pool_id = Pablo::do_create_pool(init_config.clone()).expect("pool creation failed");
-	assert_has_event::<Test, _>(
-		|e| matches!(e.event, mock::Event::Pablo(crate::Event::PoolCreated { pool_id, .. }) if pool_id == actual_pool_id),
-	);
+	assert_has_event::<Test, _>(|e| {
+		matches!(e.event,
+			mock::Event::Pablo(crate::Event::PoolCreated { pool_id, .. })
+			if pool_id == actual_pool_id)
+	});
 	let pair = match init_config {
 		PoolInitConfiguration::StableSwap { pair, .. } => pair,
 		PoolInitConfiguration::ConstantProduct { pair, .. } => pair,
@@ -50,11 +58,13 @@ pub fn common_add_remove_lp(
 	));
 	assert_last_event::<Test, _>(|e| {
 		matches!(e.event,
-            mock::Event::Pablo(crate::Event::LiquidityAdded { who, pool_id, base_amount, quote_amount, .. })
-            if who == ALICE
-            && pool_id == actual_pool_id
-            && base_amount == init_base_amount
-            && quote_amount == init_quote_amount)
+			mock::Event::Pablo(crate::Event::LiquidityAdded {
+				who, pool_id, base_amount, quote_amount, ..
+			})
+			if who == ALICE
+			&& pool_id == actual_pool_id
+			&& base_amount == init_base_amount
+			&& quote_amount == init_quote_amount)
 	});
 
 	let pool = Pablo::pools(actual_pool_id).expect("pool not found");
@@ -82,7 +92,9 @@ pub fn common_add_remove_lp(
 	));
 	assert_last_event::<Test, _>(|e| {
 		matches!(e.event,
-            mock::Event::Pablo(crate::Event::LiquidityAdded { who, pool_id, base_amount, quote_amount, .. })
+			mock::Event::Pablo(crate::Event::LiquidityAdded {
+				who, pool_id, base_amount, quote_amount, ..
+			})
 			if who == BOB
 				&& pool_id == actual_pool_id
 				&& base_amount == next_base_amount
@@ -90,11 +102,12 @@ pub fn common_add_remove_lp(
 	});
 	let lp = Tokens::balance(lp_token, &BOB);
 	assert!(expected_lp_check(next_base_amount, next_quote_amount, lp));
-	assert_ok!(Pablo::remove_liquidity(Origin::signed(BOB), actual_pool_id, lp, 0, 0));
+	assert_ok!(Pablo::remove_liquidity(Origin::signed(BOB), actual_pool_id, lp, 0, 0, false));
 	let lp = Tokens::balance(lp_token, &BOB);
 	// all lp tokens must have been burnt
 	assert_eq!(lp, 0_u128);
 }
+
 /// `expected_lp` is a function with `base_amount`, `quote_amount`, `lp_total_issuance`,
 /// `pool_base_amount` and `pool_quote_amount` parameters and returns amount of expected new
 /// lp_tokens.
@@ -177,9 +190,13 @@ pub fn common_remove_lp_failure(
 	quote_amount: Balance,
 ) {
 	let pool_id = Pablo::do_create_pool(init_config.clone()).expect("pool creation failed");
+	let mut is_constant_product = false;
 	let pair = match init_config {
 		PoolInitConfiguration::StableSwap { pair, .. } => pair,
-		PoolInitConfiguration::ConstantProduct { pair, .. } => pair,
+		PoolInitConfiguration::ConstantProduct { pair, .. } => {
+			is_constant_product = true;
+			pair
+		},
 		PoolInitConfiguration::LiquidityBootstrapping(pool) => pool.pair,
 	};
 	// Mint the tokens
@@ -220,12 +237,19 @@ pub fn common_remove_lp_failure(
 	let lp = Tokens::balance(lp_token, &BOB);
 	// error as trying to redeem more tokens than lp
 	assert_noop!(
-		Pablo::remove_liquidity(Origin::signed(BOB), pool_id, lp + 1, 0, 0),
+		Pablo::remove_liquidity(Origin::signed(BOB), pool_id, lp + 1, 0, 0, false),
 		TokenError::NoFunds
 	);
+	// single asset
+	if is_constant_product {
+		assert_noop!(
+			Pablo::remove_liquidity(Origin::signed(BOB), pool_id, lp + 1, 0, 0, true),
+			TokenError::NoFunds
+		);
+	}
 	let min_expected_base_amount = base_amount + 1;
 	let min_expected_quote_amount = quote_amount + 1;
-	// error as expected values are more than actaul redeemed values.
+	// error as expected values are more than actual redeemed values.
 	assert_noop!(
 		Pablo::remove_liquidity(
 			Origin::signed(BOB),
@@ -233,9 +257,24 @@ pub fn common_remove_lp_failure(
 			lp,
 			min_expected_base_amount,
 			min_expected_quote_amount,
+			false,
 		),
 		crate::Error::<Test>::CannotRespectMinimumRequested
 	);
+	// single asset: minimum quote amount should be zero
+	if is_constant_product {
+		assert_noop!(
+			Pablo::remove_liquidity(
+				Origin::signed(BOB),
+				pool_id,
+				lp,
+				min_expected_base_amount,
+				1,
+				true,
+			),
+			crate::Error::<Test>::CannotRespectMinimumRequested
+		);
+	}
 }
 
 pub fn common_exchange_failure(
@@ -302,22 +341,46 @@ where
 	assert!(matcher(System::events().last().expect("events expected")));
 }
 
+pub fn calculate_lp_for_single_deposit(
+	lp_supply: Balance,
+	amount: Balance,
+	weight: Permill,
+	fee: Permill,
+	balance: Balance,
+) -> u128 {
+	let fee = fee.mul_floor(weight.left_from_one().mul_floor(amount));
+	let lp_supply = Decimal::from_u128(lp_supply).expect("convert to decimal");
+	let amount = Decimal::from_u128(amount).expect("convert to decimal");
+	let mut weight = Decimal::from_u32(weight.deconstruct()).expect("convert to decimal");
+	let full_perthing = Decimal::from_u32(Permill::one().deconstruct()).expect("full_perthing");
+	weight.div_assign(full_perthing);
+	let fee = Decimal::from_u128(fee).expect("convert to decimal");
+	let balance = Decimal::from_u128(balance).expect("convert to decimal");
+
+	let mut result = amount.sub(fee);
+	result.div_assign(balance);
+	result.add_assign(Decimal::one());
+	result = result.powd(weight);
+	result.sub_assign(Decimal::one());
+	result.mul_assign(lp_supply);
+	result.to_u128().expect("convert to u128")
+}
+
 mod create {
 	use super::*;
 	#[test]
 	fn signed_user_can_create() {
 		new_test_ext().execute_with(|| {
 			System::set_block_number(1);
-			assert_ok!(
-				Pablo::create(
-					Origin::signed(ALICE),
-					PoolInitConfiguration::LiquidityBootstrapping(valid_pool().value())
-				)
-			);
-			assert_has_event::<Test, _>(
-				|e|
-					matches!(e.event, mock::Event::Pablo(crate::Event::PoolCreated { pool_id, .. }) if pool_id == 0)
-			);
+			assert_ok!(Pablo::create(
+				Origin::signed(ALICE),
+				PoolInitConfiguration::LiquidityBootstrapping(valid_pool().value())
+			));
+			assert_has_event::<Test, _>(|e| {
+				matches!(e.event,
+					mock::Event::Pablo(crate::Event::PoolCreated { pool_id, .. })
+					if pool_id == 0)
+			});
 		});
 	}
 }

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use sp_arithmetic::traits::Saturating;
 use sp_runtime::{
 	traits::{CheckedMul, CheckedSub},
-	ArithmeticError, DispatchError, Permill,
+	ArithmeticError, DispatchError, PerThing, Permill,
 };
 use sp_std::{collections::btree_map::BTreeMap, ops::Mul, vec::Vec};
 
@@ -37,12 +37,13 @@ pub trait Amm {
 		pool_id: Self::PoolId,
 		lp_amount: Self::Balance,
 		min_expected_amounts: BTreeMap<Self::AssetId, Self::Balance>,
+		is_single_asset: bool,
 	) -> Result<RedeemableAssets<Self::AssetId, Self::Balance>, DispatchError>
 	where
 		Self::AssetId: sp_std::cmp::Ord;
 
 	/// Simulate add_liquidity computations, on success returns the amount of LP tokens
-	/// that would be recieved by adding the given amounts of base and quote.
+	/// that would be received by adding the given amounts of base and quote.
 	fn simulate_add_liquidity(
 		who: &Self::AccountId,
 		pool_id: Self::PoolId,
@@ -52,12 +53,13 @@ pub trait Amm {
 		Self::AssetId: sp_std::cmp::Ord;
 
 	/// Simulate remove_liquidity computations, on success returns the amount of base/quote assets
-	/// that would be recieved by removing the given amounts of lp tokens.
+	/// that would be received by removing the given amounts of lp tokens.
 	fn simulate_remove_liquidity(
 		who: &Self::AccountId,
 		pool_id: Self::PoolId,
 		lp_amount: Self::Balance,
 		min_expected_amounts: BTreeMap<Self::AssetId, Self::Balance>,
+		is_single_asset: bool,
 	) -> Result<RemoveLiquiditySimulationResult<Self::AssetId, Self::Balance>, DispatchError>
 	where
 		Self::AssetId: sp_std::cmp::Ord;
@@ -105,7 +107,7 @@ pub trait Amm {
 
 	/// Deposit coins into the pool
 	/// `amounts` - list of amounts of coins to deposit,
-	/// `min_mint_amount` - minimum amout of LP tokens to mint from the deposit.
+	/// `min_mint_amount` - minimum amount of LP tokens to mint from the deposit.
 	fn add_liquidity(
 		who: &Self::AccountId,
 		pool_id: Self::PoolId,
@@ -134,6 +136,7 @@ pub trait Amm {
 		lp_amount: Self::Balance,
 		min_base_amount: Self::Balance,
 		min_quote_amount: Self::Balance,
+		is_single_asset: bool,
 	) -> Result<(), DispatchError>;
 
 	/// Perform an exchange.
@@ -149,6 +152,30 @@ pub trait Amm {
 		keep_alive: bool,
 	) -> Result<Self::Balance, DispatchError>;
 }
+
+#[derive(Encode, Decode, MaxEncodedLen, TypeInfo, Clone, PartialEq, Eq, Copy, RuntimeDebug)]
+pub enum RewardPoolType {
+	LP,
+	PBLO,
+}
+
+impl Default for RewardPoolType {
+	fn default() -> Self {
+		RewardPoolType::PBLO
+	}
+}
+
+#[derive(
+	Encode, Decode, MaxEncodedLen, TypeInfo, Clone, Default, PartialEq, Eq, Copy, RuntimeDebug,
+)]
+pub struct StakingRewardPool<RewardPoolId> {
+	pub pool_id: RewardPoolId,
+	pub pool_type: RewardPoolType,
+}
+
+// TODO: Perhaps we need a way to not have a max reward for a pool.
+pub const MAX_REWARDS: u128 = 100_000_000_000_000_000_000_000_u128;
+pub const REWARD_PERCENTAGE: u32 = 10;
 
 /// Pool Fees
 #[derive(
@@ -214,7 +241,25 @@ impl FeeConfig {
 		asset_id: AssetId,
 		amount: Balance,
 	) -> Fee<AssetId, Balance> {
-		let fee: Balance = self.fee_rate.mul_floor(amount);
+		let fee = self.fee_rate.mul_floor(amount);
+		self.inner_calculate_fees(asset_id, fee)
+	}
+
+	pub fn calculate_fees_for_single_asset<AssetId: AssetIdLike, Balance: BalanceLike>(
+		&self,
+		asset_id: AssetId,
+		weight: Permill,
+		amount: Balance,
+	) -> Fee<AssetId, Balance> {
+		let fee = self.fee_rate.mul(weight.left_from_one()).mul_floor(amount);
+		self.inner_calculate_fees(asset_id, fee)
+	}
+
+	fn inner_calculate_fees<AssetId: AssetIdLike, Balance: BalanceLike>(
+		&self,
+		asset_id: AssetId,
+		fee: Balance,
+	) -> Fee<AssetId, Balance> {
 		let owner_fee: Balance = self.owner_fee_rate.mul_floor(fee);
 		let protocol_fee: Balance = self.protocol_fee_rate.mul_floor(owner_fee);
 		Fee {
@@ -444,7 +489,7 @@ where
 mod tests {
 	use crate::dex::{Fee, FeeConfig};
 	use sp_arithmetic::Permill;
-	use std::ops::Mul;
+	use sp_std::ops::Mul;
 
 	#[test]
 	fn calculate_fee() {
@@ -486,6 +531,54 @@ mod tests {
 				lp_fee: 4950000000000000,
 				owner_fee: 49500000000000,
 				protocol_fee: 500000000000,
+				asset_id: 1
+			}
+		);
+	}
+
+	#[test]
+	fn calculate_fee_for_single_asset() {
+		const UNIT: u128 = 1_000_000_000_000_u128;
+		let amount = 1_000_000_u128 * UNIT;
+		let f = FeeConfig {
+			fee_rate: Permill::from_percent(1),
+			owner_fee_rate: Permill::from_percent(1),
+			protocol_fee_rate: Permill::from_percent(1),
+		};
+		let weight = Permill::from_percent(50);
+		assert_eq!(
+			f.calculate_fees_for_single_asset(1, weight, amount),
+			Fee {
+				fee: 5000_000_000_000_000_u128,        // 5000
+				lp_fee: 4950_000_000_000_000_u128,     // 4950
+				owner_fee: 49_5_00_000_000_000_u128,   // 49.5
+				protocol_fee: 0_5_00_000_000_000_u128, // 0.5
+				asset_id: 1
+			}
+		);
+
+		let f_default = FeeConfig::default_from(Permill::from_perthousand(3));
+		let weight_default = Permill::from_percent(30);
+		assert_eq!(
+			f_default.calculate_fees_for_single_asset(1, weight_default, amount),
+			Fee {
+				fee: 2100 * UNIT,
+				lp_fee: 1680 * UNIT,
+				owner_fee: 0,
+				protocol_fee: 420 * UNIT,
+				asset_id: 1
+			}
+		);
+
+		let f2 = f.mul(Permill::from_percent(50));
+		let weight_f2 = Permill::from_percent(99);
+		assert_eq!(
+			f2.calculate_fees_for_single_asset(1, weight_f2, amount),
+			Fee {
+				fee: 50000000000000,
+				lp_fee: 49500000000000,
+				owner_fee: 495000000000,
+				protocol_fee: 5000000000,
 				asset_id: 1
 			}
 		);

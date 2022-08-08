@@ -13,7 +13,7 @@ use sp_runtime::{
 
 /// From https://balancer.fi/whitepaper.pdf, equation (2)
 /// Compute the spot price of an asset pair.
-/// - `wi` the weight on the quote asset
+/// - `wi` the weight of the quote asset
 /// - `wo` the weight of the base asset
 /// - `bi` the pool quote balance
 /// - `bo` the pool base balance
@@ -162,4 +162,84 @@ pub fn compute_deposit_lp(
 		let lp_to_mint = safe_multiply_by_rational(lp_total_issuance, base_amount, pool_base_aum)?;
 		Ok((overwritten_quote_amount, lp_to_mint))
 	}
+}
+
+/// Compute the share of an LP provider for an existing non-empty pool in the case with a single
+/// asset.
+///
+/// From https://balancer.fi/whitepaper.pdf, equation (25):
+///
+/// - `amount` the amount deposited;
+/// - `balance` the pool balance;
+/// - `weight` the weight of asset;
+/// - `lp_supply` the total LP already issued to other LP providers.
+#[inline(always)]
+pub fn compute_deposit_lp_single_asset<T: PerThing>(
+	amount: u128,
+	balance: u128,
+	weight: T,
+	lp_supply: u128,
+) -> Result<u128, ArithmeticError>
+where
+	T::Inner: Into<u32>,
+{
+	let amount = Decimal::from_u128(amount).ok_or(ArithmeticError::Overflow)?;
+	let balance = Decimal::from_u128(balance).ok_or(ArithmeticError::Overflow)?;
+	let weight = Decimal::from_u32(weight.deconstruct().into()).ok_or(ArithmeticError::Overflow)?;
+	let full_perthing =
+		Decimal::from_u32(T::one().deconstruct().into()).ok_or(ArithmeticError::Overflow)?;
+	let weight = weight.safe_div(&full_perthing)?;
+	let lp_supply = Decimal::from_u128(lp_supply).ok_or(ArithmeticError::Overflow)?;
+
+	let amount_div_balance = amount.safe_div(&balance)?;
+	let value_ratio = Decimal::one()
+		.safe_add(&amount_div_balance)?
+		.checked_powd(weight)
+		.ok_or(ArithmeticError::Overflow)?;
+	lp_supply
+		.safe_mul(&value_ratio.safe_sub(&Decimal::one())?)?
+		.to_u128()
+		.ok_or(ArithmeticError::Overflow)
+}
+
+/// Compute the amount of single asset for redeemable LP tokens.
+///
+/// From https://balancer.fi/whitepaper.pdf, equation (26):
+///
+/// - `balance` the pool balance;
+/// - `weight` the weight of asset;
+/// - `lp_amount` the amount redeemed LP tokens;
+/// - `lp_supply` the total LP already issued to other LP providers.
+///
+/// FIXME(saruman9): What should we do when a pool does not have sufficient liquidity? If we use
+/// this formula, then we get an entire amount from a pool, but this may not be enough without a
+/// second asset.
+#[inline(always)]
+pub fn compute_asset_for_redeemable_lp_tokens<T: PerThing>(
+	balance: u128,
+	weight: T,
+	lp_amount: u128,
+	lp_supply: u128,
+) -> Result<u128, ArithmeticError>
+where
+	T::Inner: Into<u32>,
+{
+	let balance = Decimal::from_u128(balance).ok_or(ArithmeticError::Overflow)?;
+	let weight = Decimal::from_u32(weight.deconstruct().into()).ok_or(ArithmeticError::Overflow)?;
+	let full_perthing =
+		Decimal::from_u32(T::one().deconstruct().into()).ok_or(ArithmeticError::Overflow)?;
+	let weight = weight.safe_div(&full_perthing)?;
+	let lp_amount = Decimal::from_u128(lp_amount).ok_or(ArithmeticError::Overflow)?;
+	let lp_supply = Decimal::from_u128(lp_supply).ok_or(ArithmeticError::Overflow)?;
+
+	let lp_ratio = lp_amount.safe_div(&lp_supply)?;
+	let lp_ratio = Decimal::one().safe_sub(&lp_ratio)?;
+	let lp_ration_with_weight = lp_ratio
+		.checked_powd(Decimal::one().safe_div(&weight)?)
+		.ok_or(ArithmeticError::Overflow)?;
+	let lp_ration_with_weight = Decimal::one().safe_sub(&lp_ration_with_weight)?;
+	balance
+		.safe_mul(&lp_ration_with_weight)?
+		.to_u128()
+		.ok_or(ArithmeticError::Overflow)
 }
