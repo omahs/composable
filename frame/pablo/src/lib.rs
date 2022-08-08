@@ -230,6 +230,13 @@ pub mod pallet {
 			/// Map of asset_id -> twap
 			twaps: BTreeMap<T::AssetId, Rate>,
 		},
+
+		Check { //TODO(belousm): delete
+			balance: T::Balance,
+		},
+		CheckFee { //TODO(belousm): delete
+			fee: Fee<T::AssetId, T::Balance>,
+		},
 	}
 
 	#[pallet::error]
@@ -1080,6 +1087,7 @@ pub mod pallet {
 						base_amount >= min_base_amount,
 						Error::<T>::CannotRespectMinimumRequested
 					);
+					Self::deposit_event(Event::<T>::Check { balance: base_amount });
 					StableSwap::<T>::remove_liquidity_one_asset(
 						who,
 						&info,
@@ -1110,7 +1118,7 @@ pub mod pallet {
 					todo!();
 				},
 			}
-			todo!();
+			Ok(())
 		}
 
 		#[transactional]
