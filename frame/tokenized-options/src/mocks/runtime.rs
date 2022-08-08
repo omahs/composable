@@ -98,7 +98,7 @@ impl DeFiComposableConfig for MockRuntime {
 // ----------------------------------------------------------------------------------------------------
 
 parameter_types! {
-	pub const BalanceExistentialDeposit: u64 = 1;
+	pub const BalanceExistentialDeposit: u64 = 0;
 }
 
 impl pallet_balances::Config for MockRuntime {
@@ -390,7 +390,7 @@ impl ExtBuilder {
 		balances: Vec<(AccountId, AssetId, Balance)>,
 	) -> ExtBuilder {
 		balances.into_iter().for_each(|(account, asset, balance)| {
-			if asset == PICA {
+			if asset == <MockRuntime as pallet_assets::Config>::NativeAssetId::get() {
 				self.native_balances.push((account, balance));
 			} else {
 				self.balances.push((account, asset, balance));

@@ -143,7 +143,6 @@ pub mod pallet {
 		sp_runtime::traits::Hash,
 		storage::{bounded_btree_map::BoundedBTreeMap, bounded_btree_set::BoundedBTreeSet},
 		traits::{
-			fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},
 			fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
 			EnsureOrigin, Time,
 		},
