@@ -200,7 +200,6 @@ pub mod pallet {
 			/// Amount of quote asset repatriated.
 			quote_amount: T::Balance,
 		},
-
 		/// Liquidity added into the pool `T::PoolId`.
 		LiquidityAdded {
 			/// Account id who added liquidity.
@@ -454,7 +453,9 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	#[pallet::storage]
 	#[pallet::getter(fn staking_reward_pools)]
+	#[pallet::unbounded]
 	pub type StakingRewardPools<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PoolId, StakingRewardPoolsOf<T>, OptionQuery>;
 
@@ -588,6 +589,7 @@ pub mod pallet {
 						lp_amount,
 						min_base_amount,
 						min_quote_amount,
+						false,
 					)?;
 				},
 			}
@@ -1326,6 +1328,7 @@ pub mod pallet {
 					lp_redeemed - lp_available,
 					min_base_amount,
 					min_quote_amount,
+					false
 				)?;
 				lp_redeemed = lp_available;
 			}
@@ -1355,7 +1358,7 @@ pub mod pallet {
 						lp_redeemed,
 						SingleAssetAccountsStorageAction::Withdrawing,
 					)?;
-					Self::disburse_fees(&pool_account, &info.owner, &fee)?;
+					Self::disburse_fees(&pool_account, &pool_id, &info.owner, &fee)?;
 					Self::update_twap(pool_id)?;
 					Self::deposit_event(Event::<T>::LiquidityRemoved {
 						pool_id,

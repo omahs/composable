@@ -142,23 +142,70 @@ impl<T: Config> StableSwap<T> {
 		DispatchError,
 	> {
 		let zero = T::Balance::zero();
+		// // single asset case
+		// if quote_amount.is_zero() {
+		// 	return Self::add_liquidity_single_asset(
+		// 		who,
+		// 		pool,
+		// 		&pool_account,
+		// 		base_amount,
+		// 		min_mint_amount,
+		// 		keep_alive,
+		// 	)
+		// }
+
 		ensure!(
 			base_amount > zero || quote_amount > zero,
 			Error::<T>::AssetAmountMustBePositiveNumber
 		);
 		let (mint_amount, base_fee, quote_fee) = Self::calculate_mint_amount_and_fees(
-			pool_info,
-			pool_account,
+			&pool_info,
+			&pool_account,
 			&base_amount,
 			&quote_amount,
 		)?;
 
 		ensure!(mint_amount >= min_mint_amount, Error::<T>::CannotRespectMinimumRequested);
-		T::Assets::transfer(pool_info.pair.base, who, pool_account, base_amount, keep_alive)?;
-		T::Assets::transfer(pool_info.pair.quote, who, pool_account, quote_amount, keep_alive)?;
+		T::Assets::transfer(pool_info.pair.base, who, &pool_account, base_amount, keep_alive)?;
+		T::Assets::transfer(pool_info.pair.quote, who, &pool_account, quote_amount, keep_alive)?;
 		T::Assets::mint_into(pool_info.lp_token, who, mint_amount)?;
 		Ok((base_amount, quote_amount, mint_amount, base_fee, quote_fee))
 	}
+
+	// fn add_liquidity_single_asset( //TODO(belousm): import it from Alex. Check will it work or not
+	// 	who: &T::AccountId,
+	// 	pool: &ConstantProductPoolInfo<T::AccountId, T::AssetId>,
+	// 	pool_account: &T::AccountId,
+	// 	amount: T::Balance,
+	// 	min_mint_amount: T::Balance,
+	// 	keep_alive: bool,
+	// ) -> Result<(T::Balance, T::Balance, T::Balance, Fee<T::AssetId, T::Balance>), DispatchError> {
+	// 	let pool_base_aum = T::Convert::convert(T::Assets::balance(pool.pair.base, pool_account));
+	// 	let lp_total_issuance = T::Convert::convert(T::Assets::total_issuance(pool.lp_token));
+	// 	let fee = pool.fee_config.calculate_fees_for_single_asset(
+	// 		pool.pair.base,
+	// 		pool.base_weight,
+	// 		amount,
+	// 	);
+
+	// 	let amount_without_fee = amount.safe_sub(&fee.fee)?;
+	// 	let amount_of_lp_token_to_mint = compute_deposit_lp_single_asset(
+	// 		T::Convert::convert(amount_without_fee),
+	// 		pool_base_aum,
+	// 		pool.base_weight,
+	// 		lp_total_issuance,
+	// 	)?;
+	// 	let amount_of_lp_token_to_mint = T::Convert::convert(amount_of_lp_token_to_mint);
+	// 	ensure!(
+	// 		amount_of_lp_token_to_mint >= min_mint_amount,
+	// 		Error::<T>::CannotRespectMinimumRequested
+	// 	);
+
+	// 	T::Assets::transfer(pool.pair.base, who, pool_account, amount_without_fee, keep_alive)?;
+	// 	T::Assets::mint_into(pool.lp_token, who, amount_of_lp_token_to_mint)?;
+
+	// 	Ok((amount, T::Balance::zero(), amount_of_lp_token_to_mint, fee))
+	// }
 
 	pub fn calculate_one_asset_amount_and_fees(
 		pool: &StableSwapPoolInfo<T::AccountId, T::AssetId>,
@@ -337,7 +384,7 @@ impl<T: Config> StableSwap<T> {
 			let base_fee = updated_fee_config.calculate_fees(pool_info.pair.base, base_difference);
 			let quote_fee =
 				updated_fee_config.calculate_fees(pool_info.pair.quote, quote_difference);
-
+				
 			// Substract fees from calculated base/quote amounts to allow for fees
 			let new_base_balance = new_base_amount.safe_sub(&base_fee.fee)?;
 			let new_quote_balance = new_quote_amount.safe_sub(&quote_fee.fee)?;
@@ -347,13 +394,14 @@ impl<T: Config> StableSwap<T> {
 				new_quote_balance,
 				amplification_coefficient,
 			)?;
-			// minted LP is proportional to the delta of the pool invariant caused by imbalanced
+			// minted LP is propotional to the delta of the pool invariant caused by imbalanced
 			// liquidity
 			let mint_amount = T::Convert::convert(safe_multiply_by_rational(
 				T::Convert::convert(total_lp_issued),
 				T::Convert::convert(d2.safe_sub(&d0)?),
 				T::Convert::convert(d0),
 			)?);
+			println!("Mint amount: {:?}", mint_amount);
 			(mint_amount, base_fee, quote_fee)
 		} else {
 			(

@@ -628,6 +628,7 @@ fn withdraw_liquidity_with_one_asset() {
 			lp,
 			0,
 			0,
+			true
 		));
 		assert!(!pallet::AccountsDepositedOneAsset::<Test>::contains_key(&BOB, &pool_id));
 		let bob_usdc = Tokens::balance(USDC, &BOB);
