@@ -57,7 +57,7 @@ describe("tx.oracle Tests", function () {
     if (!testConfiguration.enabledTests.addAssetAndInfo__success.enabled) return;
     // Timeout set to 2 minutes
     this.timeout(2 * 60 * 1000);
-    it("Can add new asset and info", async function () {
+    it("[SHORT] Can add new asset and info", async function () {
       if (!testConfiguration.enabledTests.addAssetAndInfo__success.add1) this.skip();
       const assetId = api.createType("u128", newAsset1);
       const threshold = api.createType("Percent", 50);
@@ -196,8 +196,8 @@ describe("tx.oracle Tests", function () {
   describe("tx.reclaimStake Success Test", function () {
     if (!testConfiguration.enabledTests.reclaimStake__success.enabled) return;
     let unlockBlock;
-    // Timeout set to 15 minutes
-    this.timeout(15 * 60 * 1000);
+    // Timeout set to 20 minutes
+    this.timeout(20 * 60 * 1000);
     this.slow(1200000);
     it("Can reclaim stake", async function () {
       if (!testConfiguration.enabledTests.reclaimStake__success.reclaim1) this.skip();

@@ -12,6 +12,9 @@ import { waitForBlocks } from "@composable/utils/polkadotjs";
 import BN from "bn.js";
 import testConfiguration from "./test_configuration.json";
 
+const getOracleStake = async (api: ApiPromise, wallet: KeyringPair): Promise<BN> =>
+  new BN((await api.query.oracle.oracleStake(wallet.publicKey)).toString());
+
 /**
  * This test suite contains tests for the HAL-01 issue
  * raised by Halborn in the security audit.
@@ -19,7 +22,7 @@ import testConfiguration from "./test_configuration.json";
  *
  * Issue description, Quote:
  * [...]
- * To prevent malivious Oracles from manipulating the asset's price,
+ * To prevent malicious Oracles from manipulating the asset's price,
  * every proposal which would not be in the acceptable range results
  * in a slash of Oracle balance. However, two scenarios are possible
  * where this mechanism can be exploited.
@@ -55,7 +58,7 @@ describe("HAL01 [Oracle] Tests", function () {
     walletHAL01_2 = devWalletAlice.derive("/HAL01/oracleSigner2");
     walletHAL01_3 = devWalletAlice.derive("/HAL01/oracleSigner3");
     walletHAL01_4 = devWalletAlice.derive("/HAL01/oracleSigner4");
-    assetID = 1000;
+    assetID = 1001;
   });
 
   before("HAL01: Providing funds", async function () {
@@ -78,8 +81,8 @@ describe("HAL01 [Oracle] Tests", function () {
     const minAnswers = api.createType("u32", 3);
     const maxAnswers = api.createType("u32", 5);
     const blockInterval = api.createType("u32", 6);
-    const reward = api.createType("u128", 150000000000);
-    const slash = api.createType("u128", 100000000000);
+    const reward = api.createType("u128", 150000000);
+    const slash = api.createType("u128", 100000000);
     const {
       data: [result]
     } = await txOracleAddAssetAndInfoSuccessTest(
@@ -175,48 +178,41 @@ describe("HAL01 [Oracle] Tests", function () {
   });
 
   describe("HAL01: Adding stakes", function () {
-    it("HAL01: Adding stake 1", async function () {
+    it("HAL01: Adding stakes", async function () {
       this.timeout(2 * 60 * 1000);
-      const stake = api.createType("u128", 2500000000000);
-      const {
-        data: [result]
-      } = await txOracleAddStakeSuccessTest(api, walletHAL01_1, stake);
+      const stake = api.createType("u128", 25000000000000);
+      const [
+        {
+          data: [result]
+        },
+        {
+          data: [result2]
+        },
+        {
+          data: [result3]
+        },
+        {
+          data: [result4]
+        }
+      ] = await Promise.all([
+        txOracleAddStakeSuccessTest(api, walletHAL01_1, stake),
+        txOracleAddStakeSuccessTest(api, walletHAL01_2, stake),
+        txOracleAddStakeSuccessTest(api, walletHAL01_3, stake),
+        txOracleAddStakeSuccessTest(api, walletHAL01_4, stake)
+      ]);
       expect(result).to.not.be.an("Error");
       expect(result.toString()).to.be.equal(api.createType("AccountId32", walletHAL01_2.publicKey).toString());
-    });
-
-    it("HAL01: Adding stake 2", async function () {
-      this.timeout(2 * 60 * 1000);
-      const stake = api.createType("u128", 2500000000000);
-      const {
-        data: [result]
-      } = await txOracleAddStakeSuccessTest(api, walletHAL01_2, stake);
-      expect(result).to.not.be.an("Error");
-      expect(result.toString()).to.be.equal(api.createType("AccountId32", walletHAL01_3.publicKey).toString());
-    });
-
-    it("HAL01: Adding stake 3", async function () {
-      this.timeout(2 * 60 * 1000);
-      const stake = api.createType("u128", 2500000000000);
-      const {
-        data: [result]
-      } = await txOracleAddStakeSuccessTest(api, walletHAL01_3, stake);
-      expect(result).to.not.be.an("Error");
-      expect(result.toString()).to.be.equal(api.createType("AccountId32", walletHAL01_4.publicKey).toString());
-    });
-
-    it("HAL01: Adding stake 4", async function () {
-      this.timeout(2 * 60 * 1000);
-      const stake = api.createType("u128", 2500000000000);
-      const {
-        data: [result]
-      } = await txOracleAddStakeSuccessTest(api, walletHAL01_4, stake);
-      expect(result).to.not.be.an("Error");
-      expect(result.toString()).to.be.equal(api.createType("AccountId32", controllerWallet.publicKey).toString());
+      expect(result2).to.not.be.an("Error");
+      expect(result2.toString()).to.be.equal(api.createType("AccountId32", walletHAL01_3.publicKey).toString());
+      expect(result3).to.not.be.an("Error");
+      expect(result3.toString()).to.be.equal(api.createType("AccountId32", walletHAL01_4.publicKey).toString());
+      expect(result4).to.not.be.an("Error");
+      expect(result4.toString()).to.be.equal(api.createType("AccountId32", controllerWallet.publicKey).toString());
     });
   });
 
   describe("HAL01: Test Scenarios", function () {
+    this.retries(0);
     it("HAL01: Scenario 1: 50% of Oracles are malicious", async function () {
       this.timeout(10 * 60 * 1000);
 
@@ -224,18 +220,21 @@ describe("HAL01 [Oracle] Tests", function () {
       const maliciousPrice = api.createType("u128", 900);
       const asset = api.createType("u128", assetID);
 
-      const balanceWallet1BeforeTransaction = new BN(
-        (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_1.publicKey)).toString()
-      );
-      const balanceWallet2BeforeTransaction = new BN(
-        (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_2.publicKey)).toString()
-      );
-      const balanceWallet3BeforeTransaction = new BN(
-        (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_3.publicKey)).toString()
-      );
-      const balanceWallet4BeforeTransaction = new BN(
-        (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_4.publicKey)).toString()
-      );
+      const [
+        oracleStakeWallet1BeforeTransaction,
+        oracleStakeWallet2BeforeTransaction,
+        oracleStakeWallet3BeforeTransaction,
+        oracleStakeWallet4BeforeTransaction
+      ] = await Promise.all([
+        getOracleStake(api, walletHAL01_1),
+        getOracleStake(api, walletHAL01_2),
+        getOracleStake(api, walletHAL01_3),
+        getOracleStake(api, walletHAL01_4)
+      ]);
+      expect(oracleStakeWallet1BeforeTransaction).to.be.bignumber.greaterThan("0");
+      expect(oracleStakeWallet2BeforeTransaction).to.be.bignumber.greaterThan("0");
+      expect(oracleStakeWallet3BeforeTransaction).to.be.bignumber.greaterThan("0");
+      expect(oracleStakeWallet4BeforeTransaction).to.be.bignumber.greaterThan("0");
 
       // Submit 2 correct & 2 malicious prices.
       await Promise.all([
@@ -275,24 +274,23 @@ describe("HAL01 [Oracle] Tests", function () {
         expect(result3AccountID.toString()).to.equal(api.createType("AccountId32", walletHAL01_3.publicKey).toString());
         expect(result4AccountID.toString()).to.equal(api.createType("AccountId32", walletHAL01_4.publicKey).toString());
 
-        const balanceWallet1AfterTransaction = new BN(
-          (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_1.publicKey)).toString()
-        );
-        const balanceWallet2AfterTransaction = new BN(
-          (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_2.publicKey)).toString()
-        );
-        const balanceWallet3AfterTransaction = new BN(
-          (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_3.publicKey)).toString()
-        );
-        const balanceWallet4AfterTransaction = new BN(
-          (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_4.publicKey)).toString()
-        );
+        const [
+          oracleStakeWallet1AfterTransaction,
+          oracleStakeWallet2AfterTransaction,
+          oracleStakeWallet3AfterTransaction,
+          oracleStakeWallet4AfterTransaction
+        ] = await Promise.all([
+          getOracleStake(api, walletHAL01_1),
+          getOracleStake(api, walletHAL01_2),
+          getOracleStake(api, walletHAL01_3),
+          getOracleStake(api, walletHAL01_4)
+        ]);
 
         // Nobody should get slashed.
-        expect(balanceWallet1BeforeTransaction).to.be.bignumber.equal(balanceWallet1AfterTransaction);
-        expect(balanceWallet2BeforeTransaction).to.be.bignumber.equal(balanceWallet2AfterTransaction);
-        expect(balanceWallet3BeforeTransaction).to.be.bignumber.equal(balanceWallet3AfterTransaction);
-        expect(balanceWallet4BeforeTransaction).to.be.bignumber.equal(balanceWallet4AfterTransaction);
+        expect(oracleStakeWallet1BeforeTransaction).to.be.bignumber.equal(oracleStakeWallet1AfterTransaction);
+        expect(oracleStakeWallet2BeforeTransaction).to.be.bignumber.equal(oracleStakeWallet2AfterTransaction);
+        expect(oracleStakeWallet3BeforeTransaction).to.be.bignumber.equal(oracleStakeWallet3AfterTransaction);
+        expect(oracleStakeWallet4BeforeTransaction).to.be.bignumber.equal(oracleStakeWallet4AfterTransaction);
       });
     });
 
@@ -303,15 +301,21 @@ describe("HAL01 [Oracle] Tests", function () {
       const maliciousPrice = api.createType("u128", 900);
       const asset = api.createType("u128", assetID);
 
-      const balanceWallet1BeforeTransaction = new BN(
-        (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_1.publicKey)).toString()
-      );
-      const balanceWallet3BeforeTransaction = new BN(
-        (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_3.publicKey)).toString()
-      );
-      const balanceWallet4BeforeTransaction = new BN(
-        (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_4.publicKey)).toString()
-      );
+      const [
+        oracleStakeWallet1BeforeTransaction,
+        oracleStakeWallet2BeforeTransaction,
+        oracleStakeWallet3BeforeTransaction,
+        oracleStakeWallet4BeforeTransaction
+      ] = await Promise.all([
+        getOracleStake(api, walletHAL01_1),
+        getOracleStake(api, walletHAL01_2),
+        getOracleStake(api, walletHAL01_3),
+        getOracleStake(api, walletHAL01_4)
+      ]);
+      expect(oracleStakeWallet1BeforeTransaction).to.be.bignumber.greaterThan("0");
+      expect(oracleStakeWallet2BeforeTransaction).to.be.bignumber.greaterThan("0");
+      expect(oracleStakeWallet3BeforeTransaction).to.be.bignumber.greaterThan("0");
+      expect(oracleStakeWallet4BeforeTransaction).to.be.bignumber.greaterThan("0");
 
       await waitForBlocks(api, 6);
 
@@ -345,20 +349,23 @@ describe("HAL01 [Oracle] Tests", function () {
         expect(result3AccountID.toString()).to.equal(api.createType("AccountId32", walletHAL01_3.publicKey).toString());
         expect(result4AccountID.toString()).to.equal(api.createType("AccountId32", walletHAL01_4.publicKey).toString());
 
-        const balanceWallet1AfterTransaction = new BN(
-          (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_1.publicKey)).toString()
-        );
-        const balanceWallet3AfterTransaction = new BN(
-          (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_3.publicKey)).toString()
-        );
-        const balanceWallet4AfterTransaction = new BN(
-          (await api.rpc.assets.balanceOf(asset.toString(), walletHAL01_4.publicKey)).toString()
-        );
+        const [
+          oracleStakeWallet1AfterTransaction,
+          oracleStakeWallet2AfterTransaction,
+          oracleStakeWallet3AfterTransaction,
+          oracleStakeWallet4AfterTransaction
+        ] = await Promise.all([
+          getOracleStake(api, walletHAL01_1),
+          getOracleStake(api, walletHAL01_2),
+          getOracleStake(api, walletHAL01_3),
+          getOracleStake(api, walletHAL01_4)
+        ]);
 
         // Nobody should get slashed.
-        expect(balanceWallet1BeforeTransaction).to.be.bignumber.equal(balanceWallet1AfterTransaction);
-        expect(balanceWallet3BeforeTransaction).to.be.bignumber.equal(balanceWallet3AfterTransaction);
-        expect(balanceWallet4BeforeTransaction).to.be.bignumber.equal(balanceWallet4AfterTransaction);
+        expect(oracleStakeWallet1BeforeTransaction).to.be.bignumber.equal(oracleStakeWallet1AfterTransaction);
+        expect(oracleStakeWallet2BeforeTransaction).to.be.bignumber.equal(oracleStakeWallet2AfterTransaction);
+        expect(oracleStakeWallet3BeforeTransaction).to.be.bignumber.equal(oracleStakeWallet3AfterTransaction);
+        expect(oracleStakeWallet4BeforeTransaction).to.be.bignumber.equal(oracleStakeWallet4AfterTransaction);
       });
     });
   });

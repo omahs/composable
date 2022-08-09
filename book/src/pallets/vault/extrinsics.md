@@ -1,5 +1,5 @@
 <!-- AUTOMATICALLY GENERATED -->
-<!-- Generated at 2022-04-22T18:59:06.850740817Z -->
+<!-- Generated at 2022-07-05T22:23:24.016817709Z -->
 
 # Vault Pallet Extrinsics
 

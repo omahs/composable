@@ -39,7 +39,7 @@ pub fn default_acceptable_computation_error(x: u128, y: u128) -> Result<(), Fixe
 /// Asserts that the last event in the runtime is the expected event.
 pub fn assert_last_event<Runtime: Config>(generic_event: <Runtime as Config>::Event) {
 	let events = frame_system::Pallet::<Runtime>::events();
-	let system_event: <Runtime as frame_system::Config>::Event = generic_event.into();
+	let system_event: <Runtime as frame_system::Config>::Event = generic_event;
 	// compare to the last event record
 	let EventRecord { event, .. } = &events.last().expect("No events present!");
 	assert_eq!(event, &system_event);
@@ -47,9 +47,12 @@ pub fn assert_last_event<Runtime: Config>(generic_event: <Runtime as Config>::Ev
 
 /// Asserts the event wasn't dispatched.
 pub fn assert_no_event<Runtime: Config>(event: <Runtime as Config>::Event) {
-	assert!(frame_system::Pallet::<Runtime>::events()
-		.iter()
-		.all(|record| record.event != event));
+	assert!(
+		frame_system::Pallet::<Runtime>::events()
+			.iter()
+			.all(|record| record.event != event),
+		"provided event was dispatched unexpectedly!"
+	);
 }
 
 /// Asserts that the outcome of an extrinsic is `Ok`, and that the last event is the specified

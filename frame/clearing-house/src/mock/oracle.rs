@@ -12,7 +12,7 @@ pub mod pallet {
 		defi::{CurrencyPair, Ratio},
 		oracle::{Oracle, Price},
 	};
-	use frame_support::pallet_prelude::*;
+	use frame_support::{pallet_prelude::*, traits::ConstU16};
 
 	// ----------------------------------------------------------------------------------------------------
 	//                                    Declaration Of The Pallet Type
@@ -114,6 +114,7 @@ pub mod pallet {
 		type Timestamp = T::Timestamp;
 		type LocalAssets = T::LocalAssets;
 		type MaxAnswerBound = T::MaxAnswerBound;
+		type TwapWindow = ConstU16<3>;
 
 		fn is_supported(asset: Self::AssetId) -> Result<bool, DispatchError> {
 			if let Some(support) = Self::supports_assets() {
@@ -133,15 +134,11 @@ pub mod pallet {
 			})
 		}
 
-		fn get_twap(
-			of: Self::AssetId,
-			weighting: Vec<Self::Balance>,
+		fn get_twap_for_amount(
+			asset_id: Self::AssetId,
+			amount: Self::Balance,
 		) -> Result<Self::Balance, DispatchError> {
-			if let Some(twap) = Self::hardcoded_twap() {
-				Ok(twap)
-			} else {
-				Err(Error::<T>::CantComputeTwap.into())
-			}
+			unimplemented!()
 		}
 
 		fn get_ratio(pair: CurrencyPair<Self::AssetId>) -> Result<Ratio, DispatchError> {

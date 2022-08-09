@@ -56,7 +56,7 @@ describe("tx.assets Tests", function () {
   describe("tx.assets.transfer Tests", function () {
     if (!testConfiguration.enabledTests.tx.transfer__success) return;
 
-    it("A wallet can `transfer` KSM to another wallet", async function () {
+    it("[SHORT] A wallet can `transfer` KSM to another wallet", async function () {
       this.timeout(2 * 60 * 1000);
 
       const paraAsset = api.createType("u128", 4);
@@ -99,7 +99,7 @@ describe("tx.assets Tests", function () {
   describe("tx.assets.transferNative Tests", function () {
     if (!testConfiguration.enabledTests.tx.transferNative__success) return;
 
-    it("A wallet can `transfer_native` asset PICA to another wallet", async function () {
+    it("[SHORT] A wallet can `transfer_native` asset PICA to another wallet", async function () {
       this.timeout(2 * 60 * 1000);
       const paraDest = senderWallet.derive("/tests/assets/transferTestReceiverWallet1").publicKey;
       const paraAmount = api.createType("Balance", 100000000000);

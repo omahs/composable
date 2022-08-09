@@ -1,5 +1,5 @@
 <!-- AUTOMATICALLY GENERATED -->
-<!-- Generated at 2022-04-22T18:59:06.875510077Z -->
+<!-- Generated at 2022-07-05T22:23:24.303697846Z -->
 
 # Crowdloan Rewards Pallet Extrinsics
 
@@ -20,7 +20,8 @@ Initialize the pallet at the given transaction block.
 [`populate`](https://dali.devnets.composablefinance.ninja/doc/pallet_crowdloan_rewards/pallet/enum.Call.html#variant.populate)
 
 Populate pallet by adding more rewards.
-Can be called multiple times. Idempotent.
+Can be called multiple times. If an remote account already has a reward, it will be
+replaced by the new reward value.
 Can only be called before `initialize`.
 
 ## Associate

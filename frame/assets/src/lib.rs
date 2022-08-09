@@ -13,9 +13,10 @@
 //! The Assets pallet provides functions for:
 //!
 //! - Transferring balances of native and other assets between accounts.
-//! - Minting new assets, with support for governance.
+//! - Minting and burn new assets by per asset governance.
 //! - Crediting and debiting of created asset balances.
 //! - By design similar to [orml_currencies](https://docs.rs/orml-currencies/latest/orml_currencies/)
+//!   and [substrate_assets](https://github.com/paritytech/substrate/tree/master/frame/assets)
 //! Functions requiring authorization are checked via asset's governance registry origin. Example,
 //! minting.
 //!
@@ -80,6 +81,7 @@ pub mod weights;
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::weights::WeightInfo;
+	use composable_support::validation::Validate;
 	use composable_traits::{
 		currency::{AssetIdLike, BalanceLike, CurrencyFactory, RangeId},
 		governance::{GovernanceRegistry, SignedRawOrigin},
@@ -97,7 +99,9 @@ pub mod pallet {
 		},
 	};
 	use frame_system::{ensure_root, ensure_signed, pallet_prelude::OriginFor};
+	use num_traits::Zero;
 	use orml_traits::GetByKey;
+	use primitives::currency::ValidateCurrencyId;
 	use sp_runtime::DispatchError;
 
 	#[pallet::config]
@@ -115,6 +119,7 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 		/// origin of admin of this pallet
 		type AdminOrigin: EnsureOrigin<Self::Origin>;
+		type CurrencyValidator: Validate<Self::AssetId, ValidateCurrencyId>;
 	}
 
 	#[pallet::pallet]
@@ -124,6 +129,7 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		CannotSetNewCurrencyToRegistry,
+		InvalidCurrency,
 	}
 
 	#[pallet::call]
@@ -343,6 +349,7 @@ pub mod pallet {
 		origin: OriginFor<T>,
 		asset_id: &T::AssetId,
 	) -> Result<(), DispatchError> {
+		// TODO: that must be ensure_asset_origin(origin, asset_id))
 		if T::AdminOrigin::ensure_origin(origin.clone()).is_ok() {
 			return Ok(())
 		}
@@ -350,14 +357,27 @@ pub mod pallet {
 		match origin.into() {
 			Ok(frame_system::RawOrigin::Signed(account)) => {
 				match T::GovernanceRegistry::get(asset_id) {
-					Ok(SignedRawOrigin::Root) => Ok(()),
+					Ok(SignedRawOrigin::Root) => Ok(()), /* ISSUE: it says if */
+					// (call_origin.is_signed &&
+					// asst_owner.is_root) then allow
+					// mint/burn -> anybody can mint and
+					// burn PICA?
+					// TODO: https://app.clickup.com/t/37h4edu
 					Ok(SignedRawOrigin::Signed(acc)) if acc == account => Ok(()),
 					_ => Err(DispatchError::BadOrigin),
 				}
 			},
 			Ok(frame_system::RawOrigin::Root) => Ok(()),
-			_ => Err(DispatchError::BadOrigin),
+			_ => Err(DispatchError::BadOrigin), /* ISSUE: likely will not support collective
+												* origin which is reasonable to have for
+												* governance
+												https://app.clickup.com/t/37h4edu
+												*/
 		}
+	}
+
+	pub(crate) fn valid_asset_id<T: Config>(asset_id: T::AssetId) -> Option<T::AssetId> {
+		T::CurrencyValidator::validate(asset_id).ok()
 	}
 
 	mod currency {
@@ -747,6 +767,7 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::set_balance(who, amount)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::set_balance(asset, who, amount)
 			}
 
@@ -754,7 +775,9 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::set_total_issuance(amount)
 				}
-				<<T as Config>::MultiCurrency>::set_total_issuance(asset, amount)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					<<T as Config>::MultiCurrency>::set_total_issuance(asset, amount)
+				}
 			}
 
 			fn decrease_balance(
@@ -765,6 +788,7 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::decrease_balance(who, amount)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::decrease_balance(asset, who, amount)
 			}
 
@@ -776,7 +800,12 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::decrease_balance_at_most(who, amount)
 				}
-				<<T as Config>::MultiCurrency>::decrease_balance_at_most(asset, who, amount)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::decrease_balance_at_most(
+						asset, who, amount,
+					)
+				}
+				T::Balance::zero()
 			}
 
 			fn increase_balance(
@@ -787,6 +816,7 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::increase_balance(who, amount)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::increase_balance(asset, who, amount)
 			}
 
@@ -798,7 +828,12 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::increase_balance_at_most(who, amount)
 				}
-				<<T as Config>::MultiCurrency>::increase_balance_at_most(asset, who, amount)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::increase_balance_at_most(
+						asset, who, amount,
+					)
+				}
+				T::Balance::zero()
 			}
 		}
 
@@ -821,6 +856,7 @@ pub mod pallet {
 						source, dest, amount, keep_alive,
 					)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::transfer(asset, source, dest, amount, keep_alive)
 			}
 		}
@@ -846,6 +882,7 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::hold(who, amount)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::hold(asset, who, amount)
 			}
 
@@ -858,6 +895,7 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::release(who, amount, best_effort)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::release(asset, who, amount, best_effort)
 			}
 
@@ -878,6 +916,7 @@ pub mod pallet {
 						on_hold,
 					)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::transfer_held(
 					asset,
 					source,
@@ -906,6 +945,7 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::mint_into(who, amount)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::mint_into(asset, who, amount)
 			}
 			fn burn_from(
@@ -916,6 +956,7 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::burn_from(who, amount)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::burn_from(asset, who, amount)
 			}
 
@@ -927,6 +968,7 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::slash(who, amount)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::slash(asset, who, amount)
 			}
 			fn teleport(
@@ -938,6 +980,7 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::teleport(source, dest, amount)
 				}
+				let asset = valid_asset_id::<T>(asset).ok_or(Error::<T>::InvalidCurrency)?;
 				<<T as Config>::MultiCurrency>::teleport(asset, source, dest, amount)
 			}
 		}
@@ -956,21 +999,30 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::total_issuance()
 				}
-				<<T as Config>::MultiCurrency>::total_issuance(asset)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::total_issuance(asset)
+				}
+				T::Balance::zero()
 			}
 
 			fn minimum_balance(asset: Self::AssetId) -> Self::Balance {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::minimum_balance()
 				}
-				<<T as Config>::MultiCurrency>::minimum_balance(asset)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::minimum_balance(asset)
+				}
+				T::Balance::zero()
 			}
 
 			fn balance(asset: Self::AssetId, who: &T::AccountId) -> Self::Balance {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::balance(who)
 				}
-				<<T as Config>::MultiCurrency>::balance(asset, who)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::balance(asset, who)
+				}
+				T::Balance::zero()
 			}
 
 			fn reducible_balance(
@@ -981,7 +1033,10 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::reducible_balance(who, keep_alive)
 				}
-				<<T as Config>::MultiCurrency>::reducible_balance(asset, who, keep_alive)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::reducible_balance(asset, who, keep_alive)
+				}
+				T::Balance::zero()
 			}
 
 			fn can_deposit(
@@ -993,7 +1048,10 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::can_deposit(who, amount, mint)
 				}
-				<<T as Config>::MultiCurrency>::can_deposit(asset, who, amount, mint)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::can_deposit(asset, who, amount, mint)
+				}
+				DepositConsequence::UnknownAsset
 			}
 
 			fn can_withdraw(
@@ -1004,7 +1062,10 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::can_withdraw(who, amount)
 				}
-				<<T as Config>::MultiCurrency>::can_withdraw(asset, who, amount)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::can_withdraw(asset, who, amount)
+				}
+				WithdrawConsequence::UnknownAsset
 			}
 		}
 
@@ -1019,14 +1080,20 @@ pub mod pallet {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::balance_on_hold(who)
 				}
-				<<T as Config>::MultiCurrency>::balance_on_hold(asset, who)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::balance_on_hold(asset, who)
+				}
+				T::Balance::zero()
 			}
 
 			fn can_hold(asset: Self::AssetId, who: &T::AccountId, amount: Self::Balance) -> bool {
 				if asset == T::NativeAssetId::get() {
 					return <<T as Config>::NativeCurrency>::can_hold(who, amount)
 				}
-				<<T as Config>::MultiCurrency>::can_hold(asset, who, amount)
+				if let Some(asset) = valid_asset_id::<T>(asset) {
+					return <<T as Config>::MultiCurrency>::can_hold(asset, who, amount)
+				}
+				false
 			}
 		}
 	}

@@ -54,7 +54,7 @@ describe("tx.bondedFinance Tests", function () {
     this.timeout(2 * 60 * 1000);
 
     // #1 Create offer using Alice's wallet.
-    it("Can create a new offer", async function () {
+    it("[SHORT] Can create a new offer", async function () {
       if (!testConfiguration.enabledTests.offer_bond__success.create1) this.skip();
       const requestParameters = {
         beneficiary: walletAlice.publicKey,
@@ -101,7 +101,7 @@ describe("tx.bondedFinance Tests", function () {
      * bondedFinance.bond(offerId:u64, nbOfBonds:u128) Tests
      */
     // #3 Bob can bond to the offer Alice has created.
-    it("Can bond to newly created offer", async function () {
+    it("[SHORT] Can bond to newly created offer", async function () {
       if (!testConfiguration.enabledTests.offer_bond__success.bond) this.skip();
       const offerId = api.createType("u64", bondOfferId1);
       const nbOfBonds = api.createType("u128", 1);
