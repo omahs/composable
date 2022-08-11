@@ -862,9 +862,9 @@ fn test_withdraw_collateral_dust_issue() {
 			// Check creation ended correctly
 			let option_id = OptionHashToOptionId::<MockRuntime>::get(option_hash).unwrap();
 
-			let user_number = 50000;
-			let seller_option_number: u128 = 6001;
-			let buyer_option_number: u128 = 3001;
+			let user_number = 500;
+			let seller_option_number: u128 = 61;
+			let buyer_option_number: u128 = 31;
 
 			for i in 1..user_number {
 				Assets::mint_into(

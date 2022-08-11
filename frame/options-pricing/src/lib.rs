@@ -220,4 +220,23 @@ pub mod pallet {
 			Ok(())
 		}
 	}
+
+
+	// ----------------------------------------------------------------------------------------------------
+	//		OptionsPricing Trait
+	// ----------------------------------------------------------------------------------------------------
+	impl<T: Config> OptionsPricing for Pallet<T> {
+		type AssetId = AssetIdOf<T>;
+		type Balance = BalanceOf<T>;
+		type Moment = MomentOf<T>;
+
+		#[transactional]
+		fn calculate_option_price(
+			params: BlackScholesParamsOf<T>,
+		) -> Result<Self::Balance, DispatchError> {
+
+			Ok((1000u128 * 10u128.pow(12)).into())
+		}
+	}
 }
+

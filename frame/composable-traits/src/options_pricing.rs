@@ -14,7 +14,6 @@ pub trait OptionsPricing {
 	type AssetId;
 	type Balance;
 	type Moment;
-	type OptionId;
 
 	fn calculate_option_price(
 		params: BlackScholesParams<Self::AssetId, Self::Balance, Self::Moment>,

@@ -8710,6 +8710,7 @@ dependencies = [
  "pallet-assets 0.0.1",
  "pallet-balances",
  "pallet-currency-factory",
+ "pallet-options-pricing",
  "pallet-oracle",
  "pallet-timestamp",
  "pallet-vault",

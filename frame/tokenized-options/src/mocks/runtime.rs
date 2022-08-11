@@ -46,7 +46,9 @@ frame_support::construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage},
 		Vault: pallet_vault::{Pallet, Call, Storage, Event<T>},
 		// GovernanceRegistry: governance::{Pallet, Call, Storage, Event<T>},
+		OptionsPricing: pallet_options_pricing::{Pallet, Call, Storage, Event<T>},
 		TokenizedOptions: pallet_tokenized_options::{Pallet, Call, Storage, Event<T>},
+		
 	}
 );
 
@@ -320,7 +322,29 @@ impl pallet_vault::Config for MockRuntime {
 }
 
 // ----------------------------------------------------------------------------------------------------
-//		Options
+//		Options Pricing
+// ----------------------------------------------------------------------------------------------------
+
+parameter_types! {
+	pub const OptionsPricingPalletId: PalletId = PalletId(*b"pricing_");
+}
+
+impl pallet_options_pricing::Config for MockRuntime {
+	type Event = Event;
+	type PalletId = OptionsPricingPalletId;
+	type WeightInfo = ();
+	type Oracle = Oracle;
+	type Moment = Moment;
+	type Convert = ConvertInto;
+	type Time = Timestamp;
+	type ProtocolOrigin =
+		EnsureOneOf<EnsureSignedBy<RootAccount, AccountId>, EnsureRoot<AccountId>>;
+	type Assets = Assets;
+}
+
+
+// ----------------------------------------------------------------------------------------------------
+//		Tokenized Options
 // ----------------------------------------------------------------------------------------------------
 
 parameter_types! {
@@ -344,6 +368,7 @@ impl pallet_tokenized_options::Config for MockRuntime {
 	type Assets = Assets;
 	type VaultId = VaultId;
 	type Vault = Vault;
+	type OptionsPricing = OptionsPricing;
 }
 
 // ----------------------------------------------------------------------------------------------------
