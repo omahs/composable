@@ -1,4 +1,4 @@
-use crate::{Config, Error, PoolConfiguration, PoolCount, Pools}; 
+use crate::{Config, Error, PoolConfiguration, PoolCount, Pools};
 use composable_maths::dex::stable_swap::{compute_base, compute_d};
 use composable_support::math::safe::{safe_multiply_by_rational, SafeAdd, SafeSub};
 use composable_traits::{
@@ -142,17 +142,6 @@ impl<T: Config> StableSwap<T> {
 		DispatchError,
 	> {
 		let zero = T::Balance::zero();
-		// // single asset case
-		// if quote_amount.is_zero() {
-		// 	return Self::add_liquidity_single_asset(
-		// 		who,
-		// 		pool,
-		// 		&pool_account,
-		// 		base_amount,
-		// 		min_mint_amount,
-		// 		keep_alive,
-		// 	)
-		// }
 
 		ensure!(
 			base_amount > zero || quote_amount > zero,
@@ -172,41 +161,6 @@ impl<T: Config> StableSwap<T> {
 		Ok((base_amount, quote_amount, mint_amount, base_fee, quote_fee))
 	}
 
-	// fn add_liquidity_single_asset( //TODO(belousm): import it from Alex. Check will it work or not
-	// 	who: &T::AccountId,
-	// 	pool: &ConstantProductPoolInfo<T::AccountId, T::AssetId>,
-	// 	pool_account: &T::AccountId,
-	// 	amount: T::Balance,
-	// 	min_mint_amount: T::Balance,
-	// 	keep_alive: bool,
-	// ) -> Result<(T::Balance, T::Balance, T::Balance, Fee<T::AssetId, T::Balance>), DispatchError> {
-	// 	let pool_base_aum = T::Convert::convert(T::Assets::balance(pool.pair.base, pool_account));
-	// 	let lp_total_issuance = T::Convert::convert(T::Assets::total_issuance(pool.lp_token));
-	// 	let fee = pool.fee_config.calculate_fees_for_single_asset(
-	// 		pool.pair.base,
-	// 		pool.base_weight,
-	// 		amount,
-	// 	);
-
-	// 	let amount_without_fee = amount.safe_sub(&fee.fee)?;
-	// 	let amount_of_lp_token_to_mint = compute_deposit_lp_single_asset(
-	// 		T::Convert::convert(amount_without_fee),
-	// 		pool_base_aum,
-	// 		pool.base_weight,
-	// 		lp_total_issuance,
-	// 	)?;
-	// 	let amount_of_lp_token_to_mint = T::Convert::convert(amount_of_lp_token_to_mint);
-	// 	ensure!(
-	// 		amount_of_lp_token_to_mint >= min_mint_amount,
-	// 		Error::<T>::CannotRespectMinimumRequested
-	// 	);
-
-	// 	T::Assets::transfer(pool.pair.base, who, pool_account, amount_without_fee, keep_alive)?;
-	// 	T::Assets::mint_into(pool.lp_token, who, amount_of_lp_token_to_mint)?;
-
-	// 	Ok((amount, T::Balance::zero(), amount_of_lp_token_to_mint, fee))
-	// }
-
 	pub fn calculate_one_asset_amount_and_fees(
 		pool: &StableSwapPoolInfo<T::AccountId, T::AssetId>,
 		pool_account: &T::AccountId,
@@ -219,8 +173,6 @@ impl<T: Config> StableSwap<T> {
 		),
 		DispatchError,
 	> {
-		println!("Just check start"); //TODO(belousm): to delete
-							  // calculate amplification coefficient
 		let amplification_coefficient = T::Convert::convert(pool.amplification_coefficient.into());
 		// calculate current balance of base asset
 		let pool_base_aum = T::Assets::balance(pool.pair.base, &pool_account);
@@ -228,7 +180,6 @@ impl<T: Config> StableSwap<T> {
 		let pool_quote_aum = T::Assets::balance(pool.pair.quote, &pool_account);
 		// calculate current invariant
 		let d0 = Self::get_invariant(pool_base_aum, pool_quote_aum, amplification_coefficient)?;
-		println!("Just check after first d0"); //TODO(belousm): to delete
 		// calculate total issued lp tokens
 		let lp_issued = T::Assets::total_issuance(pool.lp_token);
 		// calculate new invariant
@@ -243,26 +194,18 @@ impl<T: Config> StableSwap<T> {
 			T::Convert::convert(amplification_coefficient),
 			T::Convert::convert(d1),
 		)?);
-		println!("New: {:?}, Old: {:?}", new_base_amount, pool_base_aum); //TODO(belousm): to delete
-		// crate::Pallet::deposit_event(Event::<T>::Check { balance: new_base_amount });
-		// //TODO(belousm): remove this row amount iof base asset to withdraw without fees
 		let base_to_withdraw_w_o_fees = pool_base_aum.safe_sub(&new_base_amount)?;
-		println!("Base to withdraw w/o fees: {:?}", base_to_withdraw_w_o_fees); //TODO(belousm): to delete
-		// crate::Pallet::deposit_event(Event::<T>::Check { balance: base_to_withdraw_w_o_fees });
-		// //TODO(belousm): remove this row calculate ideal balance of base asset
 		let ideal_base_balance = T::Convert::convert(safe_multiply_by_rational(
 			T::Convert::convert(d1),
 			T::Convert::convert(pool_base_aum),
 			T::Convert::convert(d0),
 		)?);
-		println!("After ideal_base_balance"); //TODO(belousm): to delete
 		// calculate ideal balance of quote asset
 		let ideal_quote_balance = T::Convert::convert(safe_multiply_by_rational(
 			T::Convert::convert(d1),
 			T::Convert::convert(pool_quote_aum),
 			T::Convert::convert(d0),
 		)?);
-		println!("After ideal_quote_balance"); //TODO(belousm): to delete
 		let share: Permill = Permill::from_rational(2_u32, 4_u32);
 		let updated_fee_config = pool.fee_config.mul(share);
 
@@ -270,27 +213,20 @@ impl<T: Config> StableSwap<T> {
 		let quote_difference = Self::abs_difference(ideal_quote_balance, pool_quote_aum)?;
 		let base_fee = updated_fee_config.calculate_fees(pool.pair.base, base_difference);
 		let quote_fee = updated_fee_config.calculate_fees(pool.pair.quote, quote_difference);
-		println!("{:?}", base_fee); //TODO(belousm): to delete
 		let new_base_balance = new_base_amount.safe_sub(&base_fee.fee)?;
-		println!("New base balance: {:?}, old base balance: {:?}", new_base_balance, new_base_amount);
 		let new_quote_balance = pool_quote_aum.safe_sub(&quote_fee.fee)?;
-		println!("New quote balance: {:?}, old quote balance: {:?}", new_quote_balance, pool_quote_aum);
-		println!("Before base_current"); //TODO(belousm): to delete
 		let base_need_to_be = T::Convert::convert(compute_base(
 			T::Convert::convert(new_quote_balance),
 			T::Convert::convert(amplification_coefficient),
 			T::Convert::convert(d1),
 		)?);
-		println!("Before base_to_withdraw"); //TODO(belousm): to delete
-		println!("{:?}, {:?}", new_base_balance, base_need_to_be);
-		// let base_to_withdraw = new_base_balance.safe_sub(&base_need_to_be)?;
-		let base_to_withdraw = base_need_to_be.safe_sub(&new_base_balance)?; //TODO(belousm): to delete	
-		println!("After base to withdraw"); //TODO(belousm): to delete
+		//TODO(belousm): understand which part is rigth to sub from `base_need_to_be` or from
+		// `new_base_balance` let base_to_withdraw = new_base_balance.safe_sub(&base_need_to_be)?;
+		let base_to_withdraw = base_need_to_be.safe_sub(&new_base_balance)?;
 
 		let total_issuance = lp_issued.safe_sub(&lp_amount)?;
 		let fee = updated_fee_config
 			.calculate_fees(pool.pair.base, base_to_withdraw_w_o_fees.safe_sub(&base_to_withdraw)?);
-		println!("Final fee: {:?}", fee);
 
 		Ok((base_to_withdraw_w_o_fees, fee, total_issuance))
 	}
@@ -384,7 +320,7 @@ impl<T: Config> StableSwap<T> {
 			let base_fee = updated_fee_config.calculate_fees(pool_info.pair.base, base_difference);
 			let quote_fee =
 				updated_fee_config.calculate_fees(pool_info.pair.quote, quote_difference);
-				
+
 			// Substract fees from calculated base/quote amounts to allow for fees
 			let new_base_balance = new_base_amount.safe_sub(&base_fee.fee)?;
 			let new_quote_balance = new_quote_amount.safe_sub(&quote_fee.fee)?;

@@ -77,8 +77,8 @@ pub mod pallet {
 		defi::{CurrencyPair, Rate},
 		dex::{
 			Amm, ConstantProductPoolInfo, Fee, LiquidityBootstrappingPoolInfo, PriceAggregate,
-			RedeemableAssets, RemoveLiquiditySimulationResult, RewardPoolType, StableSwapPoolInfo, SingleAssetAccountsStorageAction,
-			StakingRewardPool, MAX_REWARDS,
+			RedeemableAssets, RemoveLiquiditySimulationResult, RewardPoolType,
+			SingleAssetAccountsStorageAction, StableSwapPoolInfo, StakingRewardPool, MAX_REWARDS,
 		},
 		staking::{
 			lock::LockConfig, ManageStaking, ProtocolStaking, RewardConfig,
@@ -253,10 +253,12 @@ pub mod pallet {
 			twaps: BTreeMap<T::AssetId, Rate>,
 		},
 
-		Check { //TODO(belousm): delete
+		Check {
+			//TODO(belousm): delete
 			balance: T::Balance,
 		},
-		CheckFee { //TODO(belousm): delete
+		CheckFee {
+			//TODO(belousm): delete
 			fee: Fee<T::AssetId, T::Balance>,
 		},
 	}
@@ -1328,7 +1330,7 @@ pub mod pallet {
 					lp_redeemed - lp_available,
 					min_base_amount,
 					min_quote_amount,
-					false
+					false,
 				)?;
 				lp_redeemed = lp_available;
 			}
