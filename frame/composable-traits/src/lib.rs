@@ -48,6 +48,7 @@ pub mod lending;
 pub mod liquidation;
 pub mod mosaic;
 pub mod nft;
+pub mod options_pricing;
 pub mod oracle;
 pub mod privilege;
 pub mod staking;

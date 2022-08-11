@@ -60,6 +60,7 @@ pub mod pallet {
 	use composable_traits::{
 		currency::{CurrencyFactory, LocalAssets, RangeId},
 		defi::DeFiComposableConfig,
+		options_pricing::*,
 		oracle::Oracle,
 		swap_bytes::{SwapBytes, Swapped},
 		tokenized_options::*,
@@ -150,6 +151,7 @@ pub mod pallet {
 	pub type MomentOf<T> = <T as Config>::Moment;
 	pub type OracleOf<T> = <T as Config>::Oracle;
 	pub type OptionIdOf<T> = AssetIdOf<T>;
+	pub type BlackScholesParamsOf<T> = BlackScholesParams<AssetIdOf<T>, BalanceOf<T>, MomentOf<T>>;
 	pub type Decimal = FixedI128;
 
 	// ----------------------------------------------------------------------------------------------------
@@ -206,5 +208,16 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		#[pallet::weight(<T as Config>::WeightInfo::calculate_option_price())]
+		pub fn calculate_option_price(
+			origin: OriginFor<T>,
+			params: BlackScholesParamsOf<T>,
+		) -> DispatchResult {
+			// Check if it's protocol to call the extrinsic
+			T::ProtocolOrigin::ensure_origin(origin)?;
+
+			Ok(())
+		}
+	}
 }

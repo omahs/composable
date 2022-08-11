@@ -8327,6 +8327,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-options-pricing"
+version = "0.1.0"
+dependencies = [
+ "composable-support",
+ "composable-traits",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "itertools",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-assets 0.0.1",
+ "pallet-balances",
+ "pallet-currency-factory",
+ "pallet-oracle",
+ "pallet-timestamp",
+ "pallet-tokenized-options",
+ "pallet-vault",
+ "parity-scale-codec",
+ "primitives",
+ "proptest",
+ "scale-info",
+ "sp-arithmetic 5.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.24)",
+ "sp-core 6.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.24)",
+ "sp-io 6.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.24)",
+ "sp-runtime 6.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.24)",
+ "sp-std 4.0.0 (git+https://github.com/composableFi/substrate?branch=polkadot-v0.9.24)",
+]
+
+[[package]]
 name = "pallet-oracle"
 version = "1.0.0"
 dependencies = [

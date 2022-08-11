@@ -132,6 +132,7 @@ pub mod pallet {
 	use composable_traits::{
 		currency::{CurrencyFactory, LocalAssets, RangeId},
 		defi::DeFiComposableConfig,
+		options_pricing::{OptionsPricing, *},
 		oracle::Oracle,
 		swap_bytes::{SwapBytes, Swapped},
 		tokenized_options::*,
@@ -229,6 +230,12 @@ pub mod pallet {
 			AccountId = AccountIdOf<Self>,
 			VaultId = VaultIdOf<Self>,
 		>;
+
+		type OptionsPricing: OptionsPricing<
+			AssetId = AssetIdOf<Self>,
+			Balance = BalanceOf<Self>,
+			Moment = MomentOf<Self>,
+		>;
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -245,6 +252,7 @@ pub mod pallet {
 	pub type VaultIdOf<T> = <T as Config>::VaultId;
 	pub type VaultOf<T> = <T as Config>::Vault;
 	pub type VaultConfigOf<T> = VaultConfig<AccountIdOf<T>, AssetIdOf<T>>;
+	pub type OptionsPricingOf<T> = <T as Config>::OptionsPricing;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
@@ -1370,7 +1378,18 @@ pub mod pallet {
 			ensure!(option.status == Status::Purchase, Error::<T>::NotIntoPurchaseWindow);
 
 			// Fake call to pricing pallet (to replace with actual call to pricing pallet)
-			let option_premium = Self::fake_option_price().expect("Error pricing option");
+			// let option_premium = Self::fake_option_price().expect("Error pricing option");
+
+			let bs_params = BlackScholesParams {
+				base_asset_id: option.base_asset_id,
+				base_asset_strike_price: option.base_asset_strike_price,
+				base_asset_spot_price: option.base_asset_spot_price,
+				expiring_date: option.expiring_date,
+				total_issuance_buyer: option.total_issuance_buyer,
+				total_premium_paid: option.total_premium_paid,
+			};
+
+			let option_premium = OptionsPricingOf::<T>::calculate_option_price(bs_params)?;
 
 			let option_premium =
 				option_premium.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
