@@ -625,7 +625,6 @@ fn withdraw_liquidity_with_one_asset() {
 		assert_ok!(Pablo::remove_liquidity(Origin::signed(BOB), pool_id, lp, 0, 0, true));
 		assert!(!pallet::AccountsDepositedOneAsset::<Test>::contains_key(&BOB, &pool_id));
 		let bob_usdc = Tokens::balance(USDC, &BOB);
-		let bob_usdt = Tokens::balance(USDT, &BOB);
 		println!("Initial balance: {:?}, Get balance: {:?}", usdc_balance, bob_usdc);
 		let system_events = frame_system::Pallet::<Test>::events();
 		for event in system_events {
