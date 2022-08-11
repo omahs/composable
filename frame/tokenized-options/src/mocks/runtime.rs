@@ -48,7 +48,7 @@ frame_support::construct_runtime!(
 		// GovernanceRegistry: governance::{Pallet, Call, Storage, Event<T>},
 		OptionsPricing: pallet_options_pricing::{Pallet, Call, Storage, Event<T>},
 		TokenizedOptions: pallet_tokenized_options::{Pallet, Call, Storage, Event<T>},
-		
+
 	}
 );
 
@@ -341,7 +341,6 @@ impl pallet_options_pricing::Config for MockRuntime {
 		EnsureOneOf<EnsureSignedBy<RootAccount, AccountId>, EnsureRoot<AccountId>>;
 	type Assets = Assets;
 }
-
 
 // ----------------------------------------------------------------------------------------------------
 //		Tokenized Options

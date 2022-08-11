@@ -221,7 +221,6 @@ pub mod pallet {
 		}
 	}
 
-
 	// ----------------------------------------------------------------------------------------------------
 	//		OptionsPricing Trait
 	// ----------------------------------------------------------------------------------------------------
@@ -234,9 +233,7 @@ pub mod pallet {
 		fn calculate_option_price(
 			params: BlackScholesParamsOf<T>,
 		) -> Result<Self::Balance, DispatchError> {
-
 			Ok((1000u128 * 10u128.pow(12)).into())
 		}
 	}
 }
-
