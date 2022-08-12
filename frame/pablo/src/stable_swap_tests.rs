@@ -625,7 +625,6 @@ fn withdraw_liquidity_with_one_asset() {
 		assert_ok!(Pablo::remove_liquidity(Origin::signed(BOB), pool_id, lp, 0, 0, true));
 		assert!(!pallet::AccountsDepositedOneAsset::<Test>::contains_key(&BOB, &pool_id));
 		let bob_usdc = Tokens::balance(USDC, &BOB);
-		println!("Initial balance: {:?}, Get balance: {:?}", usdc_balance, bob_usdc);
 		let system_events = frame_system::Pallet::<Test>::events();
 		for event in system_events {
 			println!("{:?}", event);
@@ -794,75 +793,15 @@ proptest! {
 		})?;
 	}
 
-// // 	#[test]
-// // 	fn buy_sell_proptest(
-// // 		value in 1..u32::MAX,
-// // 	) {
-// // 	new_test_ext().execute_with(|| {
-// // 		let unit = 1_000_000_000_000_u128;
-// // 		let initial_usdt = u64::MAX as u128 * unit;
-// // 		let initial_usdc = u64::MAX as u128 * unit;
-// // 		let value = value as u128 * unit;
-// // 		let pool_id = create_stable_swap_pool(
-// // 			USDC,
-// // 			USDT,
-// // 			initial_usdc,
-// // 			initial_usdt,
-// // 			100_u16,
-// // 			Permill::zero(),
-// // 			Permill::zero(),
-// // 		);
-// // 		prop_assert_ok!(Tokens::mint_into(USDT, &BOB, value));
-// // 		prop_assert_ok!(Pablo::sell(Origin::signed(BOB), pool_id, USDT, value, 0_u128, false));
-// // 		// mint 1 extra USDC so that original amount of USDT can be buy back even with small slippage
-// // 		prop_assert_ok!(Tokens::mint_into(USDC, &BOB, unit));
-// // 		prop_assert_ok!(Pablo::buy(Origin::signed(BOB), pool_id, USDT, value, 0_u128, false));
-// // 		let bob_usdt = Tokens::balance(USDT, &BOB);
-// // 		prop_assert_ok!(default_acceptable_computation_error(bob_usdt, value));
-// // 		Ok(())
-// // 	})?;
-// // 	}
-
-// // 	#[test]
-// // 	fn swap_proptest(
-// // 		value in 1..u32::MAX,
-// // 	) {
-// // 	new_test_ext().execute_with(|| {
-// // 		let unit = 1_000_000_000_000_u128;
-// // 		let initial_usdt = u64::MAX as u128 * unit;
-// // 		let initial_usdc = u64::MAX as u128 * unit;
-// // 		let value = value as u128 * unit;
-// // 		let pool_id = create_stable_swap_pool(
-// // 			USDC,
-// // 			USDT,
-// // 			initial_usdc,
-// // 			initial_usdt,
-// // 			100_u16,
-// // 			Permill::from_float(0.025),
-// // 			Permill::zero(),
-// // 		);
-// // 		let pool = Pablo::pools(pool_id).expect("pool not found");
-// // 		let pool = match pool {
-// // 				StableSwap(pool) => pool,
-// // 				_ => panic!("expected stable_swap pool"),
-// // 		};
-// // 		prop_assert_ok!(Tokens::mint_into(USDT, &BOB, value));
-// // 		prop_assert_ok!(Pablo::swap(Origin::signed(BOB), pool_id, CurrencyPair::new(USDC, USDT),
-// //  value, 0, false)); 		let bob_usdc = Tokens::balance(USDC, &BOB);
-// // 		let expected_usdc =  value - pool.fee_config.fee_rate.mul_floor(value);
-// // 		prop_assert_ok!(default_acceptable_computation_error(bob_usdc, expected_usdc));
-// // 		Ok(())
-// // 	})?;
-// // 	}
-// }
-
-// #[cfg(feature = "visualization")]
-// #[test]
-// fn get_base_graph() {
+// 	#[test]
+// 	fn buy_sell_proptest(
+// 		value in 1..u32::MAX,
+// 	) {
 // 	new_test_ext().execute_with(|| {
 // 		let unit = 1_000_000_000_000_u128;
-// 		let initial_usdt = 100000_u128 * unit;
-// 		let initial_usdc = 100000_u128 * unit;
+// 		let initial_usdt = u64::MAX as u128 * unit;
+// 		let initial_usdc = u64::MAX as u128 * unit;
+// 		let value = value as u128 * unit;
 // 		let pool_id = create_stable_swap_pool(
 // 			USDC,
 // 			USDT,
@@ -872,190 +811,250 @@ proptest! {
 // 			Permill::zero(),
 // 			Permill::zero(),
 // 		);
+// 		prop_assert_ok!(Tokens::mint_into(USDT, &BOB, value));
+// 		prop_assert_ok!(Pablo::sell(Origin::signed(BOB), pool_id, USDT, value, 0_u128, false));
+// 		// mint 1 extra USDC so that original amount of USDT can be buy back even with small slippage
+// 		prop_assert_ok!(Tokens::mint_into(USDC, &BOB, unit));
+// 		prop_assert_ok!(Pablo::buy(Origin::signed(BOB), pool_id, USDT, value, 0_u128, false));
+// 		let bob_usdt = Tokens::balance(USDT, &BOB);
+// 		prop_assert_ok!(default_acceptable_computation_error(bob_usdt, value));
+// 		Ok(())
+// 	})?;
+// 	}
 
-// 		let start_quote = 0;
-// 		let end_quote = 120000;
-// 		let points = (start_quote..end_quote)
-// 			.map(|quote| {
-// 				(
-// 					quote,
-// 					<Pablo as Amm>::get_exchange_value(pool_id, USDC, quote * unit)
-// 						.expect("get_exchange_value not found") as f64 /
-// 						unit as f64,
-// 				)
-// 			})
-// 			.collect::<Vec<_>>();
-// 		let max_amount = points.iter().copied().fold(f64::NAN, |x, (_, y)| f64::max(x, y));
-
-// 		use plotters::prelude::*;
-// 		let area = BitMapBackend::new("./plots/stable_swap/curve_base.png", (1024, 768))
-// 			.into_drawing_area();
-// 		area.fill(&WHITE).unwrap();
-
-// 		let mut chart = ChartBuilder::on(&area)
-// 			.caption("Curve price, pool has 100000 USDC 100000 USDT", ("Arial", 25).into_font())
-// 			.margin(100u32)
-// 			.x_label_area_size(30u32)
-// 			.y_label_area_size(30u32)
-// 			.build_cartesian_2d(start_quote..end_quote, 0f64..max_amount)
-// 			.unwrap();
-
-// 		chart
-// 			.configure_mesh()
-// 			.y_desc("base amount")
-// 			.x_desc("quote amount")
-// 			.draw()
-// 			.unwrap();
-// 		chart.draw_series(LineSeries::new(points, &RED)).unwrap();
-// 		chart
-// 			.configure_series_labels()
-// 			.background_style(&WHITE.mix(0.8))
-// 			.border_style(&BLACK)
-// 			.draw()
-// 			.unwrap();
-// 	});
-// }
-
-// #[cfg(feature = "visualization")]
-// #[test]
-// fn slippage_graph() {
+// 	#[test]
+// 	fn swap_proptest(
+// 		value in 1..u32::MAX,
+// 	) {
 // 	new_test_ext().execute_with(|| {
 // 		let unit = 1_000_000_000_000_u128;
-// 		let initial_usdt = 1000000_u128 * unit;
-// 		let initial_usdc = 1000000_u128 * unit;
+// 		let initial_usdt = u64::MAX as u128 * unit;
+// 		let initial_usdc = u64::MAX as u128 * unit;
+// 		let value = value as u128 * unit;
 // 		let pool_id = create_stable_swap_pool(
 // 			USDC,
 // 			USDT,
 // 			initial_usdc,
 // 			initial_usdt,
 // 			100_u16,
-// 			Permill::zero(),
-// 			Permill::zero(),
-// 		);
-
-// 		let start_quote = 0;
-// 		let end_quote = 120000;
-// 		let points = (start_quote..end_quote)
-// 			.map(|quote| {
-// 				let quote = quote * unit;
-// 				let base = <Pablo as Amm>::get_exchange_value(pool_id, USDC, quote)
-// 					.expect("get_exchange_value failed");
-// 				let slippage = if base <= quote { quote - base } else { base };
-// 				(quote / unit, slippage as f64 / unit as f64)
-// 			})
-// 			.collect::<Vec<_>>();
-// 		let max_amount = points.iter().copied().fold(f64::NAN, |x, (_, y)| f64::max(x, y));
-
-// 		use plotters::prelude::*;
-// 		let area = BitMapBackend::new("./plots/stable_swap/curve_slippage.png", (1024, 768))
-// 			.into_drawing_area();
-// 		area.fill(&WHITE).unwrap();
-
-// 		let mut chart = ChartBuilder::on(&area)
-// 			.caption("Curve price, pool has 100000 USDC 100000 USDT", ("Arial", 25).into_font())
-// 			.margin(100u32)
-// 			.x_label_area_size(30u32)
-// 			.y_label_area_size(30u32)
-// 			.build_cartesian_2d(start_quote..end_quote, 0f64..max_amount)
-// 			.unwrap();
-
-// 		chart.configure_mesh().y_desc("slippage").x_desc("quote amount").draw().unwrap();
-// 		chart.draw_series(LineSeries::new(points, &RED)).unwrap();
-// 		chart
-// 			.configure_series_labels()
-// 			.background_style(&WHITE.mix(0.8))
-// 			.border_style(&BLACK)
-// 			.draw()
-// 			.unwrap();
-// 	});
-// }
-
-// #[cfg(feature = "visualization")]
-// #[test]
-// fn curve_graph() {
-// 	new_test_ext().execute_with(|| {
-// 		let unit = 1_000_000_000_000_u128;
-// 		let initial_usdt = 5_u128 * unit;
-// 		let initial_usdc = initial_usdt;
-// 		let pool_id = create_stable_swap_pool(
-// 			USDC,
-// 			USDT,
-// 			initial_usdc,
-// 			initial_usdt,
-// 			5_u16,
-// 			Permill::zero(),
+// 			Permill::from_float(0.025),
 // 			Permill::zero(),
 // 		);
-// 		let window = 15u128;
-// 		let max_base = (initial_usdt + window * unit) as f64 / unit as f64;
-// 		let max_quote = max_base;
-// 		let pool_account = Pablo::account_id(&pool_id);
-// 		let range: Vec<u128> = (0..window).collect();
+// 		let pool = Pablo::pools(pool_id).expect("pool not found");
+// 		let pool = match pool {
+// 				StableSwap(pool) => pool,
+// 				_ => panic!("expected stable_swap pool"),
+// 		};
+// 		prop_assert_ok!(Tokens::mint_into(USDT, &BOB, value));
+// 		prop_assert_ok!(Pablo::swap(Origin::signed(BOB), pool_id, CurrencyPair::new(USDC, USDT),
+//  value, 0, false)); 		let bob_usdc = Tokens::balance(USDC, &BOB);
+// 		let expected_usdc =  value - pool.fee_config.fee_rate.mul_floor(value);
+// 		prop_assert_ok!(default_acceptable_computation_error(bob_usdc, expected_usdc));
+// 		Ok(())
+// 	})?;
+// 	}
+}
 
-// 		let points1 = range
-// 			.iter()
-// 			.map(|_| {
-// 				let amount = unit;
-// 				let _ = Tokens::mint_into(USDC, &BOB, amount).expect("mint failed");
-// 				let _base = <Pablo as Amm>::sell(&BOB, pool_id, USDC, amount, 0_u128, true)
-// 					.expect("sell failed");
-// 				let pool_sell_asset_balance =
-// 					Tokens::balance(USDC, &pool_account) as f64 / unit as f64;
-// 				let pool_buy_asset_balance =
-// 					Tokens::balance(USDT, &pool_account) as f64 / unit as f64;
-// 				(pool_buy_asset_balance, pool_sell_asset_balance)
-// 			})
-// 			.collect::<Vec<_>>();
-// 		let pool_id = create_stable_swap_pool(
-// 			USDC,
-// 			USDT,
-// 			initial_usdc,
-// 			initial_usdt,
-// 			5_u16,
-// 			Permill::zero(),
-// 			Permill::zero(),
-// 		);
-// 		let pool_account = Pablo::account_id(&pool_id);
-// 		let points2 = range
-// 			.iter()
-// 			.map(|_| {
-// 				let amount = unit;
-// 				let _ = Tokens::mint_into(USDT, &BOB, amount).expect("mint failed");
-// 				let _base = <Pablo as Amm>::sell(&BOB, pool_id, USDT, amount, 0_u128, true)
-// 					.expect("sell failed");
-// 				let pool_sell_asset_balance =
-// 					Tokens::balance(USDC, &pool_account) as f64 / unit as f64;
-// 				let pool_buy_asset_balance =
-// 					Tokens::balance(USDT, &pool_account) as f64 / unit as f64;
-// 				(pool_buy_asset_balance, pool_sell_asset_balance)
-// 			})
-// 			.collect::<Vec<_>>();
-// 		let points: Vec<_> = points1.into_iter().rev().chain(points2.into_iter()).collect();
-// 		use plotters::prelude::*;
-// 		let area = BitMapBackend::new("./plots/stable_swap/curve_graph.png", (1024, 768))
-// 			.into_drawing_area();
-// 		area.fill(&WHITE).unwrap();
+#[cfg(feature = "visualization")]
+#[test]
+fn get_base_graph() {
+	new_test_ext().execute_with(|| {
+		let unit = 1_000_000_000_000_u128;
+		let initial_usdt = 100000_u128 * unit;
+		let initial_usdc = 100000_u128 * unit;
+		let pool_id = create_stable_swap_pool(
+			USDC,
+			USDT,
+			initial_usdc,
+			initial_usdt,
+			100_u16,
+			Permill::zero(),
+			Permill::zero(),
+		);
 
-// 		let mut chart = ChartBuilder::on(&area)
-// 			.caption("Curve price, pool has 1000 USDC 1000 USDT", ("Arial", 25).into_font())
-// 			.margin(100u32)
-// 			.x_label_area_size(30u32)
-// 			.y_label_area_size(30u32)
-// 			.build_cartesian_2d(0f64..max_base, 0f64..max_quote)
-// 			.unwrap();
+		let start_quote = 0;
+		let end_quote = 120000;
+		let points = (start_quote..end_quote)
+			.map(|quote| {
+				(
+					quote,
+					<Pablo as Amm>::get_exchange_value(pool_id, USDC, quote * unit)
+						.expect("get_exchange_value not found") as f64 /
+						unit as f64,
+				)
+			})
+			.collect::<Vec<_>>();
+		let max_amount = points.iter().copied().fold(f64::NAN, |x, (_, y)| f64::max(x, y));
 
-// 		chart
-// 			.configure_mesh()
-// 			.y_desc("quote amount")
-// 			.x_desc("base amount")
-// 			.draw()
-// 			.unwrap();
-// 		chart.draw_series(LineSeries::new(points, &RED)).unwrap();
-// 		chart
-// 			.configure_series_labels()
-// 			.background_style(&WHITE.mix(0.8))
-// 			.border_style(&BLACK)
-// 			.draw()
-// 			.unwrap();
-// 	});
+		use plotters::prelude::*;
+		let area = BitMapBackend::new("./plots/stable_swap/curve_base.png", (1024, 768))
+			.into_drawing_area();
+		area.fill(&WHITE).unwrap();
+
+		let mut chart = ChartBuilder::on(&area)
+			.caption("Curve price, pool has 100000 USDC 100000 USDT", ("Arial", 25).into_font())
+			.margin(100u32)
+			.x_label_area_size(30u32)
+			.y_label_area_size(30u32)
+			.build_cartesian_2d(start_quote..end_quote, 0f64..max_amount)
+			.unwrap();
+
+		chart
+			.configure_mesh()
+			.y_desc("base amount")
+			.x_desc("quote amount")
+			.draw()
+			.unwrap();
+		chart.draw_series(LineSeries::new(points, &RED)).unwrap();
+		chart
+			.configure_series_labels()
+			.background_style(&WHITE.mix(0.8))
+			.border_style(&BLACK)
+			.draw()
+			.unwrap();
+	});
+}
+
+#[cfg(feature = "visualization")]
+#[test]
+fn slippage_graph() {
+	new_test_ext().execute_with(|| {
+		let unit = 1_000_000_000_000_u128;
+		let initial_usdt = 1000000_u128 * unit;
+		let initial_usdc = 1000000_u128 * unit;
+		let pool_id = create_stable_swap_pool(
+			USDC,
+			USDT,
+			initial_usdc,
+			initial_usdt,
+			100_u16,
+			Permill::zero(),
+			Permill::zero(),
+		);
+
+		let start_quote = 0;
+		let end_quote = 120000;
+		let points = (start_quote..end_quote)
+			.map(|quote| {
+				let quote = quote * unit;
+				let base = <Pablo as Amm>::get_exchange_value(pool_id, USDC, quote)
+					.expect("get_exchange_value failed");
+				let slippage = if base <= quote { quote - base } else { base };
+				(quote / unit, slippage as f64 / unit as f64)
+			})
+			.collect::<Vec<_>>();
+		let max_amount = points.iter().copied().fold(f64::NAN, |x, (_, y)| f64::max(x, y));
+
+		use plotters::prelude::*;
+		let area = BitMapBackend::new("./plots/stable_swap/curve_slippage.png", (1024, 768))
+			.into_drawing_area();
+		area.fill(&WHITE).unwrap();
+
+		let mut chart = ChartBuilder::on(&area)
+			.caption("Curve price, pool has 100000 USDC 100000 USDT", ("Arial", 25).into_font())
+			.margin(100u32)
+			.x_label_area_size(30u32)
+			.y_label_area_size(30u32)
+			.build_cartesian_2d(start_quote..end_quote, 0f64..max_amount)
+			.unwrap();
+
+		chart.configure_mesh().y_desc("slippage").x_desc("quote amount").draw().unwrap();
+		chart.draw_series(LineSeries::new(points, &RED)).unwrap();
+		chart
+			.configure_series_labels()
+			.background_style(&WHITE.mix(0.8))
+			.border_style(&BLACK)
+			.draw()
+			.unwrap();
+	});
+}
+
+#[cfg(feature = "visualization")]
+#[test]
+fn curve_graph() {
+	new_test_ext().execute_with(|| {
+		let unit = 1_000_000_000_000_u128;
+		let initial_usdt = 5_u128 * unit;
+		let initial_usdc = initial_usdt;
+		let pool_id = create_stable_swap_pool(
+			USDC,
+			USDT,
+			initial_usdc,
+			initial_usdt,
+			5_u16,
+			Permill::zero(),
+			Permill::zero(),
+		);
+		let window = 15u128;
+		let max_base = (initial_usdt + window * unit) as f64 / unit as f64;
+		let max_quote = max_base;
+		let pool_account = Pablo::account_id(&pool_id);
+		let range: Vec<u128> = (0..window).collect();
+
+		let points1 = range
+			.iter()
+			.map(|_| {
+				let amount = unit;
+				let _ = Tokens::mint_into(USDC, &BOB, amount).expect("mint failed");
+				let _base = <Pablo as Amm>::sell(&BOB, pool_id, USDC, amount, 0_u128, true)
+					.expect("sell failed");
+				let pool_sell_asset_balance =
+					Tokens::balance(USDC, &pool_account) as f64 / unit as f64;
+				let pool_buy_asset_balance =
+					Tokens::balance(USDT, &pool_account) as f64 / unit as f64;
+				(pool_buy_asset_balance, pool_sell_asset_balance)
+			})
+			.collect::<Vec<_>>();
+		let pool_id = create_stable_swap_pool(
+			USDC,
+			USDT,
+			initial_usdc,
+			initial_usdt,
+			5_u16,
+			Permill::zero(),
+			Permill::zero(),
+		);
+		let pool_account = Pablo::account_id(&pool_id);
+		let points2 = range
+			.iter()
+			.map(|_| {
+				let amount = unit;
+				let _ = Tokens::mint_into(USDT, &BOB, amount).expect("mint failed");
+				let _base = <Pablo as Amm>::sell(&BOB, pool_id, USDT, amount, 0_u128, true)
+					.expect("sell failed");
+				let pool_sell_asset_balance =
+					Tokens::balance(USDC, &pool_account) as f64 / unit as f64;
+				let pool_buy_asset_balance =
+					Tokens::balance(USDT, &pool_account) as f64 / unit as f64;
+				(pool_buy_asset_balance, pool_sell_asset_balance)
+			})
+			.collect::<Vec<_>>();
+		let points: Vec<_> = points1.into_iter().rev().chain(points2.into_iter()).collect();
+		use plotters::prelude::*;
+		let area = BitMapBackend::new("./plots/stable_swap/curve_graph.png", (1024, 768))
+			.into_drawing_area();
+		area.fill(&WHITE).unwrap();
+
+		let mut chart = ChartBuilder::on(&area)
+			.caption("Curve price, pool has 1000 USDC 1000 USDT", ("Arial", 25).into_font())
+			.margin(100u32)
+			.x_label_area_size(30u32)
+			.y_label_area_size(30u32)
+			.build_cartesian_2d(0f64..max_base, 0f64..max_quote)
+			.unwrap();
+
+		chart
+			.configure_mesh()
+			.y_desc("quote amount")
+			.x_desc("base amount")
+			.draw()
+			.unwrap();
+		chart.draw_series(LineSeries::new(points, &RED)).unwrap();
+		chart
+			.configure_series_labels()
+			.background_style(&WHITE.mix(0.8))
+			.border_style(&BLACK)
+			.draw()
+			.unwrap();
+	});
 }
