@@ -19,7 +19,7 @@ use sp_std::{marker::PhantomData, ops::Mul};
 pub(crate) struct StableSwap<T>(PhantomData<T>);
 
 impl<T: Config> StableSwap<T> {
-	pub fn do_create_pool(
+	pub fn do_create_pool
 		who: &T::AccountId,
 		pair: CurrencyPair<T::AssetId>,
 		amp_coeff: u16,
@@ -194,7 +194,9 @@ impl<T: Config> StableSwap<T> {
 			T::Convert::convert(amplification_coefficient),
 			T::Convert::convert(d1),
 		)?);
+		// calculate amount of base asset to withdraw excluding fees 
 		let base_to_withdraw_w_o_fees = pool_base_aum.safe_sub(&new_base_amount)?;
+		// calculate ideal base amount
 		let ideal_base_balance = T::Convert::convert(safe_multiply_by_rational(
 			T::Convert::convert(d1),
 			T::Convert::convert(pool_base_aum),
@@ -206,15 +208,22 @@ impl<T: Config> StableSwap<T> {
 			T::Convert::convert(pool_quote_aum),
 			T::Convert::convert(d0),
 		)?);
+		// difference between ideal base balance and new base balance 
+		let base_difference = Self::abs_difference(ideal_base_balance, new_base_amount)?;
+		// difference between ideal qoute balance and new qoute balance 
+		let quote_difference = Self::abs_difference(ideal_quote_balance, pool_quote_aum)?;
+		// set fees
 		let share: Permill = Permill::from_rational(2_u32, 4_u32);
 		let updated_fee_config = pool.fee_config.mul(share);
-
-		let base_difference = Self::abs_difference(ideal_base_balance, new_base_amount)?;
-		let quote_difference = Self::abs_difference(ideal_quote_balance, pool_quote_aum)?;
+		// calculate fees for base asset
 		let base_fee = updated_fee_config.calculate_fees(pool.pair.base, base_difference);
+		// calculate fees for quote asset
 		let quote_fee = updated_fee_config.calculate_fees(pool.pair.quote, quote_difference);
+		// calculate amount of base asset after fees
 		let new_base_balance = new_base_amount.safe_sub(&base_fee.fee)?;
+		// calculate amount of quote asset after fees
 		let new_quote_balance = pool_quote_aum.safe_sub(&quote_fee.fee)?;
+		// calculate balance of base asset which is needed to be after withdrawing
 		let base_need_to_be = T::Convert::convert(compute_base(
 			T::Convert::convert(new_quote_balance),
 			T::Convert::convert(amplification_coefficient),
@@ -222,9 +231,11 @@ impl<T: Config> StableSwap<T> {
 		)?);
 		//TODO(belousm): understand which part is rigth to sub from `base_need_to_be` or from
 		// `new_base_balance` let base_to_withdraw = new_base_balance.safe_sub(&base_need_to_be)?;
+		// calculate amount of base asset for withdrawing
 		let base_to_withdraw = base_need_to_be.safe_sub(&new_base_balance)?;
-
+		// calculate remainig amount of LP tokens
 		let total_issuance = lp_issued.safe_sub(&lp_amount)?;
+		// calculate fees
 		let fee = updated_fee_config
 			.calculate_fees(pool.pair.base, base_to_withdraw_w_o_fees.safe_sub(&base_to_withdraw)?);
 
