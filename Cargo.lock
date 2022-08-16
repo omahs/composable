@@ -1892,7 +1892,7 @@ dependencies = [
 [[package]]
 name = "cosmwasm-minimal-std"
 version = "0.1.0"
-source = "git+https://github.com/ComposableFi/cosmwasm-vm?rev=b33fd35b4fdcf4db55d355b47ece14562c80c25b#b33fd35b4fdcf4db55d355b47ece14562c80c25b"
+source = "git+https://github.com/aeryz/cosmwasm-vm?branch=feat/complete-host-functions#e42ce23eb2b4b268c919d134489542e305bb6b83"
 dependencies = [
  "base64 0.13.0",
  "serde",
@@ -1902,7 +1902,7 @@ dependencies = [
 [[package]]
 name = "cosmwasm-vm"
 version = "0.1.0"
-source = "git+https://github.com/ComposableFi/cosmwasm-vm?rev=b33fd35b4fdcf4db55d355b47ece14562c80c25b#b33fd35b4fdcf4db55d355b47ece14562c80c25b"
+source = "git+https://github.com/aeryz/cosmwasm-vm?branch=feat/complete-host-functions#e42ce23eb2b4b268c919d134489542e305bb6b83"
 dependencies = [
  "cosmwasm-minimal-std",
  "either",
@@ -1914,7 +1914,7 @@ dependencies = [
 [[package]]
 name = "cosmwasm-vm-wasmi"
 version = "0.1.0"
-source = "git+https://github.com/ComposableFi/cosmwasm-vm?rev=b33fd35b4fdcf4db55d355b47ece14562c80c25b#b33fd35b4fdcf4db55d355b47ece14562c80c25b"
+source = "git+https://github.com/aeryz/cosmwasm-vm?branch=feat/complete-host-functions#e42ce23eb2b4b268c919d134489542e305bb6b83"
 dependencies = [
  "cosmwasm-minimal-std",
  "cosmwasm-vm",

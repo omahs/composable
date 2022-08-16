@@ -171,6 +171,7 @@ pub mod pallet {
 		NonceOverflow,
 		RefcountOverflow,
 		VMDepthOverflow,
+		SignatureVerificationError,
 	}
 
 	#[pallet::config]

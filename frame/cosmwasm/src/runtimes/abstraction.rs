@@ -1,11 +1,32 @@
 use crate::{AccountIdOf, Config, Pallet};
-use alloc::{collections::VecDeque, string::String};
+use alloc::{collections::VecDeque, string::String, vec::Vec};
 use core::marker::PhantomData;
-use cosmwasm_minimal_std::Addr;
+use cosmwasm_minimal_std::{Addr, CanonicalAddr};
 use cosmwasm_vm::vm::VmGasCheckpoint;
 
 pub trait VMPallet {
 	type VmError;
+}
+
+#[derive(Clone, Debug)]
+pub struct CanonicalCosmwasmAccount<T: Config>(AccountIdOf<T>);
+
+impl<T: Config> From<CosmwasmAccount<T>> for CanonicalCosmwasmAccount<T> {
+	fn from(from: CosmwasmAccount<T>) -> Self {
+		CanonicalCosmwasmAccount(from.into_inner())
+	}
+}
+
+impl<T: Config> From<Vec<u8>> for CanonicalCosmwasmAccount<T> {
+	fn from(_: Vec<u8>) -> Self {
+		unimplemented!()
+	}
+}
+
+impl<T: Config> Into<CanonicalAddr> for CanonicalCosmwasmAccount<T> {
+	fn into(self) -> CanonicalAddr {
+		unimplemented!()
+	}
 }
 
 #[derive(Clone, Debug)]
