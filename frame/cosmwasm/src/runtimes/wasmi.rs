@@ -256,36 +256,48 @@ impl<'a, T: Config> VMBase for CosmwasmVM<'a, T> {
 	}
 
 	fn running_contract_meta(&mut self) -> Result<Self::ContractMeta, Self::Error> {
-		unimplemented!()
+		Ok(CosmwasmContractMeta {
+			code_id: self.contract_info.code_id,
+			admin: self.contract_info.admin.clone().map(CosmwasmAccount::new),
+			label: String::from_utf8_lossy(&self.contract_info.label).into(),
+		})
 	}
 
-	fn debug(&mut self, message: Vec<u8>) -> Result<(), Self::Error> {
-		unimplemented!()
+	fn debug(&mut self, _: Vec<u8>) -> Result<(), Self::Error> {
+		Ok(())
 	}
 
 	fn addr_validate(&mut self, input: &str) -> Result<Result<(), Self::Error>, Self::Error> {
-		unimplemented!()
+		match Pallet::<T>::cosmwasm_addr_to_account(input.into()) {
+			Ok(_) => Ok(Ok(())),
+			Err(e) => Ok(Err(e)),
+		}
 	}
 
 	fn addr_canonicalize(
 		&mut self,
 		input: &str,
 	) -> Result<Result<Self::CanonicalAddress, Self::Error>, Self::Error> {
-		unimplemented!()
+		let account = match Pallet::<T>::cosmwasm_addr_to_account(input.into()) {
+			Ok(account) => account,
+			Err(e) => return Ok(Err(e)),
+		};
+
+		Ok(Ok(CosmwasmAccount::new(account).into()))
 	}
 
 	fn addr_humanize(
 		&mut self,
 		addr: &Self::CanonicalAddress,
 	) -> Result<Result<Self::Address, Self::Error>, Self::Error> {
-		unimplemented!()
+		Ok(Ok(addr.0.clone()))
 	}
 
 	fn secp256k1_recover_pubkey(
 		&mut self,
-		message_hash: &[u8],
-		signature: &[u8],
-		recovery_param: u8,
+		_message_hash: &[u8],
+		_signature: &[u8],
+		_recovery_param: u8,
 	) -> Result<Result<Vec<u8>, ()>, Self::Error> {
 		unimplemented!()
 	}
@@ -556,6 +568,25 @@ impl<'a, T: Config> VMBase for CosmwasmVM<'a, T> {
 			Ok(())
 		}
 	}
+
+    fn db_scan(
+            &mut self,
+            _start: Option<Self::StorageKey>,
+            _end: Option<Self::StorageKey>,
+            _order: cosmwasm_minimal_std::Order,
+        ) -> Result<u32, Self::Error> {
+        Pallet::<T>::do_db_scan(self)
+    }
+
+    fn db_next(
+        &mut self,
+        iterator_id: u32,
+        ) -> Result<(Self::StorageKey, Self::StorageValue), Self::Error> {
+        match Pallet::<T>::do_db_next(self, iterator_id)? {
+            Some(kv_pair) => Ok(kv_pair),
+            None => Ok((Vec::new(), Vec::new()))
+        }
+    }
 
 	fn abort(&mut self, message: String) -> Result<(), Self::Error> {
 		log::debug!(target: "runtime::contracts", "db_abort");

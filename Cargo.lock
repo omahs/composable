@@ -1892,7 +1892,7 @@ dependencies = [
 [[package]]
 name = "cosmwasm-minimal-std"
 version = "0.1.0"
-source = "git+https://github.com/aeryz/cosmwasm-vm?branch=feat/complete-host-functions#e42ce23eb2b4b268c919d134489542e305bb6b83"
+source = "git+https://github.com/aeryz/cosmwasm-vm?branch=feat/complete-host-functions#10c283452006ad64b0d1321492b3040eea24a25c"
 dependencies = [
  "base64 0.13.0",
  "serde",
@@ -1902,7 +1902,7 @@ dependencies = [
 [[package]]
 name = "cosmwasm-vm"
 version = "0.1.0"
-source = "git+https://github.com/aeryz/cosmwasm-vm?branch=feat/complete-host-functions#e42ce23eb2b4b268c919d134489542e305bb6b83"
+source = "git+https://github.com/aeryz/cosmwasm-vm?branch=feat/complete-host-functions#10c283452006ad64b0d1321492b3040eea24a25c"
 dependencies = [
  "cosmwasm-minimal-std",
  "either",
@@ -1914,7 +1914,7 @@ dependencies = [
 [[package]]
 name = "cosmwasm-vm-wasmi"
 version = "0.1.0"
-source = "git+https://github.com/aeryz/cosmwasm-vm?branch=feat/complete-host-functions#e42ce23eb2b4b268c919d134489542e305bb6b83"
+source = "git+https://github.com/aeryz/cosmwasm-vm?branch=feat/complete-host-functions#10c283452006ad64b0d1321492b3040eea24a25c"
 dependencies = [
  "cosmwasm-minimal-std",
  "cosmwasm-vm",
@@ -16238,7 +16238,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.3",
  "rand 0.8.5",
  "static_assertions",

@@ -92,10 +92,10 @@ pub mod pallet {
 			tokens::{AssetId, Balance},
 			Get, ReservableCurrency, UnixTime,
 		},
-		transactional, BoundedBTreeMap, PalletId,
+		transactional, BoundedBTreeMap, PalletId, Twox64Concat,
 	};
 	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-	use sp_core::crypto::UncheckedFrom;
+	use sp_core::{crypto::UncheckedFrom, storage::ChildTrieParentKeyId};
 	use sp_io::hashing::blake2_256;
 	use sp_runtime::traits::{Convert, Hash, MaybeDisplay, SaturatedConversion};
 	use sp_std::vec::Vec;
@@ -172,6 +172,8 @@ pub mod pallet {
 		RefcountOverflow,
 		VMDepthOverflow,
 		SignatureVerificationError,
+		IteratorIdOverflow,
+		IteratorNotFound,
 	}
 
 	#[pallet::config]
@@ -313,6 +315,21 @@ pub mod pallet {
 	#[pallet::storage]
 	pub(crate) type InstrumentedCode<T: Config> =
 		StorageMap<_, Twox64Concat, CosmwasmCodeId, ContractInstrumentedCodeOf<T>>;
+
+	#[pallet::storage]
+	pub(crate) type ContractStorageIterators<T: Config> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		ContractInfoOf<T>,
+		Twox64Concat,
+		u32,
+		Option<BoundedVec<u8, MaxCodeSizeOf<T>>>,
+	>;
+
+	#[allow(clippy::disallowed_types)]
+	#[pallet::storage]
+	pub(crate) type CurrentIteratorId<T: Config> =
+		StorageValue<_, u32, ValueQuery, Nonce<ZeroInit, SafeIncrement>>;
 
 	/// Monotonic counter incremented on code creation.
 	#[allow(clippy::disallowed_types)]
@@ -1001,6 +1018,54 @@ pub mod pallet {
 			Ok(Self::with_db_entry(&vm.contract_info.trie_id, key, |child_trie, entry| {
 				storage::child::get_raw(&child_trie, &entry)
 			}))
+		}
+
+		pub(crate) fn do_db_scan<'a>(vm: &'a mut CosmwasmVM<T>) -> Result<u32, CosmwasmVMError<T>> {
+			let iterator_id =
+				<CurrentIteratorId<T>>::increment().map_err(|_| Error::<T>::IteratorIdOverflow)?;
+
+			<ContractStorageIterators<T>>::insert(
+				vm.contract_info.clone(),
+				iterator_id,
+				None::<BoundedVec<_, _>>,
+			);
+
+			Ok(iterator_id)
+		}
+
+		pub(crate) fn do_db_next<'a>(
+			vm: &'a mut CosmwasmVM<T>,
+			iterator_id: u32,
+		) -> Result<Option<(Vec<u8>, Vec<u8>)>, CosmwasmVMError<T>> {
+			<ContractStorageIterators<T>>::try_mutate(
+				&vm.contract_info,
+				&iterator_id,
+				|entry| -> Result<Option<(Vec<u8>, Vec<u8>)>, Error<T>> {
+					let storage_key = entry.as_mut().ok_or(Error::<T>::IteratorNotFound)?;
+					let storage_key = if storage_key.is_none() {
+						&[]
+					} else {
+						storage_key.as_ref().unwrap().as_slice()
+					};
+					Ok(Self::with_db_entry(
+						&vm.contract_info.trie_id,
+						storage_key,
+						|child_info, entry| {
+							let key = sp_io::default_child_storage::next_key(
+								child_info.storage_key(),
+								&entry,
+							);
+							if let Some(key) = key {
+								storage::child::get_raw(&child_info, &entry)
+									.map(|value| (key, value))
+							} else {
+								None
+							}
+						},
+					))
+				},
+			)
+			.map_err(Into::into)
 		}
 
 		/// Read an entry from an arbitrary contract, charging the according gas prior to actually
