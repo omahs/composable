@@ -5,7 +5,9 @@ use crate::*;
 use crate::{self as pallet_tokenized_options, types::*, Pallet as TokenizedOptions};
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use composable_traits::{defi::DeFiComposableConfig, oracle::Price, vault::VaultConfig};
+use composable_traits::{
+	defi::DeFiComposableConfig, oracle::Price, tokenized_options::*, vault::VaultConfig,
+};
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
 use frame_support::traits::{
 	fungible::{Inspect as NativeInspect, Transfer as NativeTransfer},

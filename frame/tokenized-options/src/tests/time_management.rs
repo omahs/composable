@@ -1,12 +1,10 @@
 use super::{OptionsConfigBuilder, VaultInitializer};
-use crate::{
-	mocks::runtime::{
-		BlockNumber, Event, ExtBuilder, MockRuntime, Moment, OptionId, System, Timestamp,
-		TokenizedOptions,
-	},
-	types::Epoch,
+use crate::mocks::runtime::{
+	BlockNumber, Event, ExtBuilder, MockRuntime, Moment, OptionId, System, Timestamp,
+	TokenizedOptions,
 };
-use composable_traits::tokenized_options::TokenizedOptions as TokenizedOptionsTrait;
+use composable_traits::tokenized_options::{TokenizedOptions as TokenizedOptionsTrait, *};
+
 use frame_support::{
 	assert_ok,
 	traits::{Get, OnFinalize, OnIdle, OnInitialize},

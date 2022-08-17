@@ -10,10 +10,9 @@ use crate::{
 		},
 	},
 	pallet::{AssetToVault, Error, OptionIdToOption},
-	types::*,
 };
 use composable_traits::{
-	tokenized_options::TokenizedOptions as TokenizedOptionsTrait,
+	tokenized_options::{TokenizedOptions as TokenizedOptionsTrait, *},
 	vault::{Vault as VaultTrait, VaultConfig},
 };
 use frame_system::ensure_signed;

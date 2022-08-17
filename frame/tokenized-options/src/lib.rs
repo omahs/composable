@@ -1385,6 +1385,7 @@ pub mod pallet {
 				base_asset_strike_price: option.base_asset_strike_price,
 				base_asset_spot_price: option.base_asset_spot_price,
 				expiring_date: option.expiring_date,
+				option_type: option.option_type,
 				total_issuance_buyer: option.total_issuance_buyer,
 				total_premium_paid: option.total_premium_paid,
 			};
