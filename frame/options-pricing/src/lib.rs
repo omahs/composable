@@ -93,7 +93,6 @@ pub mod pallet {
 	use sp_std::cmp::min;
 
 	use sp_std::{collections::btree_map::BTreeMap, fmt::Debug};
-
 	// ----------------------------------------------------------------------------------------------------
 	//		Declaration Of The Pallet Type
 	// ----------------------------------------------------------------------------------------------------
@@ -138,7 +137,10 @@ pub mod pallet {
 			+ InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>;
 
 		/// Trait used to convert from this pallet `Balance` type to `u128`.
-		type Convert: Convert<BalanceOf<Self>, u128> + Convert<u128, BalanceOf<Self>>;
+		type ConvertBalanceToDecimal: Convert<BalanceOf<Self>, Decimal>
+			+ Convert<Decimal, BalanceOf<Self>>;
+
+		type ConvertMomentToDecimal: Convert<MomentOf<Self>, Decimal>;
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -194,7 +196,9 @@ pub mod pallet {
 	//		Errors
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		FailedConversion,
+	}
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Hooks
@@ -219,6 +223,17 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::calculate_option_greeks())]
+		pub fn calculate_option_greeks(
+			origin: OriginFor<T>,
+			params: BlackScholesParamsOf<T>,
+		) -> DispatchResult {
+			// Check if it's protocol to call the extrinsic
+			T::ProtocolOrigin::ensure_origin(origin)?;
+
+			Ok(())
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -233,7 +248,159 @@ pub mod pallet {
 		fn calculate_option_price(
 			params: BlackScholesParamsOf<T>,
 		) -> Result<Self::Balance, DispatchError> {
+			Self::do_calculate_option_price(params)
+		}
+
+
+	}
+
+	// ----------------------------------------------------------------------------------------------------
+	//		Internal Pallet Functions
+	// ----------------------------------------------------------------------------------------------------
+	impl<T: Config> Pallet<T> {
+		fn do_calculate_option_price(
+			params: BlackScholesParamsOf<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			// Get interest rate index, annualized expiry date and converted prices
+			let interest_rate = Self::interest_rate_index();
+			let time_annualized = Self::get_expiry_time_annualized(params.expiring_date)?;
+			let strike_price = T::ConvertBalanceToDecimal::convert(params.base_asset_strike_price);
+			let spot_price = T::ConvertBalanceToDecimal::convert(params.base_asset_spot_price);
+
+			// Get volatility for option's asset
+			let iv: Decimal = Decimal::from_float(200.5); // TODO
+
+			let option_price = Self::black_scholes(
+				strike_price,
+				spot_price,
+				time_annualized,
+				interest_rate,
+				iv,
+				params.option_type,
+			)?;
+
+			Ok(option_price)
+		}
+
+		fn black_scholes(
+			strike_price: Decimal,
+			spot_price: Decimal,
+			time_annualized: Decimal,
+			interest_rate: Decimal,
+			iv: Decimal,
+			option_type: OptionType,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			let (d1, d2) = Self::calculate_d1_d2(
+				strike_price,
+				spot_price,
+				time_annualized,
+				interest_rate,
+				iv,
+			)?;
+
+			let option_price = match option_type {
+				OptionType::Call => Self::calculate_call_price(
+					strike_price,
+					spot_price,
+					time_annualized,
+					interest_rate,
+					d1,
+					d2,
+				)?,
+				OptionType::Put => Self::calculate_put_price(
+					strike_price,
+					spot_price,
+					time_annualized,
+					interest_rate,
+					d1,
+					d2,
+				)?,
+			};
+
 			Ok((1000u128 * 10u128.pow(12)).into())
+		}
+
+		fn get_expiry_time_annualized(expiry_date: MomentOf<T>) -> Result<Decimal, Error<T>> {
+			let now = T::Time::now();
+			let seconds_to_expiry = T::ConvertMomentToDecimal::convert(expiry_date - now);
+			seconds_to_expiry
+				.checked_div(&SECONDS_PER_YEAR)
+				.ok_or(Error::<T>::FailedConversion)
+		}
+
+		fn cumulative_normal_distribution(value: Decimal) -> Result<Decimal, DispatchError> {
+			Ok(Decimal::from_inner(10.into()))
+		}
+
+		fn calculate_d1_d2(
+			strike_price: Decimal,
+			spot_price: Decimal,
+			time_annualized: Decimal,
+			interest_rate: Decimal,
+			iv: Decimal,
+		) -> Result<(Decimal, Decimal), DispatchError> {
+			// let a = Decimal::sqrt(time_annualized).ok_or(ArithmeticError::Underflow)?;
+			// let a = iv.checked_mul(&a).ok_or(ArithmeticError::Overflow)?;
+
+			// let b = spot_price.checked_div(&strike_price).ok_or(ArithmeticError::Overflow)?;
+			// let b = Decimal::log(b).ok_or(ArithmeticError::Underflow)?;
+
+			// let c = iv.saturating_pow(2);
+			// let c = c.checked_div(&Decimal::from_inner(2.into())).ok_or(ArithmeticError::Underflow)?;
+			// let c = c.checked_add(&interest_rate).ok_or(ArithmeticError::Overflow)?;
+			// let c = c.checked_mul(&time_annualized).ok_or(ArithmeticError::Overflow)?;
+
+			// let d1 = b.checked_add(&c).ok_or(ArithmeticError::Overflow)?;
+			// let d1 = d1.checked_div(&a).ok_or(ArithmeticError::Overflow)?;
+
+			// let d2 = d1.checked_sub(&a).ok_or(ArithmeticError::Underflow)?;
+
+			// Ok((d1, d2))
+			Ok((Decimal::from_inner(10.into()), Decimal::from_inner(10.into())))
+		}
+
+		fn calculate_call_price(
+			strike_price: Decimal,
+			spot_price: Decimal,
+			time_annualized: Decimal,
+			interest_rate: Decimal,
+			d1: Decimal,
+			d2: Decimal,
+		) -> Result<Decimal, DispatchError> {
+			// let nd1 = Self::cumulative_normal_distribution(d1)?;
+			// let a = spot_price.checked_mul(&nd1).ok_or(ArithmeticError::Overflow)?;
+
+			// let nd2 = Self::cumulative_normal_distribution(d2)?;
+			// let exp =
+			// 	-interest_rate.checked_mul(&time_annualized).ok_or(ArithmeticError::Overflow)?;
+			// let exp = Decimal::exp(&exp).ok_or(ArithmeticError::Overflow)?;
+			// let b = strike_price.checked_mul(&nd2).ok_or(ArithmeticError::Overflow)?;
+			// let b = b.checked_mul(&exp).ok_or(ArithmeticError::Overflow)?;
+
+			// Ok(a.checked_sub(&b))
+			Ok(1.into())
+		}
+
+		fn calculate_put_price(
+			strike_price: Decimal,
+			spot_price: Decimal,
+			time_annualized: Decimal,
+			interest_rate: Decimal,
+			d1: Decimal,
+			d2: Decimal,
+		) -> Result<Decimal, DispatchError> {
+			// let nd2 = Self::cumulative_normal_distribution(-d2)?;
+			// let exp =
+			// 	-interest_rate.checked_mul(&time_annualized).ok_or(ArithmeticError::Overflow)?;
+			// let exp = Decimal::exp(&exp).ok_or(ArithmeticError::Overflow)?;
+			// let b = strike_price.checked_mul(&nd2).ok_or(ArithmeticError::Overflow)?;
+			// let b = b.checked_mul(&exp).ok_or(ArithmeticError::Overflow)?;
+
+			// let nd1 = Self::cumulative_normal_distribution(-d1)?;
+			// let a = spot_price.checked_mul(&nd1).ok_or(ArithmeticError::Overflow)?;
+
+			// Ok(b.checked_sub(&a))
+			Ok(1.into())
 		}
 	}
 }

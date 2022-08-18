@@ -22,3 +22,8 @@ pub struct Snapshot<T: Config> {
 	pub total_issuance_buyer: BalanceOf<T>,
 	pub total_premium_paid: BalanceOf<T>,
 }
+
+// ----------------------------------------------------------------------------------------------------
+//		Constants
+// ----------------------------------------------------------------------------------------------------
+pub const SECONDS_PER_YEAR: Decimal = Decimal::from_inner(31536000);
