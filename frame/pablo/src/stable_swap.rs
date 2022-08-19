@@ -357,7 +357,6 @@ impl<T: Config> StableSwap<T> {
 				T::Convert::convert(d2.safe_sub(&d0)?),
 				T::Convert::convert(d0),
 			)?);
-			println!("Mint amount: {:?}", mint_amount);
 			(mint_amount, base_fee, quote_fee)
 		} else {
 			(

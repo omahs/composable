@@ -1537,6 +1537,7 @@ pub mod pallet {
 						.assets
 						.get(&info.pair.base)
 						.ok_or(Error::<T>::InvalidAsset)?;
+					let (_, fees, _) = StableSwap::<T>::calculate_one_asset_amount_and_fees(&info, &pool_account, lp_amount)?;
 					let (base_amount, quote_amount, updated_lp) = StableSwap::<T>::remove_liquidity_one_asset(
 						who,
 						&info,
@@ -1550,7 +1551,6 @@ pub mod pallet {
 						lp_amount,
 						SingleAssetAccountsStorageAction::Withdrawing,
 					)?;
-					let (_, fees, _) = StableSwap::<T>::calculate_one_asset_amount_and_fees(&info, &pool_account, lp_amount)?;
 					Self::disburse_fees(who, &pool_id, &info.owner, &fees)?;
 					Self::update_twap(pool_id)?;
 					Self::deposit_event(Event::<T>::LiquidityRemoved {

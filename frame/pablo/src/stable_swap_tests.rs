@@ -15,7 +15,7 @@ use composable_tests_helpers::{
 };
 use composable_traits::{
 	defi::CurrencyPair,
-	dex::{Amm, FeeConfig},
+	dex::{Amm, FeeConfig, Fee},
 };
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
@@ -601,10 +601,8 @@ fn withdraw_liquidity_with_one_asset() {
 			initial_usdc,
 			initial_usdt,
 			100_u16,
-			Permill::from_float(0.05), // 5% lp fee.
-			Permill::from_float(0.10), /* 10
-			                            * Permill::zero(),
-			                            * Permill::zero(), */
+			Permill::zero(),
+			Permill::zero(),
 		);
 		let pool = Pablo::pools(pool_id).expect("pool not found");
 		let pool = match pool {
@@ -634,6 +632,7 @@ fn withdraw_liquidity_with_one_asset() {
 		for event in system_events {
 			println!("{:?}", event);
 		}
+		println!("LP: {:?}, USDC: {:?}", lp, bob_usdc);
 		assert_ok!(default_acceptable_computation_error(lp, bob_usdc));
 	});
 }
@@ -745,7 +744,7 @@ proptest! {
 
 	#[test]
 	fn add_remove_liquidity_single_asset_pool_with_fees_proptest(
-		usdc_balance in 0..u32::MAX,
+		usdc_balance in 1..u32::MAX,
 	) {
 		new_test_ext().execute_with(|| {
 			let unit = 1_000_000_000_000_u128;
@@ -763,11 +762,11 @@ proptest! {
 				Permill::from_float(0.10), // 10%
 			);
 			let pool = Pablo::pools(pool_id).expect("pool not found");
+			let pool_account = Pablo::account_id(&pool_id);
 			let pool = match pool {
 					StableSwap(pool) => pool,
 					_ => panic!("expected stable_swap pool"),
 			};
-			prop_assert_ok!(Tokens::mint_into(USDT, &BOB, usdt_balance));
 			prop_assert_ok!(Tokens::mint_into(USDC, &BOB, usdc_balance));
 			prop_assert_ok!(Pablo::add_liquidity(
 				Origin::signed(BOB),
@@ -778,16 +777,19 @@ proptest! {
 				false
 			));
 			let lp = Tokens::balance(pool.lp_token, &BOB);
+			let mut fees: Fee<AssetId, Balance> = Fee::default();
+			match SS::<Test>::calculate_one_asset_amount_and_fees(&pool, &pool_account, lp) {
+				Ok((_, fee, _)) => fees = fee,
+				Err(_) => ()
+			}
 			prop_assert_ok!(Pablo::remove_liquidity_single_asset(
 				Origin::signed(BOB),
 				pool_id,
 				lp,
 				0,
 				));
-			let bob_usdc = Tokens::balance(USDC, &BOB);
-			let bob_usdt = Tokens::balance(USDT, &BOB);
-			prop_assert_ok!(default_acceptable_computation_error(lp, bob_usdc +
-	bob_usdt));
+			let bob_usdc = Tokens::balance(USDC, &BOB) + fees.owner_fee;
+			prop_assert_ok!(default_acceptable_computation_error(lp, bob_usdc));
 			Ok(())
 		})?;
 	}
