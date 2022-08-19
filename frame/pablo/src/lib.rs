@@ -1169,8 +1169,14 @@ pub mod pallet {
 			let pool = Self::get_pool(pool_id)?;
 			let pool_account = Self::account_id(&pool_id);
 			match pool {
-				PoolConfiguration::StableSwap(_) =>
-					Err(Error::<T>::SingleAssetNotYetSupported.into()),
+				PoolConfiguration::StableSwap(info) => {
+					let (base_amount, _, _) = StableSwap::<T>::calculate_one_asset_amount_and_fees(&info, &pool_account, lp_amount)?;
+					ensure!(
+						base_amount >= min_expected_amount,
+						Error::<T>::CannotRespectMinimumRequested
+					);
+					Ok(RedeemableAssets { assets: BTreeMap::from([(info.pair.base, base_amount)]) })	
+				},
 				PoolConfiguration::ConstantProduct(ConstantProductPoolInfo {
 					pair,
 					lp_token,
@@ -1526,8 +1532,35 @@ pub mod pallet {
 			let pool = Self::get_pool(pool_id)?;
 			let pool_account = Self::account_id(&pool_id);
 			match pool {
-				PoolConfiguration::StableSwap(_) =>
-					return Err(Error::<T>::SingleAssetNotYetSupported.into()),
+				PoolConfiguration::StableSwap(info) => {
+					let base_amount = *redeemable_assets
+						.assets
+						.get(&info.pair.base)
+						.ok_or(Error::<T>::InvalidAsset)?;
+					let (base_amount, quote_amount, updated_lp) = StableSwap::<T>::remove_liquidity_one_asset(
+						who,
+						&info,
+						&pool_account,
+						base_amount,
+						lp_amount,
+					)?;
+					Self::update_accounts_deposited_one_asset_storage(
+						who.clone(),
+						pool_id,
+						lp_amount,
+						SingleAssetAccountsStorageAction::Withdrawing,
+					)?;
+					let (_, fees, _) = StableSwap::<T>::calculate_one_asset_amount_and_fees(&info, &pool_account, lp_amount)?;
+					Self::disburse_fees(who, &pool_id, &info.owner, &fees)?;
+					Self::update_twap(pool_id)?;
+					Self::deposit_event(Event::<T>::LiquidityRemoved {
+						pool_id,
+						who: who.clone(),
+						base_amount,
+						quote_amount,
+						total_issuance: updated_lp,
+					});
+				},
 				PoolConfiguration::ConstantProduct(info) => {
 					let base_amount = *redeemable_assets
 						.assets

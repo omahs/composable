@@ -547,6 +547,97 @@ fn cannot_get_exchange_value_for_wrong_asset() {
 	});
 }
 
+#[test]
+fn add_liquidity_with_one_asset() {
+	new_test_ext().execute_with(|| {
+		let unit = 1_000_000_000_000_u128;
+		let usdt_balance = 0 * unit;
+		let usdc_balance = 1_000 * unit;
+		let initial_usdt = u64::MAX as u128 * unit;
+		let initial_usdc = u64::MAX as u128 * unit;
+		let pool_id = create_stable_swap_pool(
+			USDC,
+			USDT,
+			initial_usdc,
+			initial_usdt,
+			100_u16,
+			Permill::zero(),
+			Permill::zero(),
+		);
+		let pool = Pablo::pools(pool_id).expect("pool not found");
+		let pool = match pool {
+			StableSwap(pool) => pool,
+			_ => panic!("expected stable_swap pool"),
+		};
+		assert_ok!(Tokens::mint_into(USDT, &BOB, usdt_balance));
+		assert_ok!(Tokens::mint_into(USDC, &BOB, usdc_balance));
+		assert_ok!(Pablo::add_liquidity(
+			Origin::signed(BOB),
+			pool_id,
+			usdc_balance,
+			usdt_balance,
+			0,
+			false
+		));
+		let lp = Tokens::balance(pool.lp_token, &BOB);
+		let expected_lp = usdt_balance + usdc_balance;
+		assert_ok!(default_acceptable_computation_error(lp, expected_lp));
+		assert!(pallet::AccountsDepositedOneAsset::<Test>::contains_key(&BOB, &pool_id));
+		assert_eq!(pallet::AccountsDepositedOneAsset::<Test>::get(&BOB, &pool_id), usdc_balance);
+	});
+}
+
+#[test]
+fn withdraw_liquidity_with_one_asset() {
+	new_test_ext().execute_with(|| {
+		let unit = 1_000_000_000_u128;
+		let usdt_balance = 0 * unit;
+		let usdc_balance = 1_000 * unit;
+		let initial_usdt = u64::MAX as u128 * unit;
+		let initial_usdc = u64::MAX as u128 * unit;
+		let pool_id = create_stable_swap_pool(
+			USDC,
+			USDT,
+			initial_usdc,
+			initial_usdt,
+			100_u16,
+			Permill::from_float(0.05), // 5% lp fee.
+			Permill::from_float(0.10), /* 10
+			                            * Permill::zero(),
+			                            * Permill::zero(), */
+		);
+		let pool = Pablo::pools(pool_id).expect("pool not found");
+		let pool = match pool {
+			StableSwap(pool) => pool,
+			_ => panic!("expected stable_swap pool"),
+		};
+		assert_ok!(Tokens::mint_into(USDT, &BOB, usdt_balance));
+		assert_ok!(Tokens::mint_into(USDC, &BOB, usdc_balance));
+		assert_ok!(Pablo::add_liquidity(
+			Origin::signed(BOB),
+			pool_id,
+			usdc_balance,
+			usdt_balance,
+			0,
+			false
+		));
+		let lp = Tokens::balance(pool.lp_token, &BOB);
+		assert_ok!(Pablo::remove_liquidity_single_asset(
+			Origin::signed(BOB),
+			pool_id,
+			lp,
+			0,
+			));
+		assert!(!pallet::AccountsDepositedOneAsset::<Test>::contains_key(&BOB, &pool_id));
+		let bob_usdc = Tokens::balance(USDC, &BOB);
+		let system_events = frame_system::Pallet::<Test>::events();
+		for event in system_events {
+			println!("{:?}", event);
+		}
+		assert_ok!(default_acceptable_computation_error(lp, bob_usdc));
+	});
+}
+
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(10000))]
 	#[test]
@@ -599,6 +690,106 @@ proptest! {
 		prop_assert_ok!(default_acceptable_computation_error(usdc_balance + usdt_balance, bob_usdc +
  bob_usdt)); 		Ok(())
 	})?;
+	}
+
+	#[test]
+	fn add_remove_liquidity_single_asset_pool_w_o_fees_proptest(
+		usdc_balance in 0..u32::MAX,
+	) {
+		new_test_ext().execute_with(|| {
+			let unit = 1_000_000_000_000_u128;
+			let usdt_balance = 0 * unit;
+			let usdc_balance = usdc_balance as u128 * unit;
+			let initial_usdt = u64::MAX as u128 * unit;
+			let initial_usdc = u64::MAX as u128 * unit;
+			let pool_id = create_stable_swap_pool(
+				USDC,
+				USDT,
+				initial_usdc,
+				initial_usdt,
+				100_u16,
+				Permill::zero(),
+				Permill::zero(),
+			);
+			let pool = Pablo::pools(pool_id).expect("pool not found");
+			let pool = match pool {
+					StableSwap(pool) => pool,
+					_ => panic!("expected stable_swap pool"),
+			};
+			prop_assert_ok!(Tokens::mint_into(USDT, &BOB, usdt_balance));
+			prop_assert_ok!(Tokens::mint_into(USDC, &BOB, usdc_balance));
+			prop_assert_ok!(Pablo::add_liquidity(
+				Origin::signed(BOB),
+				pool_id,
+				usdc_balance,
+				usdt_balance,
+				0,
+				false
+			));
+			let lp = Tokens::balance(pool.lp_token, &BOB);
+			let expected_lp = usdt_balance + usdc_balance;
+			prop_assert_ok!(default_acceptable_computation_error(lp, expected_lp));
+			prop_assert_ok!(Pablo::remove_liquidity_single_asset(
+				Origin::signed(BOB),
+				pool_id,
+				lp,
+				0,
+				));
+			let bob_usdc = Tokens::balance(USDC, &BOB);
+			let bob_usdt = Tokens::balance(USDT, &BOB);
+			prop_assert_ok!(default_acceptable_computation_error(usdc_balance + usdt_balance, bob_usdc +
+	bob_usdt));
+			Ok(())
+		})?;
+	}
+
+	#[test]
+	fn add_remove_liquidity_single_asset_pool_with_fees_proptest(
+		usdc_balance in 0..u32::MAX,
+	) {
+		new_test_ext().execute_with(|| {
+			let unit = 1_000_000_000_000_u128;
+			let usdt_balance = 0 * unit;
+			let usdc_balance = usdc_balance as u128 * unit;
+			let initial_usdt = u64::MAX as u128 * unit;
+			let initial_usdc = u64::MAX as u128 * unit;
+			let pool_id = create_stable_swap_pool(
+				USDC,
+				USDT,
+				initial_usdc,
+				initial_usdt,
+				100_u16,
+				Permill::from_float(0.05), // 5% lp fee.
+				Permill::from_float(0.10), // 10%
+			);
+			let pool = Pablo::pools(pool_id).expect("pool not found");
+			let pool = match pool {
+					StableSwap(pool) => pool,
+					_ => panic!("expected stable_swap pool"),
+			};
+			prop_assert_ok!(Tokens::mint_into(USDT, &BOB, usdt_balance));
+			prop_assert_ok!(Tokens::mint_into(USDC, &BOB, usdc_balance));
+			prop_assert_ok!(Pablo::add_liquidity(
+				Origin::signed(BOB),
+				pool_id,
+				usdc_balance,
+				usdt_balance,
+				0,
+				false
+			));
+			let lp = Tokens::balance(pool.lp_token, &BOB);
+			prop_assert_ok!(Pablo::remove_liquidity_single_asset(
+				Origin::signed(BOB),
+				pool_id,
+				lp,
+				0,
+				));
+			let bob_usdc = Tokens::balance(USDC, &BOB);
+			let bob_usdt = Tokens::balance(USDT, &BOB);
+			prop_assert_ok!(default_acceptable_computation_error(lp, bob_usdc +
+	bob_usdt));
+			Ok(())
+		})?;
 	}
 
 	#[test]
