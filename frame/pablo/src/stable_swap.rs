@@ -19,7 +19,7 @@ use sp_std::{marker::PhantomData, ops::Mul};
 pub(crate) struct StableSwap<T>(PhantomData<T>);
 
 impl<T: Config> StableSwap<T> {
-	pub fn do_create_pool (
+	pub fn do_create_pool(
 		who: &T::AccountId,
 		pair: CurrencyPair<T::AssetId>,
 		amp_coeff: u16,
@@ -196,7 +196,7 @@ impl<T: Config> StableSwap<T> {
 			T::Convert::convert(amplification_coefficient),
 			T::Convert::convert(d1),
 		)?);
-		// calculate amount of base asset to withdraw excluding fees 
+		// calculate amount of base asset to withdraw excluding fees
 		let base_to_withdraw_w_o_fees = pool_base_aum.safe_sub(&new_base_amount)?;
 		// calculate ideal base amount
 		let ideal_base_balance = T::Convert::convert(safe_multiply_by_rational(
@@ -210,9 +210,9 @@ impl<T: Config> StableSwap<T> {
 			T::Convert::convert(pool_quote_aum),
 			T::Convert::convert(d0),
 		)?);
-		// difference between ideal base balance and new base balance 
+		// difference between ideal base balance and new base balance
 		let base_difference = Self::abs_difference(ideal_base_balance, new_base_amount)?;
-		// difference between ideal qoute balance and new qoute balance 
+		// difference between ideal qoute balance and new qoute balance
 		let quote_difference = Self::abs_difference(ideal_quote_balance, pool_quote_aum)?;
 		// set fees
 		let share: Permill = Permill::from_rational(2_u32, 4_u32);
@@ -250,7 +250,7 @@ impl<T: Config> StableSwap<T> {
 		pool_account: &T::AccountId,
 		base_amount: T::Balance,
 		lp_amount: T::Balance,
-		) -> Result<
+	) -> Result<
 		(
 			T::Balance, /* base_amount */
 			T::Balance, /* quote_amount */

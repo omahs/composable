@@ -1170,12 +1170,16 @@ pub mod pallet {
 			let pool_account = Self::account_id(&pool_id);
 			match pool {
 				PoolConfiguration::StableSwap(info) => {
-					let (base_amount, _, _) = StableSwap::<T>::calculate_one_asset_amount_and_fees(&info, &pool_account, lp_amount)?;
+					let (base_amount, _, _) = StableSwap::<T>::calculate_one_asset_amount_and_fees(
+						&info,
+						&pool_account,
+						lp_amount,
+					)?;
 					ensure!(
 						base_amount >= min_expected_amount,
 						Error::<T>::CannotRespectMinimumRequested
 					);
-					Ok(RedeemableAssets { assets: BTreeMap::from([(info.pair.base, base_amount)]) })	
+					Ok(RedeemableAssets { assets: BTreeMap::from([(info.pair.base, base_amount)]) })
 				},
 				PoolConfiguration::ConstantProduct(ConstantProductPoolInfo {
 					pair,
@@ -1537,14 +1541,19 @@ pub mod pallet {
 						.assets
 						.get(&info.pair.base)
 						.ok_or(Error::<T>::InvalidAsset)?;
-					let (_, fees, _) = StableSwap::<T>::calculate_one_asset_amount_and_fees(&info, &pool_account, lp_amount)?;
-					let (base_amount, quote_amount, updated_lp) = StableSwap::<T>::remove_liquidity_one_asset(
-						who,
+					let (_, fees, _) = StableSwap::<T>::calculate_one_asset_amount_and_fees(
 						&info,
 						&pool_account,
-						base_amount,
 						lp_amount,
 					)?;
+					let (base_amount, quote_amount, updated_lp) =
+						StableSwap::<T>::remove_liquidity_one_asset(
+							who,
+							&info,
+							&pool_account,
+							base_amount,
+							lp_amount,
+						)?;
 					Self::update_accounts_deposited_one_asset_storage(
 						who.clone(),
 						pool_id,

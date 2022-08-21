@@ -15,7 +15,7 @@ use composable_tests_helpers::{
 };
 use composable_traits::{
 	defi::CurrencyPair,
-	dex::{Amm, FeeConfig, Fee},
+	dex::{Amm, Fee, FeeConfig},
 };
 use frame_support::{
 	assert_err, assert_noop, assert_ok,
@@ -620,12 +620,7 @@ fn withdraw_liquidity_with_one_asset() {
 			false
 		));
 		let lp = Tokens::balance(pool.lp_token, &BOB);
-		assert_ok!(Pablo::remove_liquidity_single_asset(
-			Origin::signed(BOB),
-			pool_id,
-			lp,
-			0,
-			));
+		assert_ok!(Pablo::remove_liquidity_single_asset(Origin::signed(BOB), pool_id, lp, 0,));
 		assert!(!pallet::AccountsDepositedOneAsset::<Test>::contains_key(&BOB, &pool_id));
 		let bob_usdc = Tokens::balance(USDC, &BOB);
 		let system_events = frame_system::Pallet::<Test>::events();
