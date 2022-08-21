@@ -161,6 +161,8 @@ impl<T: Config> StableSwap<T> {
 		Ok((base_amount, quote_amount, mint_amount, base_fee, quote_fee))
 	}
 
+	/// See https://github.com/curvefi/curve-contract/blob/master/contracts/pools/3pool/StableSwap3Pool.vy
+	/// for detailed explanation about formulas this function uses.
 	pub fn calculate_one_asset_amount_and_fees(
 		pool: &StableSwapPoolInfo<T::AccountId, T::AssetId>,
 		pool_account: &T::AccountId,
