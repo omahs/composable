@@ -6,7 +6,6 @@ const WEIGHT: i32 = 1_000;
 pub trait WeightInfo {
 	fn calculate_option_price() -> Weight;
 	fn calculate_option_greeks() -> Weight;
-
 }
 
 /// Weights for pallet_tokenized_options using the Substrate node and recommended hardware.

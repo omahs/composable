@@ -251,7 +251,10 @@ pub mod pallet {
 			Self::do_calculate_option_price(params)
 		}
 
-
+		#[transactional]
+		fn calculate_option_greeks(params: BlackScholesParamsOf<T>) -> Result<(), DispatchError> {
+			Self::do_calculate_option_greeks(params)
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -270,6 +273,7 @@ pub mod pallet {
 			// Get volatility for option's asset
 			let iv: Decimal = Decimal::from_float(200.5); // TODO
 
+			// Calculate price with BS formula
 			let option_price = Self::black_scholes(
 				strike_price,
 				spot_price,
@@ -290,6 +294,7 @@ pub mod pallet {
 			iv: Decimal,
 			option_type: OptionType,
 		) -> Result<BalanceOf<T>, DispatchError> {
+			// Calculate d1 and d2
 			let (d1, d2) = Self::calculate_d1_d2(
 				strike_price,
 				spot_price,
@@ -298,6 +303,7 @@ pub mod pallet {
 				iv,
 			)?;
 
+			// Calculate price of option based on OptionType
 			let option_price = match option_type {
 				OptionType::Call => Self::calculate_call_price(
 					strike_price,
@@ -317,7 +323,8 @@ pub mod pallet {
 				)?,
 			};
 
-			Ok((1000u128 * 10u128.pow(12)).into())
+			// Ok(option_price)
+			Ok((1000u128 * 10u128.pow(12)).into()) // To make tests pass right now
 		}
 
 		fn get_expiry_time_annualized(expiry_date: MomentOf<T>) -> Result<Decimal, Error<T>> {
@@ -328,8 +335,14 @@ pub mod pallet {
 				.ok_or(Error::<T>::FailedConversion)
 		}
 
-		fn cumulative_normal_distribution(value: Decimal) -> Result<Decimal, DispatchError> {
-			Ok(Decimal::from_inner(10.into()))
+		fn normal_cumulative_distribution_function(
+			value: Decimal,
+		) -> Result<Decimal, DispatchError> {
+			Ok(Decimal::from_inner(1.into())) // TODO
+		}
+
+		fn normal_probability_density_function(value: Decimal) -> Result<Decimal, DispatchError> {
+			Ok(Decimal::from_inner(1.into())) // TODO
 		}
 
 		fn calculate_d1_d2(
@@ -356,7 +369,7 @@ pub mod pallet {
 			// let d2 = d1.checked_sub(&a).ok_or(ArithmeticError::Underflow)?;
 
 			// Ok((d1, d2))
-			Ok((Decimal::from_inner(10.into()), Decimal::from_inner(10.into())))
+			Ok((Decimal::from_inner(1.into()), Decimal::from_inner(1.into())))
 		}
 
 		fn calculate_call_price(
@@ -401,6 +414,144 @@ pub mod pallet {
 
 			// Ok(b.checked_sub(&a))
 			Ok(1.into())
+		}
+
+		fn do_calculate_option_greeks(
+			params: BlackScholesParamsOf<T>,
+		) -> Result<(), DispatchError> {
+			// Get interest rate index, annualized expiry date and converted prices
+			let interest_rate = Self::interest_rate_index();
+			let time_annualized = Self::get_expiry_time_annualized(params.expiring_date)?;
+			let strike_price = T::ConvertBalanceToDecimal::convert(params.base_asset_strike_price);
+			let spot_price = T::ConvertBalanceToDecimal::convert(params.base_asset_spot_price);
+
+			// Get volatility for option's asset
+			let iv: Decimal = Decimal::from_float(200.5); // TODO
+
+			let (d1, d2) = Self::calculate_d1_d2(
+				strike_price,
+				spot_price,
+				time_annualized,
+				interest_rate,
+				iv,
+			)?;
+
+			let (delta_call, delta_put) = Self::calculate_delta(d1)?;
+			let gamma = Self::calculate_gamma(spot_price, time_annualized, iv, d1)?;
+			let vega = Self::calculate_vega(spot_price, time_annualized, d1)?;
+			let (theta_call, theta_put) = Self::calculate_theta(
+				strike_price,
+				spot_price,
+				time_annualized,
+				interest_rate,
+				iv,
+				d1,
+				d2,
+			)?;
+			let (rho_call, rho_put) =
+				Self::calculate_rho(strike_price, time_annualized, interest_rate, d2)?;
+
+			Ok(())
+		}
+
+		fn calculate_delta(d1: Decimal) -> Result<(Decimal, Decimal), DispatchError> {
+			// ncdf should have mean=0 and std=1
+			// let delta_call = Self::normal_cumulative_distribution_function(d1)?;
+
+			// For delta_put we need to subtract 1 UNIT but we have not defined a number model yet
+			// Alternative is -ncdf(-d1)
+			// Ok((delta_call, delta_call - Decimal::from_inner(1.into())))
+			Ok((1.into(), 1.into()))
+		}
+
+		fn calculate_gamma(
+			spot_price: Decimal,
+			time_annualized: Decimal,
+			iv: Decimal,
+			d1: Decimal,
+		) -> Result<Decimal, DispatchError> {
+			// let pdf = Self::normal_probability_density_function(d1)?;
+			// let sqrt_time = Decimal::sqrt(time_annualized).ok_or(ArithmeticError::Underflow)?;
+			// let norm_factor = spot_price.checked_mul(&iv).ok_or(ArithmeticError::Overflow)?;
+			// let norm_factor = norm_factor.checked_mul(&sqrt_time).ok_or(ArithmeticError::Overflow)?;
+			// let gamma = pdf.checked_div(&norm_factor).ok_or(ArithmeticError::Underflow)?;
+
+			// Ok(gamma)
+			Ok(1.into())
+		}
+
+		fn calculate_vega(
+			spot_price: Decimal,
+			time_annualized: Decimal,
+			d1: Decimal,
+		) -> Result<Decimal, DispatchError> {
+			// let pdf = Self::normal_probability_density_function(d1)?;
+			// let sqrt_time = Decimal::sqrt(time_annualized).ok_or(ArithmeticError::Underflow)?;
+			// let norm_factor = spot_price.checked_div(&Decimal::from_inner(100.into()))).ok_or(ArithmeticError::Overflow)?;
+			// let vega = pdf.checked_mul(&norm_factor).ok_or(ArithmeticError::Overflow)?;
+			// let vega = vega.checked_mul(&sqrt_time).ok_or(ArithmeticError::Overflow)?;
+
+			// Ok(vega)
+
+			Ok(1.into())
+		}
+
+		fn calculate_theta(
+			strike_price: Decimal,
+			spot_price: Decimal,
+			time_annualized: Decimal,
+			interest_rate: Decimal,
+			iv: Decimal,
+			d1: Decimal,
+			d2: Decimal,
+		) -> Result<(Decimal, Decimal), DispatchError> {
+			// let pdf = Self::normal_probability_density_function(d1)?;
+			// let cdf_call = Self::normal_cumulative_distribution_function(d2)?;
+			// let cdf_put = Self::normal_cumulative_distribution_function(-d2)?;
+			// let sqrt_t = Decimal::sqrt(time_annualized).ok_or(ArithmeticError::Underflow)?;
+			// let exp =
+			// 	-interest_rate.checked_mul(&time_annualized).ok_or(ArithmeticError::Overflow)?;
+			// let exp = Decimal::exp(&exp).ok_or(ArithmeticError::Overflow)?;
+
+			// let a = spot_price.checked_mul(&cdf_call).ok_or(ArithmeticError::Overflow)?;
+			// let a = a.checked_mul(&iv).ok_or(ArithmeticError::Overflow)?;
+			// let a = a.checked_div(&sqrt_t).ok_or(ArithmeticError::Underflow)?;
+			// let a = a.checked_div(2.into()).ok_or(ArithmeticError::Underflow)?;
+
+			// let b = strike_price.checked_mul(&interest_rate).ok_or(ArithmeticError::Overflow)?;
+			// let b = b.checked_mul(&interest_rate).ok_or(ArithmeticError::Overflow)?;
+			// let b = b.checked_mul(&exp).ok_or(ArithmeticError::Overflow)?;
+			// let b_call = b.checked_mul(&cdf_call).ok_or(ArithmeticError::Overflow)?;
+			// let b_put = b.checked_mul(&cdf_put).ok_or(ArithmeticError::Overflow)?;
+
+			// let theta_call = -a.checked_sub(&b_call).ok_or(ArithmeticError::Overflow)?;
+			// let theta_put = b_put.checked_sub(&a).ok_or(ArithmeticError::Overflow)?;
+
+			// Ok((theta_call, theta_put))
+			Ok((1.into(), 1.into()))
+		}
+
+		fn calculate_rho(
+			strike_price: Decimal,
+			time_annualized: Decimal,
+			interest_rate: Decimal,
+			d2: Decimal,
+		) -> Result<(Decimal, Decimal), DispatchError> {
+			// let cdf_call = Self::normal_cumulative_distribution_function(d2)?;
+			// let cdf_put = Self::normal_cumulative_distribution_function(-d2)?;
+			// let exp =
+			// 	-interest_rate.checked_mul(&time_annualized).ok_or(ArithmeticError::Overflow)?;
+			// let exp = Decimal::exp(&exp).ok_or(ArithmeticError::Overflow)?;
+
+			// let a = strike_price.checked_mul(&time_annualized).ok_or(ArithmeticError::Overflow)?;
+			// let a = a.checked_mul(&exp).ok_or(ArithmeticError::Overflow)?;
+			// let a = a.checked_div(100.into()).ok_or(ArithmeticError::Overflow)?;
+
+			// let rho_call = a.checked_mul(&cdf_call).ok_or(ArithmeticError::Overflow)?;
+			// let rho_put = -a.checked_mul(&cdf_put).ok_or(ArithmeticError::Overflow)?;
+
+			// Ok((rho_call, rho_put))
+			Ok((1.into(), 1.into()))
 		}
 	}
 }

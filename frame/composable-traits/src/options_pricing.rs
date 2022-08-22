@@ -20,4 +20,8 @@ pub trait OptionsPricing {
 	fn calculate_option_price(
 		params: BlackScholesParams<Self::AssetId, Self::Balance, Self::Moment>,
 	) -> Result<Self::Balance, DispatchError>;
+
+	fn calculate_option_greeks(
+		params: BlackScholesParams<Self::AssetId, Self::Balance, Self::Moment>,
+	) -> Result<(), DispatchError>;
 }
