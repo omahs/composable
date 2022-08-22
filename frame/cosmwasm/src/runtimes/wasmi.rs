@@ -122,7 +122,7 @@ pub struct CosmwasmVMShared {
 impl CosmwasmVMShared {
 	/// Whether the storage is currently readonly.
 	pub fn storage_is_readonly(&self) -> bool {
-		self.storage_readonly_depth == 0
+		self.storage_readonly_depth > 0
 	}
 	/// Increase storage readonly depth.
 	/// Hapenning when a contract call the querier.
@@ -263,7 +263,8 @@ impl<'a, T: Config> VMBase for CosmwasmVM<'a, T> {
 		})
 	}
 
-	fn debug(&mut self, _: Vec<u8>) -> Result<(), Self::Error> {
+	fn debug(&mut self, message: Vec<u8>) -> Result<(), Self::Error> {
+		log::debug!(target: "runtime::contracts", "[CONTRACT-LOG] {}", String::from_utf8_lossy(&message));
 		Ok(())
 	}
 
@@ -569,24 +570,27 @@ impl<'a, T: Config> VMBase for CosmwasmVM<'a, T> {
 		}
 	}
 
-    fn db_scan(
-            &mut self,
-            _start: Option<Self::StorageKey>,
-            _end: Option<Self::StorageKey>,
-            _order: cosmwasm_minimal_std::Order,
-        ) -> Result<u32, Self::Error> {
-        Pallet::<T>::do_db_scan(self)
-    }
+	fn db_scan(
+		&mut self,
+		_start: Option<Self::StorageKey>,
+		_end: Option<Self::StorageKey>,
+		_order: cosmwasm_minimal_std::Order,
+	) -> Result<u32, Self::Error> {
+		log::debug!(target: "runtime::contracts", "db_scan");
+		Pallet::<T>::do_db_scan(self)
+	}
 
-    fn db_next(
-        &mut self,
-        iterator_id: u32,
-        ) -> Result<(Self::StorageKey, Self::StorageValue), Self::Error> {
-        match Pallet::<T>::do_db_next(self, iterator_id)? {
-            Some(kv_pair) => Ok(kv_pair),
-            None => Ok((Vec::new(), Vec::new()))
-        }
-    }
+	fn db_next(
+		&mut self,
+		iterator_id: u32,
+	) -> Result<(Self::StorageKey, Self::StorageValue), Self::Error> {
+		log::debug!(target: "runtime::contracts", "db_next");
+		match Pallet::<T>::do_db_next(self, iterator_id)? {
+			Some(kv_pair) =>
+				Ok(kv_pair),
+			None => Ok((Vec::new(), Vec::new())),
+		}
+	}
 
 	fn abort(&mut self, message: String) -> Result<(), Self::Error> {
 		log::debug!(target: "runtime::contracts", "db_abort");
