@@ -1,13 +1,8 @@
 use codec::Codec;
 use frame_support::{
 	pallet_prelude::*,
-	sp_std::{
-		fmt::Debug,
-		vec::Vec,
-	},
-	storage::{
-		bounded_vec::BoundedVec
-	}
+	sp_std::{fmt::Debug, vec::Vec},
+	storage::bounded_vec::BoundedVec,
 };
 use scale_info::TypeInfo;
 
@@ -28,42 +23,41 @@ pub struct Weight<CurrencyId, Percent> {
 }
 
 /// Type alias used for working with a list of [`Weight`](Weight) objects
-pub type WeightsVec<CurrencyId, Percent> = Vec::<Weight<CurrencyId, Percent>>;
+pub type WeightsVec<CurrencyId, Percent, PoolSize> =
+	BoundedVec<Weight<CurrencyId, Percent>, PoolSize>;
 
 /// Struct to maintain the min/max value bounds for some of the Pool's configurable
 ///     parameters.
-#[derive(Clone, Copy, Encode, Decode, Default, Debug, MaxEncodedLen, PartialEq, PartialOrd, TypeInfo)]
-pub struct Bound<T>{	
+#[derive(
+	Clone, Copy, Encode, Decode, Default, Debug, MaxEncodedLen, PartialEq, PartialOrd, TypeInfo,
+)]
+pub struct Bound<T> {
 	pub minimum: Option<T>,
 	pub maximum: Option<T>,
 }
 
 impl<T> Bound<T> {
-    pub fn new(lower: Option<T>, upper: Option<T>) -> Self {
-        Bound {
-            minimum: lower,
-            maximum: upper
-        }
-    }
+	pub fn new(lower: Option<T>, upper: Option<T>) -> Self {
+		Bound { minimum: lower, maximum: upper }
+	}
 }
 
-// Does not derive Copy as assets and weights are Vectors (with their 
+// Does not derive Copy as assets and weights are Vectors (with their
 //     data resides on the heap) and thus doesn't derive Copy
 #[derive(Clone, Encode, Decode, Default, Debug, MaxEncodedLen, PartialEq, TypeInfo)]
-pub struct PoolConfig<AccountId, AssetId, Percent>
+pub struct PoolConfig<AccountId, AssetId, Percent, PoolSize>
 where
 	AccountId: core::cmp::Ord,
+	PoolSize: core::cmp::Ord + frame_support::traits::Get<u32>,
 {
 	/// Owner of pool
 	pub owner: AccountId,
 	/// Amount of the fee pool charges for the exchange
 	pub fee: Percent,
 	/// Vector of the Pool's underlying assets
-	pub assets: Assets<AssetId>,
-	/// Min/max bounds on number of assets allowed in the pool
-	pub asset_bounds: Bound<u8>,
+	pub assets: Assets<AssetId, PoolSize>,
 	/// Vector of the Pool's underlying asset weights
-	pub weights: WeightsVec<AssetId, Percent>,
+	pub weights: WeightsVec<AssetId, Percent, PoolSize>,
 	/// Min/max bounds on weights of assets for the pool
 	pub weight_bounds: Bound<Percent>,
 	/// Min/max bounds on amount of assets that can be deposited at once
@@ -72,7 +66,7 @@ where
 	pub withdraw_bounds: Bound<Percent>,
 }
 
-#[derive(Clone, Copy, Encode, Decode, Debug, MaxEncodedLen, PartialEq, TypeInfo)]
+#[derive(Clone, Copy, Encode, Decode, Debug, MaxEncodedLen, PartialEq, TypeInfo, Default)]
 pub struct PoolInfo<AccountId, AssetId, Percent> {
 	/// Owner of pool
 	pub owner: AccountId,
@@ -80,17 +74,15 @@ pub struct PoolInfo<AccountId, AssetId, Percent> {
 	pub lp_token: AssetId,
 	/// Amount of the fee pool charges for the exchange
 	pub fee: Percent,
-	/// Min/max bounds on number of assets allowed in the pool
-	pub asset_bounds: Bound<u8>,
 	/// Min/max bounds on weights of assets for the pool
 	pub weight_bounds: Bound<Percent>,
 	/// Min/max bounds on amount of assets that can be deposited at once
-	pub deposit_bounds:  Bound<Percent>,
+	pub deposit_bounds: Bound<Percent>,
 	/// Min/max bounds on amount of assets that can be withdrawn at once
 	pub withdraw_bounds: Bound<Percent>,
 }
 
-/// Holds the id of an asset and how a balance associated with the asset. Can be used to 
+/// Holds the id of an asset and how a balance associated with the asset. Can be used to
 /// represent:
 /// - deposits
 /// - withdraws
@@ -115,48 +107,50 @@ pub trait ConstantMeanMarket {
 	type Balance;
 	/// The type used by the pallet to deal with asset weights.
 	type Weight;
-	
+
 	/// Key type for Pool that uniquely identifieds a Pool.
 	type PoolId: Clone + Codec + Debug + PartialEq + Default + Parameter;
 	/// Represents the PoolInfo struct that is used to save information about each Pool.
 	type PoolInfo: Clone + Encode + Decode + Default + Debug + PartialEq + TypeInfo;
+    /// Represents pool size
+	type PoolSize: Get<u32> + Debug + Clone + core::cmp::Ord;
 
 	// ---------- Queries ----------
 
 	/// Used by users to query the price of an asset relative to a specific numeraire.
-	/// 
+	///
 	/// ## Parameters
 	/// - `pool_id`: The Pools identifier. This must correspond to an existing Pool.
 	/// - `asset`: The identifier of the asset wanting to obtain the price of. This asset must be
-    ///     tracked by the specified Pool.
-    /// - `numeraire`: The identifier of the base asset wanting to obtain the price of `asset` in. 
+	///     tracked by the specified Pool.
+	/// - `numeraire`: The identifier of the base asset wanting to obtain the price of `asset` in.
 	///         This asset must be tracked by the specified Pool.
 	fn spot_price(
 		pool_id: &Self::PoolId,
 		asset: &Self::AssetId,
-		numeraire: &Self::AssetId
+		numeraire: &Self::AssetId,
 	) -> Result<FixedBalance, DispatchError>;
 
 	// ---------- Commands ----------
 
-	/// Used by users to create a new pool with the sepcified configuration. Returns the Pool Index 
+	/// Used by users to create a new pool with the sepcified configuration. Returns the Pool Index
 	///     of the created Pool
 	///
 	/// ## Parameters
 	/// - `from`: The `account_id` of the issuing user.
-	/// - `config`: A [`PoolConfig`](PoolConfig) struct containing the 
+	/// - `config`: A [`PoolConfig`](PoolConfig) struct containing the
 	///     parameter values to instantiate a new Pool with.
-	/// - `creation_fee`: The blance, in the runtimes native asset, that the issuer is supplying 
+	/// - `creation_fee`: The blance, in the runtimes native asset, that the issuer is supplying
 	///     for the creation fee.
 	fn create(
 		from: Self::AccountId,
-		config: PoolConfig<Self::AccountId, Self::AssetId, Self::Weight>,
+		config: PoolConfig<Self::AccountId, Self::AssetId, Self::Weight, Self::PoolSize>,
 		creation_fee: Deposit<Self::AssetId, Self::Balance>,
 	) -> Result<Self::PoolId, DispatchError>;
 
-	/// Used by users to deposit tokens into the pool. Returns the true amount of 
-	///     lp token minted to user. 
-	/// 
+	/// Used by users to deposit tokens into the pool. Returns the true amount of
+	///     lp token minted to user.
+	///
 	/// ## Parameters
 	/// - `from`: The `account_id` of the issuing user.
 	/// - `pool_id`: A unique identifier specifying the Pool to interact with.
@@ -174,10 +168,10 @@ pub trait ConstantMeanMarket {
 	// 	deposit: Deposit<Self::AssetId, Self::Balance>,
 	// ) -> Result<Self::Balance, DispatchError>;
 
-	/// Used by users to deposit lp tokens into the pool and withdraw the equivalent 
-	///     share of the Pool's assets. Returns a Vector containing the asset ids and 
+	/// Used by users to deposit lp tokens into the pool and withdraw the equivalent
+	///     share of the Pool's assets. Returns a Vector containing the asset ids and
 	///     balances of the withdrawn assets.
-	/// 
+	///
 	/// ## Parameters
 	/// - `from`: The `account_id` of the issuing user.
 	/// - `pool_id`: A unique identifier specifying the Pool to interact with.
@@ -188,5 +182,4 @@ pub trait ConstantMeanMarket {
 		pool_id: &Self::PoolId,
 		lp_amount: Self::Balance,
 	) -> Result<Vec<Withdraw<Self::AssetId, Self::Balance>>, DispatchError>;
-
 }
