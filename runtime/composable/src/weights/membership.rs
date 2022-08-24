@@ -84,7 +84,7 @@ impl<T: frame_system::Config> membership::WeightInfo for WeightInfo<T> {
 	// Storage: Council Members (r:0 w:1)
 	// Storage: Council Prime (r:0 w:1)
 	fn change_key(m: u32, ) -> Weight {
-		(39_399_000 as Weight)
+            (39_399_000 as Weight)
 			// Standard Error: 1_000
 			.saturating_add((93_000 as Weight).saturating_mul(m as Weight))
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
@@ -96,7 +96,7 @@ impl<T: frame_system::Config> membership::WeightInfo for WeightInfo<T> {
 	fn set_prime(m: u32, ) -> Weight {
 		(10_083_000 as Weight)
 			// Standard Error: 0
-			.saturating_add((47_000 as Weight).saturating_mul(m as Weight))
+			.saturating_add((46_000 as Weight).saturating_mul(m as Weight))
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}

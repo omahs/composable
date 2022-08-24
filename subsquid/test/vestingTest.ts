@@ -14,7 +14,11 @@ import {
   createVestingSchedule,
   processVestingScheduleAddedEvent,
 } from "../src/vestingProcessor";
+<<<<<<< HEAD
 import { VestingSchedule as VestingScheduleType } from "../src/types/v2400";
+=======
+import { VestingSchedule as VestingScheduleType } from "../src/types/v2300";
+>>>>>>> instrumental-duplicate-for-pablo
 import { VestingVestingScheduleAddedEvent } from "../src/types/events";
 import { expect } from "chai";
 

@@ -399,10 +399,21 @@ declare module '@polkadot/api-base/types/storage' {
     };
     ibc: {
       /**
+<<<<<<< HEAD
        * counter for acknowledgments
        **/
       acknowledgementCounter: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
       channelCounter: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
+=======
+       * (port_identifier, channel_identifier, Sequence) => Hash
+       **/
+      acknowledgements: AugmentedQuery<ApiType, (arg: ITuple<[Bytes, Bytes, u64]> | [Bytes | string | Uint8Array, Bytes | string | Uint8Array, u64 | AnyNumber | Uint8Array]) => Observable<Bytes>, [ITuple<[Bytes, Bytes, u64]>]> & QueryableStorageEntry<ApiType, [ITuple<[Bytes, Bytes, u64]>]>;
+      channelCounter: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
+      /**
+       * (port_identifier, channel_identifier) => ChannelEnd
+       **/
+      channels: AugmentedQuery<ApiType, (arg1: Bytes | string | Uint8Array, arg2: Bytes | string | Uint8Array) => Observable<Bytes>, [Bytes, Bytes]> & QueryableStorageEntry<ApiType, [Bytes, Bytes]>;
+>>>>>>> instrumental-duplicate-for-pablo
       /**
        * connection_identifier => Vec<(port_id, channel_id)>
        **/
@@ -410,7 +421,15 @@ declare module '@polkadot/api-base/types/storage' {
       /**
        * counter for clients
        **/
+<<<<<<< HEAD
       clientCounter: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
+=======
+      clients: AugmentedQuery<ApiType, (arg: Bytes | string | Uint8Array) => Observable<Bytes>, [Bytes]> & QueryableStorageEntry<ApiType, [Bytes]>;
+      /**
+       * client_id => ClientState
+       **/
+      clientStates: AugmentedQuery<ApiType, (arg: Bytes | string | Uint8Array) => Observable<Bytes>, [Bytes]> & QueryableStorageEntry<ApiType, [Bytes]>;
+>>>>>>> instrumental-duplicate-for-pablo
       /**
        * client_id , Height => Height
        **/
@@ -423,19 +442,72 @@ declare module '@polkadot/api-base/types/storage' {
        * client_id => Vec<Connection_id>
        **/
       connectionClient: AugmentedQuery<ApiType, (arg: Bytes | string | Uint8Array) => Observable<Vec<Bytes>>, [Bytes]> & QueryableStorageEntry<ApiType, [Bytes]>;
+<<<<<<< HEAD
+=======
+      /**
+       * connection_id => ConnectionEnd
+       **/
+      connections: AugmentedQuery<ApiType, (arg: Bytes | string | Uint8Array) => Observable<Bytes>, [Bytes]> & QueryableStorageEntry<ApiType, [Bytes]>;
+>>>>>>> instrumental-duplicate-for-pablo
       /**
        * counter for clients
        **/
+<<<<<<< HEAD
       connectionCounter: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
       /**
        * height => IbcConsensusState
+=======
+      consensusStates: AugmentedQuery<ApiType, (arg1: Bytes | string | Uint8Array, arg2: Bytes | string | Uint8Array) => Observable<Bytes>, [Bytes, Bytes]> & QueryableStorageEntry<ApiType, [Bytes, Bytes]>;
+      /**
+       * Counter for the related counted storage map
+       **/
+      counterForAcknowledgements: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
+      /**
+       * Counter for the related counted storage map
+       **/
+      counterForClients: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
+      /**
+       * Counter for the related counted storage map
+>>>>>>> instrumental-duplicate-for-pablo
        **/
       hostConsensusStates: AugmentedQuery<ApiType, () => Observable<BTreeMap<u64, PalletIbcIbcConsensusState>>, []> & QueryableStorageEntry<ApiType, []>;
       packetCounter: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
       /**
        * counter for packet reciepts
        **/
+<<<<<<< HEAD
       packetReceiptCounter: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
+=======
+      counterForPacketCommitment: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
+      /**
+       * Counter for the related counted storage map
+       **/
+      counterForPacketReceipt: AugmentedQuery<ApiType, () => Observable<u32>, []> & QueryableStorageEntry<ApiType, []>;
+      /**
+       * height => IbcConsensusState
+       **/
+      hostConsensusStates: AugmentedQuery<ApiType, () => Observable<BTreeMap<u64, PalletIbcIbcConsensusState>>, []> & QueryableStorageEntry<ApiType, []>;
+      /**
+       * (port_identifier, channel_identifier) = Sequence
+       **/
+      nextSequenceAck: AugmentedQuery<ApiType, (arg1: Bytes | string | Uint8Array, arg2: Bytes | string | Uint8Array) => Observable<u64>, [Bytes, Bytes]> & QueryableStorageEntry<ApiType, [Bytes, Bytes]>;
+      /**
+       * (port_identifier, channel_identifier) => Sequence
+       **/
+      nextSequenceRecv: AugmentedQuery<ApiType, (arg1: Bytes | string | Uint8Array, arg2: Bytes | string | Uint8Array) => Observable<u64>, [Bytes, Bytes]> & QueryableStorageEntry<ApiType, [Bytes, Bytes]>;
+      /**
+       * (port_identifier, channel_identifier) => Sequence
+       **/
+      nextSequenceSend: AugmentedQuery<ApiType, (arg1: Bytes | string | Uint8Array, arg2: Bytes | string | Uint8Array) => Observable<u64>, [Bytes, Bytes]> & QueryableStorageEntry<ApiType, [Bytes, Bytes]>;
+      /**
+       * (port_id, channel_id, sequence) => hash
+       **/
+      packetCommitment: AugmentedQuery<ApiType, (arg: ITuple<[Bytes, Bytes, u64]> | [Bytes | string | Uint8Array, Bytes | string | Uint8Array, u64 | AnyNumber | Uint8Array]) => Observable<Bytes>, [ITuple<[Bytes, Bytes, u64]>]> & QueryableStorageEntry<ApiType, [ITuple<[Bytes, Bytes, u64]>]>;
+      /**
+       * (port_id, channel_id, sequence) => receipt
+       **/
+      packetReceipt: AugmentedQuery<ApiType, (arg: ITuple<[Bytes, Bytes, u64]> | [Bytes | string | Uint8Array, Bytes | string | Uint8Array, u64 | AnyNumber | Uint8Array]) => Observable<Bytes>, [ITuple<[Bytes, Bytes, u64]>]> & QueryableStorageEntry<ApiType, [ITuple<[Bytes, Bytes, u64]>]>;
+>>>>>>> instrumental-duplicate-for-pablo
       /**
        * Generic query
        **/
@@ -628,10 +700,13 @@ declare module '@polkadot/api-base/types/storage' {
        * Price for an asset and blocknumber asset was updated at
        **/
       prices: AugmentedQuery<ApiType, (arg: u128 | AnyNumber | Uint8Array) => Observable<ComposableTraitsOraclePrice>, [u128]> & QueryableStorageEntry<ApiType, [u128]>;
+<<<<<<< HEAD
       /**
        * Rewarding history for Oracles. Used for calculating the current block reward.
        **/
       rewardTrackerStore: AugmentedQuery<ApiType, () => Observable<Option<ComposableTraitsOracleRewardTracker>>, []> & QueryableStorageEntry<ApiType, []>;
+=======
+>>>>>>> instrumental-duplicate-for-pablo
       /**
        * Mapping signing key to controller key
        **/

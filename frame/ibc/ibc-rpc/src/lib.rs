@@ -57,11 +57,11 @@ use jsonrpsee::{
 };
 use pallet_ibc::events::IbcEvent;
 use sc_chain_spec::Properties;
-use sc_client_api::{BlockBackend, ProofProvider};
+use sc_client_api::ProofProvider;
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_core::{blake2_256, storage::ChildInfo};
+use sp_core::storage::ChildInfo;
 use sp_runtime::{
 	generic::BlockId,
 	traits::{BlakeTwo256, Block as BlockT, Header as HeaderT},

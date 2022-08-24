@@ -2364,12 +2364,15 @@ declare module '@polkadot/api-base/types/submittable' {
        * Emits `RewardPoolCreated` event when successful.
        **/
       createRewardPool: AugmentedSubmittable<(poolConfig: ComposableTraitsStakingRewardPoolConfiguration | { RewardRateBasedIncentive: any } | string | Uint8Array) => SubmittableExtrinsic<ApiType>, [ComposableTraitsStakingRewardPoolConfiguration]>;
+<<<<<<< HEAD
       /**
        * Extend an existing stake.
        * 
        * Emits `StakeExtended` event when successful.
        **/
       extend: AugmentedSubmittable<(position: u128 | AnyNumber | Uint8Array, amount: u128 | AnyNumber | Uint8Array) => SubmittableExtrinsic<ApiType>, [u128, u128]>;
+=======
+>>>>>>> instrumental-duplicate-for-pablo
       split: AugmentedSubmittable<(position: u128 | AnyNumber | Uint8Array, ratio: Permill | AnyNumber | Uint8Array) => SubmittableExtrinsic<ApiType>, [u128, Permill]>;
       /**
        * Create a new stake.

@@ -896,7 +896,10 @@ declare module '@polkadot/api-base/types/events' {
        * Split stake position into two positions
        **/
       SplitPosition: AugmentedEvent<ApiType, [Vec<u128>]>;
+<<<<<<< HEAD
       StakeAmountExtended: AugmentedEvent<ApiType, [u128, u128]>;
+=======
+>>>>>>> instrumental-duplicate-for-pablo
       Staked: AugmentedEvent<ApiType, [u16, AccountId32, u128, u64, u128, bool]>;
       /**
        * Generic event

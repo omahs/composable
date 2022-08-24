@@ -1,6 +1,10 @@
 import { EventHandlerContext } from "@subsquid/substrate-processor";
 import { randomUUID } from "crypto";
+<<<<<<< HEAD
 import { VestingSchedule as VestingScheduleType } from "./types/v2400";
+=======
+import { VestingSchedule as VestingScheduleType } from "./types/v2300";
+>>>>>>> instrumental-duplicate-for-pablo
 import { Schedule, ScheduleWindow, VestingSchedule } from "./model";
 import { VestingVestingScheduleAddedEvent } from "./types/events";
 import { encodeAccount } from "./utils";
@@ -51,6 +55,7 @@ export async function processVestingScheduleAddedEvent(
   ctx: EventHandlerContext,
   event: VestingVestingScheduleAddedEvent
 ) {
+<<<<<<< HEAD
   const { from, to, asset, schedule } = getVestingScheduleAddedEvent(event);
 
   const toAccount = encodeAccount(to);

@@ -53,7 +53,7 @@ pub mod pallet {
 				start_at::ZeroInit,
 			},
 		},
-		math::safe::{SafeAdd, SafeArithmetic, SafeDiv, SafeMul, SafeSub},
+		math::safe::{SafeArithmetic, SafeDiv, SafeMul, SafeSub},
 		validation::Validated,
 	};
 	use composable_traits::{
@@ -120,12 +120,6 @@ pub mod pallet {
 			position_id: T::PositionId,
 			/// Extended amount
 			amount: T::Balance,
-		},
-		Unstaked {
-			/// Owner of the stake.
-			owner: T::AccountId,
-			/// Position Id of newly created stake.
-			position_id: T::PositionId,
 		},
 		/// Split stake position into two positions
 		SplitPosition {
@@ -333,86 +327,6 @@ pub mod pallet {
 			pool_config: RewardPoolConfigurationOf<T>,
 		) -> DispatchResult {
 			T::RewardPoolCreationOrigin::ensure_origin(origin)?;
-			let _ = <Self as ManageStaking>::create_staking_pool(pool_config)?;
-			Ok(())
-		}
-
-		/// Create a new stake.
-		///
-		/// Emits `Staked` event when successful.
-		#[pallet::weight(T::WeightInfo::stake(T::MaxRewardConfigsPerPool::get()))]
-		pub fn stake(
-			origin: OriginFor<T>,
-			pool_id: T::RewardPoolId,
-			amount: T::Balance,
-			duration_preset: DurationSeconds,
-		) -> DispatchResult {
-			let owner = ensure_signed(origin)?;
-			let keep_alive = true;
-			let _position_id =
-				<Self as Staking>::stake(&owner, &pool_id, amount, duration_preset, keep_alive)?;
-
-			Ok(())
-		}
-
-		/// Extend an existing stake.
-		///
-		/// Emits `StakeExtended` event when successful.
-		#[pallet::weight(T::WeightInfo::extend(T::MaxRewardConfigsPerPool::get()))]
-		pub fn extend(
-			origin: OriginFor<T>,
-			position: T::PositionId,
-			amount: T::Balance,
-		) -> DispatchResult {
-			let owner = ensure_signed(origin)?;
-			let keep_alive = true;
-			let _position_id = <Self as Staking>::extend(&owner, position, amount, keep_alive)?;
-
-			Ok(())
-		}
-
-		/// Remove a stake.
-		///
-		/// Emits `Unstaked` event when successful.
-		#[pallet::weight(T::WeightInfo::unstake(T::MaxRewardConfigsPerPool::get()))]
-		pub fn unstake(origin: OriginFor<T>, position_id: T::PositionId) -> DispatchResult {
-			let owner = ensure_signed(origin)?;
-			<Self as Staking>::unstake(&owner, &position_id)?;
-
-			Ok(())
-		}
-
-		#[pallet::weight(T::WeightInfo::split(T::MaxRewardConfigsPerPool::get()))]
-		pub fn split(
-			origin: OriginFor<T>,
-			position: T::PositionId,
-			ratio: Validated<Permill, ValidSplitRatio>,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			<Self as Staking>::split(&who, &position, ratio.value())?;
-			Ok(())
-		}
-	}
-
-	impl<T: Config> ManageStaking for Pallet<T> {
-		type AssetId = T::AssetId;
-		type AccountId = T::AccountId;
-		type BlockNumber = <T as frame_system::Config>::BlockNumber;
-		type Balance = T::Balance;
-		type RewardConfigsLimit = T::MaxRewardConfigsPerPool;
-		type StakingDurationPresetsLimit = T::MaxStakingDurationPresets;
-		type RewardPoolId = T::RewardPoolId;
-
-		#[transactional]
-		fn create_staking_pool(
-			pool_config: RewardPoolConfiguration<
-				Self::AccountId,
-				Self::AssetId,
-				Self::BlockNumber,
-				RewardConfigs<Self::AssetId, Self::Balance, Self::RewardConfigsLimit>,
-				StakingDurationToRewardsMultiplierConfig<Self::StakingDurationPresetsLimit>,
-			>,
-		) -> Result<Self::RewardPoolId, DispatchError> {
 			let (owner, pool_id, end_block) = match pool_config {
 				RewardRateBasedIncentive {
 					owner,
@@ -442,7 +356,6 @@ pub mod pallet {
 							>::try_from(rewards)
 							.map_err(|_| Error::<T>::RewardConfigProblem)?,
 							total_shares: T::Balance::zero(),
-							claimed_shares: T::Balance::zero(),
 							end_block,
 							lock,
 						},
@@ -452,10 +365,52 @@ pub mod pallet {
 				_ => Err(Error::<T>::UnimplementedRewardPoolConfiguration),
 			}?;
 			Self::deposit_event(Event::<T>::RewardPoolCreated { pool_id, owner, end_block });
-			Ok(pool_id)
+			Ok(())
 		}
-	}
 
+		/// Create a new stake.
+		///
+		/// Emits `Staked` event when successful.
+		#[pallet::weight(T::WeightInfo::stake())]
+		pub fn stake(
+			origin: OriginFor<T>,
+			pool_id: T::RewardPoolId,
+			amount: T::Balance,
+			duration_preset: DurationSeconds,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			let keep_alive = true;
+			let _position_id =
+				<Self as Staking>::stake(&owner, &pool_id, amount, duration_preset, keep_alive)?;
+
+			Ok(())
+		}
+
+		/// Extend an existing stake.
+		///
+		/// Emits `StakeExtended` event when successful.
+		#[pallet::weight(T::WeightInfo::extend())]
+		pub fn extend(
+			origin: OriginFor<T>,
+			position: T::PositionId,
+			amount: T::Balance,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			let keep_alive = true;
+			let _position_id = <Self as Staking>::extend(&owner, position, amount, keep_alive)?;
+
+			Ok(())
+		}
+
+		#[pallet::weight(T::WeightInfo::split())]
+		pub fn split(
+			origin: OriginFor<T>,
+			position: T::PositionId,
+			ratio: Validated<Permill, ValidSplitRatio>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			<Self as Staking>::split(&who, &position, ratio.value())?;
+			Ok(())
 	impl<T: Config> Staking for Pallet<T> {
 		type AccountId = T::AccountId;
 		type RewardPoolId = T::RewardPoolId;

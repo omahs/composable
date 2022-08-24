@@ -32,4 +32,7 @@
   "include": ["next-env.d.ts",
     "**/*.ts", "**/*.tsx", ".storybook/mui-decorator.tsx"],
   "exclude": ["node_modules", "./defi-interfaces"]
+    "**/*.ts", "**/*.tsx", ".storybook/mui-decorator.tsx"
+  ],
+  "exclude": [
 }

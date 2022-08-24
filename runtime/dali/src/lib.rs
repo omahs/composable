@@ -133,7 +133,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
 	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
 	//   the compatible custom types.
+<<<<<<< HEAD
 	spec_version: 2401,
+=======
+	spec_version: 2400,
+>>>>>>> instrumental-duplicate-for-pablo
 	impl_version: 3,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1511,10 +1515,13 @@ impl_runtime_apis! {
 			<Runtime as cumulus_pallet_parachain_system::Config>::SelfParaId::get().into()
 		}
 
+<<<<<<< HEAD
 		fn child_trie_key() -> Vec<u8> {
 			<Runtime as pallet_ibc::Config>::CHILD_TRIE_KEY.to_vec()
 		}
 
+=======
+>>>>>>> instrumental-duplicate-for-pablo
 		fn query_balance_with_address(addr: Vec<u8>) -> Option<u128> {
 			Ibc::query_balance_with_address(addr).ok()
 		}
