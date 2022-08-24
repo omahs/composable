@@ -376,7 +376,7 @@ pub mod pallet {
 	///
 	/// # Note
 	///
-	/// Frozen markets do not decrement the counter.
+	/// Closed markets do not decrement the counter.
 	#[pallet::storage]
 	#[pallet::getter(fn market_count)]
 	#[allow(clippy::disallowed_types)]
