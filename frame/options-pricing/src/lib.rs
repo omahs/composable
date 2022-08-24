@@ -312,6 +312,17 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::update_interest_rate())]
+		pub fn update_interest_rate(
+			origin: OriginFor<T>,
+			interest_rate: Decimal,
+		) -> DispatchResult {
+			// Check if it's protocol to call the extrinsic
+			T::ProtocolOrigin::ensure_origin(origin)?;
+
+			Ok(())
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -339,6 +350,14 @@ pub mod pallet {
 	//		Internal Pallet Functions
 	// ----------------------------------------------------------------------------------------------------
 	impl<T: Config> Pallet<T> {
+		fn do_update_interest_rate(interest_rate: Decimal) -> Result<(), DispatchError> {
+			InterestRate::<T>::mutate(|v| {
+				*v = interest_rate;
+			});
+
+			Ok(())
+		}
+
 		fn do_calculate_option_price(
 			params: BlackScholesParamsOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
