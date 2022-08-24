@@ -323,6 +323,17 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::update_snapshot_frequency())]
+		pub fn update_snapshot_frequency(
+			origin: OriginFor<T>,
+			snapshot_frequency: MomentOf<T>,
+		) -> DispatchResult {
+			// Check if it's protocol to call the extrinsic
+			T::ProtocolOrigin::ensure_origin(origin)?;
+
+			Ok(())
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -353,6 +364,16 @@ pub mod pallet {
 		fn do_update_interest_rate(interest_rate: Decimal) -> Result<(), DispatchError> {
 			InterestRate::<T>::mutate(|v| {
 				*v = interest_rate;
+			});
+
+			Ok(())
+		}
+
+		fn do_update_snapshot_frequency(
+			snapshot_frequency: MomentOf<T>,
+		) -> Result<(), DispatchError> {
+			SnapshotFrequency::<T>::mutate(|v| {
+				*v = Some(snapshot_frequency);
 			});
 
 			Ok(())
