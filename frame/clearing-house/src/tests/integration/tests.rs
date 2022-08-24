@@ -1,7 +1,14 @@
 #![allow(clippy::disallowed_methods)]
 use crate::{
-	Direction::Long, Error, Market, MarketConfig as MarketConfigGeneric, MaxPriceDivergence,
+	mock::integration::{
+		AccountId, AssetId, Assets, Balance, BlockNumber, Decimal, ExtBuilder, MarketId, Moment,
+		Oracle, Origin, Runtime, StalePrice, System, TestPallet, Timestamp, UnsignedDecimal, Vamm,
+		VammId, ALICE, BOB, DOT, PICA, USDC,
+	},
+	Direction::Long,
+	Error, Market, MarketConfig as MarketConfigGeneric, MaxPriceDivergence,
 };
+
 use composable_support::validation::Validated;
 use composable_traits::{
 	time::{DurationSeconds, ONE_HOUR},
@@ -15,12 +22,6 @@ use frame_support::{
 use pallet_vamm::VammStateOf;
 use proptest::prelude::*;
 use sp_runtime::{traits::Zero, FixedPointNumber, Percent};
-
-use super::mock::{
-	AccountId, AssetId, Assets, Balance, BlockNumber, Decimal, ExtBuilder, MarketId, Moment,
-	Oracle, Origin, Runtime, StalePrice, System, TestPallet, Timestamp, UnsignedDecimal, Vamm,
-	VammId, ALICE, BOB, DOT, PICA, USDC,
-};
 
 impl Default for ExtBuilder {
 	fn default() -> Self {

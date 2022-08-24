@@ -1,6 +1,5 @@
-use super::{as_inner, run_to_block, with_market_context, MarketConfig};
 use crate::{
-	mock::{
+	mock::unit::{
 		self as mock,
 		accounts::ALICE,
 		runtime::{
@@ -9,7 +8,7 @@ use crate::{
 		},
 	},
 	pallet::{Error, Event, Markets},
-	tests::get_market_fee_pool,
+	tests::unit::{as_inner, get_market_fee_pool, run_to_block, with_market_context, MarketConfig},
 };
 use composable_traits::time::{DurationSeconds, ONE_HOUR};
 use frame_support::{assert_noop, assert_ok, traits::UnixTime};

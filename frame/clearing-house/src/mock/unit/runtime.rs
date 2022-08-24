@@ -1,9 +1,11 @@
 use crate::{
 	self as clearing_house,
 	mock::{
-		accounts::{AccountId, ALICE},
 		assets::{AssetId, PICA},
-		oracle as mock_oracle, vamm as mock_vamm,
+		unit::{
+			accounts::{AccountId, ALICE},
+			oracle as mock_oracle, vamm as mock_vamm,
+		},
 	},
 };
 use composable_traits::{defi::DeFiComposableConfig, time::DurationSeconds};

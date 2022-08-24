@@ -1,25 +1,29 @@
-use composable_traits::clearing_house::ClearingHouse;
-use frame_support::{assert_err, assert_noop, assert_ok, traits::tokens::fungibles::Inspect};
-use sp_runtime::FixedI128;
-
-use super::{
-	as_balance, comp::approx_eq_lower, multi_market_and_trader_context, run_for_seconds,
-	run_to_time, set_fee_pool_depth, traders_in_one_market_context, MarketConfig,
-};
 use crate::{
 	mock::{
-		accounts::{ALICE, BOB},
 		assets::USDC,
-		runtime::{
-			Assets as AssetsPallet, Balance, Origin, Runtime, System as SystemPallet, TestPallet,
-			Vamm as VammPallet,
+		unit::{
+			accounts::{ALICE, BOB},
+			runtime::{
+				Assets as AssetsPallet, Balance, Origin, Runtime, System as SystemPallet,
+				TestPallet, Vamm as VammPallet,
+			},
 		},
 	},
-	tests::set_oracle_twap,
+	tests::{
+		comp::approx_eq_lower,
+		unit::{
+			as_balance, multi_market_and_trader_context, run_for_seconds, run_to_time,
+			set_fee_pool_depth, set_oracle_twap, traders_in_one_market_context, MarketConfig,
+		},
+	},
 	Direction, Error, Event, FullLiquidationPenalty, FullLiquidationPenaltyLiquidatorShare,
 	PartialLiquidationCloseRatio, PartialLiquidationPenalty,
 	PartialLiquidationPenaltyLiquidatorShare,
 };
+
+use composable_traits::clearing_house::ClearingHouse;
+use frame_support::{assert_err, assert_noop, assert_ok, traits::tokens::fungibles::Inspect};
+use sp_runtime::FixedI128;
 
 // -------------------------------------------------------------------------------------------------
 //                                            Helpers

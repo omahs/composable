@@ -1,5 +1,5 @@
+use crate as clearing_house;
 pub use crate::mock::assets::*;
-use crate::{self as clearing_house};
 use composable_traits::{currency::LocalAssets, defi::DeFiComposableConfig, time::DurationSeconds};
 use frame_support::{
 	ord_parameter_types, parameter_types,

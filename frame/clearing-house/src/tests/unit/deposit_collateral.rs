@@ -1,14 +1,16 @@
 use crate::{
 	mock::{
-		accounts::{AccountId, ALICE},
 		assets::{PICA, USDC},
-		runtime::{
-			Assets as AssetsPallet, Balance, ExtBuilder, Origin, Runtime, System as SystemPallet,
-			TestPallet, TestPalletId,
+		unit::{
+			accounts::{AccountId, ALICE},
+			runtime::{
+				Assets as AssetsPallet, Balance, ExtBuilder, Origin, Runtime,
+				System as SystemPallet, TestPallet, TestPalletId,
+			},
 		},
 	},
 	pallet::{Collateral, Error, Event},
-	tests::run_to_block,
+	tests::unit::run_to_block,
 };
 use frame_support::{assert_noop, assert_ok, traits::fungibles::Inspect};
 use orml_tokens::Error as TokenError;

@@ -1,25 +1,27 @@
-use composable_traits::clearing_house::ClearingHouse;
-use frame_support::{
-	assert_noop, assert_ok,
-	traits::fungibles::{Inspect, Unbalanced},
-};
-
 use crate::{
 	mock::{
-		accounts::{ALICE, BOB},
 		assets::USDC,
-		runtime::{
-			Assets as AssetsPallet, Balance, ExtBuilder, Origin, Runtime, System as SystemPallet,
-			TestPallet, Vamm as VammPallet,
+		unit::{
+			accounts::{ALICE, BOB},
+			runtime::{
+				Assets as AssetsPallet, Balance, ExtBuilder, Origin, Runtime,
+				System as SystemPallet, TestPallet, Vamm as VammPallet,
+			},
 		},
 	},
-	tests::{
+	tests::unit::{
 		any_balance, as_balance, get_collateral, get_outstanding_profits, run_for_seconds,
 		set_fee_pool_depth, set_oracle_twap, traders_in_one_market_context, with_market_context,
 		with_trading_context, MarketConfig,
 	},
 	Direction::{Long, Short},
 	Error, Event,
+};
+
+use composable_traits::clearing_house::ClearingHouse;
+use frame_support::{
+	assert_noop, assert_ok,
+	traits::fungibles::{Inspect, Unbalanced},
 };
 use proptest::prelude::*;
 
