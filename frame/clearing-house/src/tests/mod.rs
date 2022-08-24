@@ -2,5 +2,6 @@
 #![allow(clippy::disallowed_methods, unused_must_use)]
 
 pub mod comp;
+pub mod helpers;
 pub mod integration;
 pub mod unit;

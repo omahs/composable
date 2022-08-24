@@ -5,8 +5,9 @@ use crate::{
 		Oracle, Origin, Runtime, StalePrice, System, TestPallet, Timestamp, UnsignedDecimal, Vamm,
 		VammId, ALICE, BOB, DOT, PICA, USDC,
 	},
+	tests::helpers,
 	Direction::Long,
-	Error, Market, MarketConfig as MarketConfigGeneric, MaxPriceDivergence,
+	Error, Market, MarketConfig as MarketConfigGeneric,
 };
 
 use composable_support::validation::Validated;
@@ -14,11 +15,7 @@ use composable_traits::{
 	time::{DurationSeconds, ONE_HOUR},
 	vamm::Vamm as VammTrait,
 };
-use frame_support::{
-	assert_ok,
-	pallet_prelude::Hooks,
-	traits::fungibles::{Inspect, Transfer},
-};
+use frame_support::{assert_ok, pallet_prelude::Hooks, traits::fungibles::Transfer};
 use pallet_vamm::VammStateOf;
 use proptest::prelude::*;
 use sp_runtime::{traits::Zero, FixedPointNumber, Percent};
@@ -113,23 +110,27 @@ fn update_oracle_for(asset_id: AssetId, price: Balance) {
 }
 
 fn get_collateral(account_id: &AccountId) -> Balance {
-	TestPallet::get_collateral(account_id).unwrap()
+	helpers::get_collateral::<Runtime>(account_id)
 }
 
 fn get_outstanding_profits(account_id: &AccountId) -> Balance {
-	TestPallet::outstanding_profits(account_id).unwrap_or_else(Zero::zero)
+	helpers::get_outstanding_profits::<Runtime>(account_id)
 }
 
 fn get_market(market_id: &MarketId) -> Market<Runtime> {
-	TestPallet::get_market(market_id).unwrap()
+	helpers::get_market::<Runtime>(market_id)
 }
 
 fn get_market_fee_pool(market_id: MarketId) -> Balance {
-	Assets::balance(USDC, &TestPallet::get_fee_pool_account(market_id))
+	helpers::get_market_fee_pool::<Runtime>(market_id)
 }
 
 fn get_vamm(vamm_id: &VammId) -> VammStateOf<Runtime> {
 	Vamm::get_vamm(vamm_id).unwrap()
+}
+
+fn set_maximum_oracle_mark_divergence(fraction: Decimal) {
+	helpers::set_maximum_oracle_mark_divergence::<Runtime>(fraction)
 }
 
 impl Default for MarketConfig {
@@ -152,10 +153,6 @@ impl Default for MarketConfig {
 			twap_period: ONE_HOUR,
 		}
 	}
-}
-
-fn set_maximum_oracle_mark_divergence(fraction: Decimal) {
-	MaxPriceDivergence::<Runtime>::set(fraction);
 }
 
 // -------------------------------------------------------------------------------------------------

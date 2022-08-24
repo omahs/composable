@@ -13,7 +13,7 @@ use crate::{
 		},
 	},
 	Direction, Market as MarketGeneric, MarketConfig as MarketConfigGeneric, Markets,
-	MaxPriceDivergence, MaxTwapDivergence,
+	MaxTwapDivergence,
 };
 
 use composable_traits::{
@@ -22,13 +22,11 @@ use composable_traits::{
 	time::{DurationSeconds, ONE_HOUR},
 	vamm::{AssetType, Direction as VammDirection, Vamm},
 };
-use frame_support::{
-	assert_err, assert_ok,
-	pallet_prelude::Hooks,
-	traits::fungibles::{Inspect, Unbalanced},
-};
+use frame_support::{assert_err, assert_ok, pallet_prelude::Hooks, traits::fungibles::Unbalanced};
 use proptest::prelude::*;
-use sp_runtime::{traits::Zero, FixedI128, FixedPointNumber, FixedU128};
+use sp_runtime::{FixedI128, FixedPointNumber, FixedU128};
+
+use super::helpers;
 
 mod close_market;
 mod close_position;
@@ -127,7 +125,7 @@ fn as_inner<T: Into<FixedI128>>(value: T) -> i128 {
 }
 
 fn get_collateral(account_id: AccountId) -> Balance {
-	TestPallet::get_collateral(&account_id).unwrap()
+	helpers::get_collateral::<Runtime>(&account_id)
 }
 
 fn get_position(account_id: &AccountId, market_id: &MarketId) -> Option<Position> {
@@ -136,15 +134,15 @@ fn get_position(account_id: &AccountId, market_id: &MarketId) -> Option<Position
 }
 
 fn get_outstanding_profits(account_id: AccountId) -> Balance {
-	TestPallet::outstanding_profits(&account_id).unwrap_or_else(Zero::zero)
+	helpers::get_outstanding_profits::<Runtime>(&account_id)
 }
 
 fn get_market(market_id: &MarketId) -> Market {
-	TestPallet::get_market(market_id).unwrap()
+	helpers::get_market::<Runtime>(market_id)
 }
 
 fn get_market_fee_pool(market_id: &MarketId) -> Balance {
-	AssetsPallet::balance(USDC, &TestPallet::get_fee_pool_account(*market_id))
+	helpers::get_market_fee_pool::<Runtime>(*market_id)
 }
 
 fn set_fee_pool_depth(market_id: &MarketId, depth: Balance) {
@@ -152,7 +150,7 @@ fn set_fee_pool_depth(market_id: &MarketId, depth: Balance) {
 }
 
 fn set_maximum_oracle_mark_divergence(fraction: FixedI128) {
-	MaxPriceDivergence::<Runtime>::set(fraction);
+	helpers::set_maximum_oracle_mark_divergence::<Runtime>(fraction)
 }
 
 fn set_maximum_twap_divergence(fraction: FixedI128) {
