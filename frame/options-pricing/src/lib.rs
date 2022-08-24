@@ -118,7 +118,12 @@ pub mod pallet {
 		/// Type of time moment. We use [`SwapBytes`] trait to store this type in
 		/// big endian format and take advantage of the fact that storage keys are
 		/// stored in lexical order.
-		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen;
+		type Moment: SwapBytes
+			+ AtLeast32Bit
+			+ Parameter
+			+ Copy
+			+ MaxEncodedLen
+			+ MaybeSerializeDeserialize;
 
 		/// The Unix time provider.
 		type Time: Time<Moment = MomentOf<Self>>;
@@ -160,21 +165,28 @@ pub mod pallet {
 	//		Storage
 	// ----------------------------------------------------------------------------------------------------
 	#[pallet::storage]
-	#[pallet::getter(fn interest_rate_index)]
+	#[pallet::getter(fn interest_rate)]
 	#[allow(clippy::disallowed_types)]
-	pub type InterestRateIndex<T: Config> = StorageValue<_, Decimal, ValueQuery>;
+	pub type InterestRate<T: Config> = StorageValue<_, Decimal, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn latest_iv)]
-	pub type LatestIV<T: Config> = StorageMap<_, Blake2_128Concat, OptionIdOf<T>, Decimal>;
+	#[pallet::getter(fn snapshot_frequency)]
+	#[allow(clippy::disallowed_types)]
+	pub type SnapshotFrequency<T: Config> = StorageValue<_, MomentOf<T>, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn latest_price)]
-	pub type LatestPrice<T: Config> = StorageMap<_, Blake2_128Concat, OptionIdOf<T>, BalanceOf<T>>;
+	#[pallet::getter(fn latest_snapshot_timestamp)]
+	#[allow(clippy::disallowed_types)]
+	pub type LatestSnapshotTimestamp<T: Config> = StorageValue<_, MomentOf<T>, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn snapshots)]
-	pub type Snapshots<T: Config> = StorageDoubleMap<
+	#[pallet::getter(fn latest_snapshot)]
+	pub type LatestSnapshots<T: Config> =
+		StorageMap<_, Blake2_128Concat, OptionIdOf<T>, Snapshot<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn snapshots_history)]
+	pub type SnapshotsHistory<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		OptionIdOf<T>,
@@ -189,7 +201,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		InterestRateIndexUpdated { interest_rate: Decimal },
+		InterestRateUpdated { interest_rate: Decimal },
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -198,14 +210,80 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		FailedConversion,
+
+		InterestRateNotSet,
+
+		LatestSnapshotTimestampNotSet,
 	}
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Hooks
 	// ----------------------------------------------------------------------------------------------------
-
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		fn on_initialize(_n: T::BlockNumber) -> Weight {
+			let mut used_weight = 0;
+			let now = T::Time::now();
+
+			let latest_snapshot_timestamp = match Self::latest_snapshot_timestamp() {
+				Some(timestamp) => timestamp,
+				None => MomentOf::<T>::from(0_u32),
+			};
+
+			used_weight = used_weight.saturating_add(T::DbWeight::get().reads(1));
+
+			let snapshot_frequency = match Self::snapshot_frequency() {
+				Some(timestamp) => timestamp,
+				None => MomentOf::<T>::from(86400_u32), // Default if not set
+			};
+
+			used_weight = used_weight.saturating_add(T::DbWeight::get().reads(1));
+
+			let new_snapshot_timestamp =
+				latest_snapshot_timestamp.saturating_add(snapshot_frequency);
+
+			if new_snapshot_timestamp > now {
+				LatestSnapshots::<T>::iter().for_each(|(option_id, snapshot)| {
+					SnapshotsHistory::<T>::insert(option_id, new_snapshot_timestamp, snapshot);
+					used_weight = used_weight.saturating_add(T::DbWeight::get().writes(1));
+				});
+			}
+
+			let max_weight = <T as frame_system::Config>::BlockWeights::get().max_block;
+			used_weight.min(max_weight)
+		}
+	}
+
+	// ----------------------------------------------------------------------------------------------------
+	//		Genesis Build
+	// ----------------------------------------------------------------------------------------------------
+
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub interest_rate_index: Decimal,
+		pub latest_snapshot_timestamp: Option<MomentOf<T>>,
+		pub snapshot_frequency: Option<MomentOf<T>>,
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self {
+				interest_rate_index: Decimal::saturating_from_rational(1, 20),
+				latest_snapshot_timestamp: None,
+				snapshot_frequency: None,
+			}
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			InterestRate::<T>::set(self.interest_rate_index);
+			LatestSnapshotTimestamp::<T>::set(self.latest_snapshot_timestamp);
+			SnapshotFrequency::<T>::set(self.snapshot_frequency);
+		}
+	}
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Extrinsics
@@ -265,7 +343,7 @@ pub mod pallet {
 			params: BlackScholesParamsOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			// Get interest rate index, annualized expiry date and converted prices
-			let interest_rate = Self::interest_rate_index();
+			let interest_rate = Self::interest_rate();
 			let time_annualized = Self::get_expiry_time_annualized(params.expiring_date)?;
 			let strike_price = T::ConvertBalanceToDecimal::convert(params.base_asset_strike_price);
 			let spot_price = T::ConvertBalanceToDecimal::convert(params.base_asset_spot_price);
@@ -420,7 +498,7 @@ pub mod pallet {
 			params: BlackScholesParamsOf<T>,
 		) -> Result<(), DispatchError> {
 			// Get interest rate index, annualized expiry date and converted prices
-			let interest_rate = Self::interest_rate_index();
+			let interest_rate = Self::interest_rate();
 			let time_annualized = Self::get_expiry_time_annualized(params.expiring_date)?;
 			let strike_price = T::ConvertBalanceToDecimal::convert(params.base_asset_strike_price);
 			let spot_price = T::ConvertBalanceToDecimal::convert(params.base_asset_spot_price);
