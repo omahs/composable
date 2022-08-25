@@ -35,7 +35,7 @@ pub mod pallet {
 	use composable_traits::{
 		dex::Amm,
 		instrumental::{InstrumentalProtocolStrategy, State},
-		vault::{StrategicVault, Vault},
+		vault::{StrategicVault, Vault, FundsAvailability},
 	};
 	use frame_support::{
 		dispatch::{DispatchError, DispatchResult},
@@ -389,11 +389,81 @@ pub mod pallet {
 	// ---------------------------------------------------------------------------------------------
 
 	impl<T: Config> Pallet<T> {
-		fn do_rebalance(_vault_id: &T::VaultId) -> DispatchResult {
+		fn do_rebalance(vault_id: &T::VaultId) -> DispatchResult {
+			let asset_id = T::Vault::asset_id(vault_id)?;
+			let vault_account = T::Vault::account_id(vault_id);
+			let pool_id_and_state = Self::pools(asset_id).ok_or(Error::<T>::PoolNotFound)?;
+			let pool_id = pool_id_and_state.pool_id;
+			match T::Vault::available_funds(vault_id, &Self::account_id())? {
+				FundsAvailability::Withdrawable(balance) => {
+					Self::withdraw(vault_account, pool_id, balance)?;
+				},
+				FundsAvailability::Depositable(balance) => {
+					Self::deposit(vault_account, pool_id, balance)?;
+				},
+				FundsAvailability::MustLiquidate => {
+					Self::liquidate(vault_account, pool_id)?;
+				},
+				FundsAvailability::None => {},
+			};
 			Ok(())
 		}
 
+		fn withdraw(
+			vault_account: T::AccountId,
+			pool_id: T::PoolId,
+			balance: T::Balance,
+		) -> DispatchResult {
+			T::Pablo::add_liquidity(
+				&vault_account,
+				pool_id,
+				balance,
+				T::Balance::zero(),
+				T::Balance::zero(),
+				true,
+			)
+		}
+
+		fn deposit(
+			vault_account: T::AccountId,
+			pool_id: T::PoolId,
+			balance: T::Balance,
+		) -> DispatchResult {
+			// let approximately_lp_token_amount = T::Pablo::simulate_add_liquidity(
+			// 	&vault_account,
+			// 	pool_id,
+			// 	balance,
+			// )?;
+			// let approximately_balance = T::Pablo::simulate_remove_liquidity_single_asset(
+			// 	&vault_account,
+			// 	pool_id,
+			// 	approximately_lp_token_amount,
+			// 	T::Balance::zero(),	
+			// )?;
+			// TODO(belousm): implement functionality which define how much lp tokens to withdraw
+			todo!();
+			// T::Pablo::remove_liquidity_single_asset(
+			// 	&vault_account,
+			// 	pool_id,
+			// 	lp_token_amount,
+			// 	T::Balance::zero(),
+			// )
+		}
+
+		fn liquidate(vault_account: T::AccountId, pool_id: T::PoolId) -> DispatchResult {
+			let lp_token_id = T::Pablo::lp_token(pool_id)?;
+			let balance_of_lp_token = T::Currency::balance(lp_token_id, &vault_account);
+			T::Pablo::remove_liquidity_single_asset(
+				&vault_account,
+				pool_id,
+				balance_of_lp_token,
+				T::Balance::zero(),
+			)
+		}
+
+
 		fn do_tranferring_funds() -> DispatchResult {
+			// TODO(belousm): implement do_tranferring_funds
 			Ok(())
 		}
 	}
