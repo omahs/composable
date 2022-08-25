@@ -253,6 +253,8 @@ mod open_position {
 		})
 	}
 
+	// TODO(0xangelo): should enforce slippage controls
+
 	#[test]
 	fn should_succeed_with_two_traders_in_a_market() {
 		ExtBuilder {
