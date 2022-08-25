@@ -35,18 +35,23 @@ pub mod pallet {
 	use composable_traits::{
 		dex::Amm,
 		instrumental::{InstrumentalProtocolStrategy, State},
-		vault::StrategicVault,
+		vault::{StrategicVault, Vault},
 	};
 	use frame_support::{
 		dispatch::{DispatchError, DispatchResult},
 		pallet_prelude::*,
 		storage::bounded_btree_set::BoundedBTreeSet,
-		traits::fungibles::{Mutate, MutateHold, Transfer},
+		traits::fungibles::{Inspect, Mutate, MutateHold, Transfer},
 		transactional, Blake2_128Concat, PalletId, RuntimeDebug,
 	};
+	use rust_decimal::{prelude::FromPrimitive, Decimal};
 	use frame_system::pallet_prelude::OriginFor;
-	use sp_runtime::traits::{
-		AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, Zero,
+	use composable_support::math::safe::{SafeMul, SafeSub};
+	use sp_runtime::{
+		traits::{
+			AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, Zero, Convert,
+		},
+		Permill, ArithmeticError,
 	};
 	use sp_std::fmt::Debug;
 
@@ -120,6 +125,8 @@ pub mod pallet {
 			AccountId = Self::AccountId,
 			VaultId = Self::VaultId,
 		>;
+
+		type Convert: Convert<Self::Balance, Decimal> + Convert<Decimal, Self::Balance>;
 
 		/// The [`Currency`](Config::Currency).
 		///
@@ -267,6 +274,24 @@ pub mod pallet {
 			<Self as InstrumentalProtocolStrategy>::rebalance()?;
 			Ok(().into())
 		}
+
+		#[pallet::weight(T::WeightInfo::transferring_funds())]
+		pub fn transferring_funds(
+			origin: OriginFor<T>,
+			vault_id: T::VaultId,
+			asset_id: T::AssetId,
+			new_pool_id: T::PoolId,
+			percentage_of_funds: Permill,
+		) -> DispatchResultWithPostInfo {
+			T::ExternalOrigin::ensure_origin(origin)?;
+			<Self as InstrumentalProtocolStrategy>::transferring_funds(
+				&vault_id,
+				asset_id,
+				new_pool_id,
+				percentage_of_funds,
+			)?;
+			Ok(().into())
+		}
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -306,9 +331,38 @@ pub mod pallet {
 					.map_err(|_| Error::<T>::TooManyAssociatedStrategies)?;
 
 				Self::deposit_event(Event::AssociatedVault { vault_id: *vault_id });
-
 				Ok(())
 			})
+		}
+
+		fn transferring_funds(
+			vault_id: &Self::VaultId,
+			asset_id: Self::AssetId,
+			new_pool_id: Self::PoolId,
+			percentage_of_funds: Permill,
+		) -> DispatchResult {
+			let pool_id_and_state = Self::pools(asset_id).ok_or(Error::<T>::PoolNotFound)?;
+			let pool_id_deduce = pool_id_and_state.pool_id;
+			let vault_account = T::Vault::account_id(vault_id);
+			let lp_token_id = T::Pablo::lp_token(pool_id_deduce)?;
+			let mut balance_of_lp_token = T::Currency::balance(lp_token_id, &vault_account);
+			Pools::<T>::mutate(asset_id, |pool| {
+				*pool = Some(PoolState { pool_id: pool_id_deduce, state: State::Transferring });
+			});
+			let pertcentage_of_funds = Decimal::from_u32(percentage_of_funds.deconstruct().into()).ok_or(ArithmeticError::Overflow)?;
+			let balance_of_lp_tokens_decimal = T::Convert::convert(balance_of_lp_token);
+			let balance_to_withdraw_per_transaction = T::Convert::convert(balance_of_lp_tokens_decimal.safe_mul(&pertcentage_of_funds)?);
+			while balance_of_lp_token > balance_to_withdraw_per_transaction {
+				Self::do_tranferring_funds()?;
+				balance_of_lp_token = balance_of_lp_token.safe_sub(&balance_to_withdraw_per_transaction)?;	
+			}
+			if balance_of_lp_token > T::Balance::zero() {
+				Self::do_tranferring_funds()?;
+			}
+			Pools::<T>::mutate(asset_id, |pool| {
+				*pool = Some(PoolState { pool_id: new_pool_id, state: State::Normal });
+			});	
+			Ok(())
 		}
 
 		#[transactional]
@@ -321,7 +375,6 @@ pub mod pallet {
 						Self::deposit_event(Event::UnableToRebalanceVault { vault_id: *vault_id });
 					}
 				});
-
 				Ok(())
 			})
 		}
@@ -337,6 +390,10 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		fn do_rebalance(_vault_id: &T::VaultId) -> DispatchResult {
+			Ok(())
+		}
+
+		fn do_tranferring_funds() -> DispatchResult {
 			Ok(())
 		}
 	}
