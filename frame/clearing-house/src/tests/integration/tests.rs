@@ -6,7 +6,7 @@ use crate::{
 		VammId, ALICE, BOB, DOT, PICA, USDC,
 	},
 	tests::helpers,
-	Direction::Long,
+	Direction::{Long, Short},
 	Error, Market, MarketConfig as MarketConfigGeneric,
 };
 
@@ -702,6 +702,68 @@ mod update_funding {
 			run_to_time(market.last_oracle_ts + config.twap_period);
 			assert_ok!(TestPallet::update_funding(Origin::signed(BOB), market_id));
 			assert!(get_market_fee_pool(market_id) < fee_pool_before);
+		})
+	}
+}
+
+// -------------------------------------------------------------------------------------------------
+//                                          Liquidate
+// -------------------------------------------------------------------------------------------------
+
+mod liquidate {
+	use super::*;
+
+	#[test]
+	fn should_liquidate_if_below_partial_margin_ratio_by_pnl() {
+		ExtBuilder {
+			native_balances: vec![(ALICE, UNIT), (BOB, UNIT)],
+			balances: vec![(ALICE, USDC, UNIT * 10), (BOB, USDC, UNIT * 1_000_000)],
+			..Default::default()
+		}
+		.build()
+		.execute_with(|| {
+			let asset_id = DOT;
+			set_oracle_for(asset_id, 1_000);
+
+			let config = MarketConfig {
+				vamm_config: VammConfig {
+					base_asset_reserves: UNIT * 10_000,
+					quote_asset_reserves: UNIT * 100_000,
+					peg_multiplier: 1,
+					twap_period: ONE_HOUR,
+				},
+				margin_ratio_initial: (100, 1000).into(), // 10x max leverage
+				margin_ratio_partial: (99, 1000).into(),  // ~10.1x max leverage
+				margin_ratio_maintenance: (80, 1000).into(),
+				..Default::default()
+			};
+			assert_ok!(TestPallet::create_market(Origin::signed(ALICE), config));
+
+			assert_ok!(TestPallet::deposit_collateral(Origin::signed(ALICE), USDC, UNIT * 10));
+			assert_ok!(TestPallet::deposit_collateral(Origin::signed(BOB), USDC, UNIT * 10_000));
+
+			let market_id = Zero::zero();
+
+			// Alice goes long with maximum leverage
+			assert_ok!(TestPallet::open_position(
+				Origin::signed(ALICE),
+				market_id,
+				Long,
+				UNIT * 100,
+				0
+			));
+
+			// Bob goes short with size, pushing the price below Alice's partial liquidation
+			// threshold
+			assert_ok!(TestPallet::open_position(
+				Origin::signed(BOB),
+				market_id,
+				Short,
+				UNIT * 10_000,
+				Balance::MAX
+			));
+
+			assert_ok!(TestPallet::liquidate(Origin::signed(BOB), ALICE));
 		})
 	}
 }
