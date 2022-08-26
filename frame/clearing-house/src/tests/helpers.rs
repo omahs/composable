@@ -1,6 +1,8 @@
 use crate::{
 	mock::assets::{AssetId, USDC},
-	Config, Market, MaxPriceDivergence, Pallet,
+	Config, FullLiquidationPenalty, FullLiquidationPenaltyLiquidatorShare, Market,
+	MaxPriceDivergence, Pallet, PartialLiquidationCloseRatio, PartialLiquidationPenalty,
+	PartialLiquidationPenaltyLiquidatorShare,
 };
 use frame_support::traits::{fungible::Inspect as NativeInspect, fungibles::Inspect};
 use sp_runtime::traits::Zero;
@@ -33,4 +35,24 @@ where
 
 pub fn set_maximum_oracle_mark_divergence<T: Config>(fraction: T::Decimal) {
 	MaxPriceDivergence::<T>::set(fraction);
+}
+
+pub fn set_full_liquidation_penalty<T: Config>(decimal: T::Decimal) {
+	FullLiquidationPenalty::<T>::set(decimal);
+}
+
+pub fn set_liquidator_share_full<T: Config>(decimal: T::Decimal) {
+	FullLiquidationPenaltyLiquidatorShare::<T>::set(decimal);
+}
+
+pub fn set_partial_liquidation_penalty<T: Config>(decimal: T::Decimal) {
+	PartialLiquidationPenalty::<T>::set(decimal);
+}
+
+pub fn set_partial_liquidation_close<T: Config>(decimal: T::Decimal) {
+	PartialLiquidationCloseRatio::<T>::set(decimal);
+}
+
+pub fn set_liquidator_share_partial<T: Config>(decimal: T::Decimal) {
+	PartialLiquidationPenaltyLiquidatorShare::<T>::set(decimal);
 }

@@ -11,14 +11,13 @@ use crate::{
 	},
 	tests::{
 		comp::approx_eq_lower,
+		helpers,
 		unit::{
 			as_balance, multi_market_and_trader_context, run_for_seconds, run_to_time,
 			set_fee_pool_depth, set_oracle_twap, traders_in_one_market_context, MarketConfig,
 		},
 	},
-	Direction, Error, Event, FullLiquidationPenalty, FullLiquidationPenaltyLiquidatorShare,
-	PartialLiquidationCloseRatio, PartialLiquidationPenalty,
-	PartialLiquidationPenaltyLiquidatorShare,
+	Direction, Error, Event,
 };
 
 use composable_traits::clearing_house::ClearingHouse;
@@ -30,23 +29,23 @@ use sp_runtime::FixedI128;
 // -------------------------------------------------------------------------------------------------
 
 fn set_full_liquidation_penalty(decimal: FixedI128) {
-	FullLiquidationPenalty::<Runtime>::set(decimal);
+	helpers::set_full_liquidation_penalty::<Runtime>(decimal)
 }
 
 fn set_liquidator_share_full(decimal: FixedI128) {
-	FullLiquidationPenaltyLiquidatorShare::<Runtime>::set(decimal);
+	helpers::set_liquidator_share_full::<Runtime>(decimal)
 }
 
 fn set_partial_liquidation_penalty(decimal: FixedI128) {
-	PartialLiquidationPenalty::<Runtime>::set(decimal);
+	helpers::set_partial_liquidation_penalty::<Runtime>(decimal)
 }
 
 fn set_partial_liquidation_close(decimal: FixedI128) {
-	PartialLiquidationCloseRatio::<Runtime>::set(decimal);
+	helpers::set_partial_liquidation_close::<Runtime>(decimal)
 }
 
 fn set_liquidator_share_partial(decimal: FixedI128) {
-	PartialLiquidationPenaltyLiquidatorShare::<Runtime>::set(decimal);
+	helpers::set_liquidator_share_partial::<Runtime>(decimal)
 }
 
 fn get_insurance_acc_balance() -> Balance {

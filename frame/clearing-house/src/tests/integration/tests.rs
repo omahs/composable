@@ -7,7 +7,7 @@ use crate::{
 	},
 	tests::helpers,
 	Direction::{Long, Short},
-	Error, Market, MarketConfig as MarketConfigGeneric,
+	Event, Error, Market, MarketConfig as MarketConfigGeneric,
 };
 
 use composable_support::validation::Validated;
@@ -131,6 +131,18 @@ fn get_vamm(vamm_id: &VammId) -> VammStateOf<Runtime> {
 
 fn set_maximum_oracle_mark_divergence(fraction: Decimal) {
 	helpers::set_maximum_oracle_mark_divergence::<Runtime>(fraction)
+}
+
+fn set_partial_liquidation_penalty(decimal: Decimal) {
+	helpers::set_partial_liquidation_penalty::<Runtime>(decimal)
+}
+
+fn set_partial_liquidation_close(decimal: Decimal) {
+	helpers::set_partial_liquidation_close::<Runtime>(decimal)
+}
+
+fn set_liquidator_share_partial(decimal: Decimal) {
+	helpers::set_liquidator_share_partial::<Runtime>(decimal)
 }
 
 impl Default for MarketConfig {
@@ -766,6 +778,68 @@ mod liquidate {
 			));
 
 			assert_ok!(TestPallet::liquidate(Origin::signed(BOB), ALICE));
+		})
+	}
+
+	#[test]
+	fn should_liquidate_if_below_partial_margin_ratio_by_funding() {
+		let collateral = UNIT * 10;
+		ExtBuilder {
+			native_balances: vec![(ALICE, UNIT), (BOB, UNIT)],
+			balances: vec![(ALICE, USDC, collateral)],
+			..Default::default()
+		}
+		.build()
+		.execute_with(|| {
+			set_partial_liquidation_close((25, 100).into());
+			set_partial_liquidation_penalty((25, 1000).into());
+			set_liquidator_share_partial((50, 100).into());
+
+			let asset_id = DOT;
+			set_oracle_for(asset_id, 1_000);
+
+			let config = MarketConfig {
+				vamm_config: VammConfig {
+					base_asset_reserves: UNIT * 10_000,
+					quote_asset_reserves: UNIT * 100_000,
+					peg_multiplier: 1,
+					twap_period: ONE_HOUR,
+				},
+				margin_ratio_initial: (100, 1000).into(), // 10x max leverage
+				margin_ratio_partial: (99, 1000).into(),  // ~10.1x max leverage
+				margin_ratio_maintenance: (80, 1000).into(),
+				..Default::default()
+			};
+			assert_ok!(TestPallet::create_market(Origin::signed(ALICE), config.clone()));
+
+			assert_ok!(TestPallet::deposit_collateral(Origin::signed(ALICE), USDC, collateral));
+
+			let market_id = Zero::zero();
+
+			// Alice goes long with maximum leverage
+			assert_ok!(TestPallet::open_position(
+				Origin::signed(ALICE),
+				market_id,
+				Long,
+				collateral * 10,
+				0
+			));
+
+			// Index price moves against Alice's position
+			update_oracle_for(asset_id, 900);
+			let market = get_market(&market_id);
+			run_to_time(market.last_oracle_ts + config.twap_period);
+			assert_ok!(TestPallet::update_funding(Origin::signed(ALICE), market_id));
+
+			// Give time for TWAP to catch up to index
+			for _ in 0..10 {
+				advance_blocks_by(1, config.twap_period);
+				assert_ok!(TestPallet::update_funding(Origin::signed(ALICE), market_id));
+				dbg!(get_market(&market_id).last_oracle_twap);
+			}
+
+			assert_ok!(TestPallet::liquidate(Origin::signed(BOB), ALICE));
+			System::assert_last_event(Event::PartialLiquidation { user: ALICE }.into());
 		})
 	}
 }
