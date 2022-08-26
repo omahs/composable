@@ -1849,13 +1849,18 @@ pub mod pallet {
 					Self::settle_funding(&mut position, &market, &mut collateral)?;
 
 					let base_value_to_close = close_ratio.try_mul(&info.base_asset_value)?;
+					let direction_to_close = info.direction.opposite();
 					let (_, entry_value, exit_value) = Self::decrease_position(
 						&mut position,
 						&mut market,
-						info.direction.opposite(),
+						direction_to_close,
 						&base_value_to_close,
-						Zero::zero(), /* No slippage control is necessary since it was already
-						               * taken into account when computing `base_asset_value` */
+						// No slippage control is necessary since it was already taken into account
+						// when computing `base_asset_value`
+						match direction_to_close {
+							Long => Zero::zero(),
+							Short => base_value_to_close.into_balance()?,
+						},
 					)?;
 					Markets::<T>::insert(&position.market_id, market);
 
