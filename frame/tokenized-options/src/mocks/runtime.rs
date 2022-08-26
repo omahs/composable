@@ -335,7 +335,6 @@ impl pallet_options_pricing::Config for MockRuntime {
 	type WeightInfo = ();
 	type Oracle = Oracle;
 	type Moment = Moment;
-	type Convert = ConvertInto;
 	type Time = Timestamp;
 	type ProtocolOrigin =
 		EnsureOneOf<EnsureSignedBy<RootAccount, AccountId>, EnsureRoot<AccountId>>;

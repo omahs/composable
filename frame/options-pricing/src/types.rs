@@ -26,4 +26,4 @@ pub struct Snapshot<T: Config> {
 // ----------------------------------------------------------------------------------------------------
 //		Constants
 // ----------------------------------------------------------------------------------------------------
-pub const SECONDS_PER_YEAR: Decimal = Decimal::from_inner(31536000);
+// pub const SECONDS_PER_YEAR: Decimal = Decimal::from_inner(31536000);

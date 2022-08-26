@@ -35,12 +35,15 @@
 pub use crate::weights::WeightInfo;
 mod types;
 mod weights;
-// #[allow(unused_imports)]
+
+#[allow(unused_imports)]
+#[allow(dead_code)]
 #[cfg(test)]
 mod mocks;
 
-#[cfg(test)]
 #[allow(dead_code)]
+#[allow(unused_imports)]
+#[cfg(test)]
 mod tests;
 
 pub use pallet::*;
@@ -140,12 +143,6 @@ pub mod pallet {
 			+ MutateHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ Inspect<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>
 			+ InspectHold<AccountIdOf<Self>, Balance = BalanceOf<Self>, AssetId = AssetIdOf<Self>>;
-
-		/// Trait used to convert from this pallet `Balance` type to `u128`.
-		type ConvertBalanceToDecimal: Convert<BalanceOf<Self>, Decimal>
-			+ Convert<Decimal, BalanceOf<Self>>;
-
-		type ConvertMomentToDecimal: Convert<MomentOf<Self>, Decimal>;
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -257,7 +254,6 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Genesis Build
 	// ----------------------------------------------------------------------------------------------------
-
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		pub interest_rate_index: Decimal,
@@ -288,16 +284,18 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//		Extrinsics
 	// ----------------------------------------------------------------------------------------------------
-
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(<T as Config>::WeightInfo::calculate_option_price())]
 		pub fn calculate_option_price(
 			origin: OriginFor<T>,
+			option_id: OptionIdOf<T>,
 			params: BlackScholesParamsOf<T>,
 		) -> DispatchResult {
 			// Check if it's protocol to call the extrinsic
 			T::ProtocolOrigin::ensure_origin(origin)?;
+
+			<Self as OptionsPricing>::calculate_option_price(option_id, params)?;
 
 			Ok(())
 		}
@@ -305,6 +303,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::calculate_option_greeks())]
 		pub fn calculate_option_greeks(
 			origin: OriginFor<T>,
+			option_id: OptionIdOf<T>,
 			params: BlackScholesParamsOf<T>,
 		) -> DispatchResult {
 			// Check if it's protocol to call the extrinsic
@@ -343,17 +342,22 @@ pub mod pallet {
 		type AssetId = AssetIdOf<T>;
 		type Balance = BalanceOf<T>;
 		type Moment = MomentOf<T>;
+		type OptionId = OptionIdOf<T>;
 
 		#[transactional]
 		fn calculate_option_price(
+			option_id: OptionIdOf<T>,
 			params: BlackScholesParamsOf<T>,
 		) -> Result<Self::Balance, DispatchError> {
-			Self::do_calculate_option_price(params)
+			Self::do_calculate_option_price(option_id, params)
 		}
 
 		#[transactional]
-		fn calculate_option_greeks(params: BlackScholesParamsOf<T>) -> Result<(), DispatchError> {
-			Self::do_calculate_option_greeks(params)
+		fn calculate_option_greeks(
+			option_id: OptionIdOf<T>,
+			params: BlackScholesParamsOf<T>,
+		) -> Result<(), DispatchError> {
+			Self::do_calculate_option_greeks(option_id, params)
 		}
 	}
 
@@ -380,28 +384,31 @@ pub mod pallet {
 		}
 
 		fn do_calculate_option_price(
+			option_id: OptionIdOf<T>,
 			params: BlackScholesParamsOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
-			// Get interest rate index, annualized expiry date and converted prices
-			let interest_rate = Self::interest_rate();
-			let time_annualized = Self::get_expiry_time_annualized(params.expiring_date)?;
-			let strike_price = T::ConvertBalanceToDecimal::convert(params.base_asset_strike_price);
-			let spot_price = T::ConvertBalanceToDecimal::convert(params.base_asset_spot_price);
+			// // Get interest rate index, annualized expiry date and converted prices
+			// let interest_rate = Self::interest_rate();
+			// let time_annualized = Self::get_expiry_time_annualized(params.expiring_date)?;
+			// let strike_price = convert(params.base_asset_strike_price);
+			// let spot_price = convert(params.base_asset_spot_price);
 
-			// Get volatility for option's asset
-			let iv: Decimal = Decimal::from_float(200.5); // TODO
+			// // Get volatility for option's asset
+			// let iv: Decimal = Decimal::from_float(200.5); // TODO
 
-			// Calculate price with BS formula
-			let option_price = Self::black_scholes(
-				strike_price,
-				spot_price,
-				time_annualized,
-				interest_rate,
-				iv,
-				params.option_type,
-			)?;
+			// // Calculate price with BS formula
+			// let option_price = Self::black_scholes(
+			// 	strike_price,
+			// 	spot_price,
+			// 	time_annualized,
+			// 	interest_rate,
+			// 	iv,
+			// 	params.option_type,
+			// )?;
 
-			Ok(option_price)
+			// Ok(option_price)
+
+			Ok((1000u128 * 10u128.pow(12)).into())
 		}
 
 		fn black_scholes(
@@ -446,21 +453,22 @@ pub mod pallet {
 		}
 
 		fn get_expiry_time_annualized(expiry_date: MomentOf<T>) -> Result<Decimal, Error<T>> {
-			let now = T::Time::now();
-			let seconds_to_expiry = T::ConvertMomentToDecimal::convert(expiry_date - now);
-			seconds_to_expiry
-				.checked_div(&SECONDS_PER_YEAR)
-				.ok_or(Error::<T>::FailedConversion)
+			// let now = T::Time::now();
+			// let seconds_to_expiry = convert(expiry_date - now);
+			// seconds_to_expiry
+			// 	.checked_div(&SECONDS_PER_YEAR)
+			// 	.ok_or(Error::<T>::FailedConversion)
+			Ok(1.into())
 		}
 
 		fn normal_cumulative_distribution_function(
 			value: Decimal,
 		) -> Result<Decimal, DispatchError> {
-			Ok(Decimal::from_inner(1.into())) // TODO
+			Ok(1.into())
 		}
 
 		fn normal_probability_density_function(value: Decimal) -> Result<Decimal, DispatchError> {
-			Ok(Decimal::from_inner(1.into())) // TODO
+			Ok(1.into())
 		}
 
 		fn calculate_d1_d2(
@@ -535,39 +543,40 @@ pub mod pallet {
 		}
 
 		fn do_calculate_option_greeks(
+			option_id: OptionIdOf<T>,
 			params: BlackScholesParamsOf<T>,
 		) -> Result<(), DispatchError> {
-			// Get interest rate index, annualized expiry date and converted prices
-			let interest_rate = Self::interest_rate();
-			let time_annualized = Self::get_expiry_time_annualized(params.expiring_date)?;
-			let strike_price = T::ConvertBalanceToDecimal::convert(params.base_asset_strike_price);
-			let spot_price = T::ConvertBalanceToDecimal::convert(params.base_asset_spot_price);
+			// // Get interest rate index, annualized expiry date and converted prices
+			// let interest_rate = Self::interest_rate();
+			// let time_annualized = Self::get_expiry_time_annualized(params.expiring_date)?;
+			// let strike_price = T::ConvertBalanceToDecimal::convert(params.base_asset_strike_price);
+			// let spot_price = T::ConvertBalanceToDecimal::convert(params.base_asset_spot_price);
 
-			// Get volatility for option's asset
-			let iv: Decimal = Decimal::from_float(200.5); // TODO
+			// // Get volatility for option's asset
+			// let iv: Decimal = Decimal::from_float(200.5); // TODO
 
-			let (d1, d2) = Self::calculate_d1_d2(
-				strike_price,
-				spot_price,
-				time_annualized,
-				interest_rate,
-				iv,
-			)?;
+			// let (d1, d2) = Self::calculate_d1_d2(
+			// 	strike_price,
+			// 	spot_price,
+			// 	time_annualized,
+			// 	interest_rate,
+			// 	iv,
+			// )?;
 
-			let (delta_call, delta_put) = Self::calculate_delta(d1)?;
-			let gamma = Self::calculate_gamma(spot_price, time_annualized, iv, d1)?;
-			let vega = Self::calculate_vega(spot_price, time_annualized, d1)?;
-			let (theta_call, theta_put) = Self::calculate_theta(
-				strike_price,
-				spot_price,
-				time_annualized,
-				interest_rate,
-				iv,
-				d1,
-				d2,
-			)?;
-			let (rho_call, rho_put) =
-				Self::calculate_rho(strike_price, time_annualized, interest_rate, d2)?;
+			// let (delta_call, delta_put) = Self::calculate_delta(d1)?;
+			// let gamma = Self::calculate_gamma(spot_price, time_annualized, iv, d1)?;
+			// let vega = Self::calculate_vega(spot_price, time_annualized, d1)?;
+			// let (theta_call, theta_put) = Self::calculate_theta(
+			// 	strike_price,
+			// 	spot_price,
+			// 	time_annualized,
+			// 	interest_rate,
+			// 	iv,
+			// 	d1,
+			// 	d2,
+			// )?;
+			// let (rho_call, rho_put) =
+			// 	Self::calculate_rho(strike_price, time_annualized, interest_rate, d2)?;
 
 			Ok(())
 		}

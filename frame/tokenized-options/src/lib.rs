@@ -192,7 +192,12 @@ pub mod pallet {
 		/// Type of time moment. We use [`SwapBytes`] trait to store this type in
 		/// big endian format and take advantage of the fact that storage keys are
 		/// stored in lexical order.
-		type Moment: SwapBytes + AtLeast32Bit + Parameter + Copy + MaxEncodedLen + MaybeSerializeDeserialize;
+		type Moment: SwapBytes
+			+ AtLeast32Bit
+			+ Parameter
+			+ Copy
+			+ MaxEncodedLen
+			+ MaybeSerializeDeserialize;
 
 		/// The Unix time provider.
 		type Time: Time<Moment = MomentOf<Self>>;
@@ -235,6 +240,7 @@ pub mod pallet {
 			AssetId = AssetIdOf<Self>,
 			Balance = BalanceOf<Self>,
 			Moment = MomentOf<Self>,
+			OptionId = OptionIdOf<Self>
 		>;
 	}
 
@@ -1390,7 +1396,8 @@ pub mod pallet {
 				total_premium_paid: option.total_premium_paid,
 			};
 
-			let option_premium = OptionsPricingOf::<T>::calculate_option_price(bs_params)?;
+			let option_premium =
+				OptionsPricingOf::<T>::calculate_option_price(option_id, bs_params)?;
 
 			let option_premium =
 				option_premium.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;

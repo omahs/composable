@@ -16,12 +16,15 @@ pub trait OptionsPricing {
 	type AssetId;
 	type Balance;
 	type Moment;
+	type OptionId;
 
 	fn calculate_option_price(
+		option_id: Self::OptionId,
 		params: BlackScholesParams<Self::AssetId, Self::Balance, Self::Moment>,
 	) -> Result<Self::Balance, DispatchError>;
 
 	fn calculate_option_greeks(
+		option_id: Self::OptionId,
 		params: BlackScholesParams<Self::AssetId, Self::Balance, Self::Moment>,
 	) -> Result<(), DispatchError>;
 }
