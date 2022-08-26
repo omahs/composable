@@ -4117,6 +4117,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "greeks"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae94638021781983d81d66a7141d8a9f9a7804f5ad1972accd3a01e36b3f8f0f"
+
+[[package]]
 name = "group"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8335,6 +8341,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "greeks",
  "itertools",
  "orml-tokens",
  "orml-traits",
