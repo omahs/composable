@@ -2,7 +2,7 @@ use crate::{
 	mock::assets::{AssetId, USDC},
 	Config, FullLiquidationPenalty, FullLiquidationPenaltyLiquidatorShare, Market,
 	MaxPriceDivergence, Pallet, PartialLiquidationCloseRatio, PartialLiquidationPenalty,
-	PartialLiquidationPenaltyLiquidatorShare, Position
+	PartialLiquidationPenaltyLiquidatorShare, Position,
 };
 use frame_support::traits::{fungible::Inspect as NativeInspect, fungibles::Inspect};
 use sp_runtime::traits::Zero;
@@ -19,7 +19,10 @@ pub fn get_market<T: Config>(market_id: &T::MarketId) -> Market<T> {
 	Pallet::<T>::get_market(market_id).unwrap()
 }
 
-pub fn get_position<T: Config>(account_id: &T::AccountId, market_id: &T::MarketId) -> Option<Position<T>> {
+pub fn get_position<T: Config>(
+	account_id: &T::AccountId,
+	market_id: &T::MarketId,
+) -> Option<Position<T>> {
 	let positions = Pallet::<T>::get_positions(account_id);
 	positions.into_iter().find(|p| p.market_id == *market_id)
 }
@@ -47,7 +50,8 @@ where
 		Inspect<T::AccountId, AssetId = AssetId, Balance = <T as pallet_assets::Config>::Balance>,
 {
 	<pallet_assets::Pallet<T> as Inspect<T::AccountId>>::balance(
-		USDC, &Pallet::<T>::get_insurance_account()
+		USDC,
+		&Pallet::<T>::get_insurance_account(),
 	)
 }
 

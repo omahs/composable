@@ -7,7 +7,7 @@ use crate::{
 	},
 	tests::helpers,
 	Direction::{Long, Short},
-	Error, Event, Market, MarketConfig as MarketConfigGeneric, Position
+	Error, Event, Market, MarketConfig as MarketConfigGeneric, Position,
 };
 
 use composable_support::validation::Validated;
@@ -140,7 +140,12 @@ fn get_position(account_id: &AccountId, market_id: &MarketId) -> Position<Runtim
 fn get_unrealized_pnl(account_id: &AccountId, market_id: &MarketId) -> Decimal {
 	let market = get_market(market_id);
 	let position = get_position(account_id, market_id);
-	let (_, pnl) = TestPallet::abs_position_notional_and_pnl(&market, &position, position.direction().unwrap()).unwrap();
+	let (_, pnl) = TestPallet::abs_position_notional_and_pnl(
+		&market,
+		&position,
+		position.direction().unwrap(),
+	)
+	.unwrap();
 	pnl
 }
 
@@ -928,32 +933,33 @@ mod liquidate {
 mod close_market {
 	use frame_support::{error::BadOrigin, traits::UnixTime};
 
-use super::*;
+	use super::*;
 
 	#[test]
 	fn should_allow_root_to_close_market() {
-		ExtBuilder {
-			native_balances: vec![(ALICE, UNIT), (BOB, UNIT)],
-			..Default::default()
-		}
-		.build()
-		.execute_with(|| {
-			let asset_id = DOT;
-			set_oracle_for(asset_id, 1_000);
+		ExtBuilder { native_balances: vec![(ALICE, UNIT), (BOB, UNIT)], ..Default::default() }
+			.build()
+			.execute_with(|| {
+				let asset_id = DOT;
+				set_oracle_for(asset_id, 1_000);
 
-			let config = MarketConfig::default();
-			assert_ok!(TestPallet::create_market(Origin::signed(ALICE), config));
+				let config = MarketConfig::default();
+				assert_ok!(TestPallet::create_market(Origin::signed(ALICE), config));
 
-			let market_id = Zero::zero();
-			assert_noop!(
-				TestPallet::close_market(Origin::signed(BOB), market_id, <Timestamp as UnixTime>::now().as_secs() + 10),
-				BadOrigin
-			);
-			assert_ok!(TestPallet::close_market(
-				Origin::root(),
-				market_id,
-				<Timestamp as UnixTime>::now().as_secs() + 10
-			));
-		})
+				let market_id = Zero::zero();
+				assert_noop!(
+					TestPallet::close_market(
+						Origin::signed(BOB),
+						market_id,
+						<Timestamp as UnixTime>::now().as_secs() + 10
+					),
+					BadOrigin
+				);
+				assert_ok!(TestPallet::close_market(
+					Origin::root(),
+					market_id,
+					<Timestamp as UnixTime>::now().as_secs() + 10
+				));
+			})
 	}
 }

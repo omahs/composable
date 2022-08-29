@@ -1,19 +1,17 @@
 use crate::{
-	mock::{
-		unit::{
-			accounts::{ALICE, BOB},
-			runtime::{
-				Balance, Origin, Runtime, System as SystemPallet,
-				TestPallet, Vamm as VammPallet,
-			},
+	mock::unit::{
+		accounts::{ALICE, BOB},
+		runtime::{
+			Balance, Origin, Runtime, System as SystemPallet, TestPallet, Vamm as VammPallet,
 		},
 	},
 	tests::{
 		comp::approx_eq_lower,
 		helpers,
 		unit::{
-			as_balance, multi_market_and_trader_context, run_for_seconds, run_to_time,
-			set_fee_pool_depth, set_oracle_twap, traders_in_one_market_context, MarketConfig, get_collateral,
+			as_balance, get_collateral, multi_market_and_trader_context, run_for_seconds,
+			run_to_time, set_fee_pool_depth, set_oracle_twap, traders_in_one_market_context,
+			MarketConfig,
 		},
 	},
 	Direction, Error, Event,
