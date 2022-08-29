@@ -196,6 +196,7 @@ parameter_types! {
 impl pallet_pablo_strategy::Config for MockRuntime {
 	type Event = Event;
 	type WeightInfo = ();
+	type Convert = ConvertInto;
 	type AssetId = CurrencyId;
 	type Balance = Balance;
 	type VaultId = VaultId;
