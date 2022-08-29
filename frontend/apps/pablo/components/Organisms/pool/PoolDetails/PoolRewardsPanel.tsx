@@ -1,8 +1,8 @@
 import { BaseAsset } from "@/components/Atoms";
 import { TOKENS } from "@/defi/Tokens";
 import { useAppSelector } from "@/hooks/store";
-import { useLiquidityPoolDetails } from "@/store/hooks/useLiquidityPoolDetails";
-import { useUserProvidedLiquidityByPool } from "@/store/hooks/useUserProvidedLiquidityByPool";
+import { useLiquidityPoolDetails } from "@/defi/hooks/pools/useLiquidityPoolDetails";
+import { useUserProvidedLiquidityByPool } from "@/defi/hooks/pools/useUserProvidedLiquidityByPool";
 import {
   alpha,
   Box,

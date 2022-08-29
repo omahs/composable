@@ -1,8 +1,8 @@
 import { BondOffer, BondPrincipalAsset } from "@/defi/types";
 import { getBondPrincipalAsset } from "@/defi/utils";
-import { useAllLpTokenRewardingPools } from "@/store/hooks/useAllLpTokenRewardingPools";
 import useStore from "@/store/useStore";
 import { useMemo } from "react";
+import { useAllLpTokenRewardingPools } from "../pools/useAllLpTokenRewardingPools";
 
 export default function useBondOfferPrincipalAsset(bondOffer: BondOffer): BondPrincipalAsset {
     const {

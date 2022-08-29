@@ -5,7 +5,7 @@ import { BoxProps } from "@mui/system";
 import { DEFI_CONFIG } from "@/defi/config";
 import useStore from "@/store/useStore";
 import BigNumber from "bignumber.js";
-import { useSwapsChart } from "@/store/hooks/useSwapsChart";
+import { useSwapsChart } from "@/defi/hooks/swaps/useSwapsChart";
 import { useAsset } from "@/defi/hooks/assets/useAsset";
 import { DEFAULT_UI_FORMAT_DECIMALS } from "@/defi/utils";
 

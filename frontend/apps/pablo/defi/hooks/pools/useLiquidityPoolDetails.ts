@@ -1,13 +1,13 @@
 import { ConstantProductPool, StableSwapPool } from "@/defi/types";
-import BigNumber from "bignumber.js";
 import { useState, useEffect, useMemo } from "react";
-import { useAllLpTokenRewardingPools } from "./useAllLpTokenRewardingPools";
 import { useLiquidityByPool } from "./useLiquidityByPool";
-import { DailyRewards } from "../poolStats/poolStats.types";
 import { calculatePoolStats, fetchPoolStats } from "@/defi/utils/pablo";
-import { MockedAsset } from "../assets/assets.types";
-import { DEFAULT_NETWORK_ID, matchAssetByPicassoId } from "@/defi/utils";
-import useStore from "../useStore";
+import { matchAssetByPicassoId } from "@/defi/utils";
+import { useAllLpTokenRewardingPools } from "./useAllLpTokenRewardingPools";
+import { MockedAsset } from "@/store/assets/assets.types";
+import { DailyRewards } from "@/store/poolStats/poolStats.types";
+import BigNumber from "bignumber.js";
+import useStore from "@/store/useStore";
 
 export const useLiquidityPoolDetails = (poolId: number) => {
   const { poolStats, poolStatsValue, userLpBalances, putPoolStats, supportedAssets } = useStore();

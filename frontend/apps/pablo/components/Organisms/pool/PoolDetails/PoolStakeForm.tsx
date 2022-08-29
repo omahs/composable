@@ -8,7 +8,7 @@ import { useState } from "react";
 import BigNumber from "bignumber.js";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import { PoolDetailsProps } from "./index";
-import { useLiquidityPoolDetails } from "@/store/hooks/useLiquidityPoolDetails";
+import { useLiquidityPoolDetails } from "@/defi/hooks/pools/useLiquidityPoolDetails";
 
 export const PoolStakeForm: React.FC<PoolDetailsProps> = ({
   poolId,

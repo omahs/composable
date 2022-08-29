@@ -1,8 +1,8 @@
 import BigNumber from "bignumber.js";
 import { useMemo } from "react";
 import useStore from "@/store/useStore";
-import { useAllLpTokenRewardingPools } from "../useAllLpTokenRewardingPools";
-import { ConstantProductPool, StableSwapPool } from "@/defi/types";
+import { StableSwapPool } from "@/defi/types";
+import { useAllLpTokenRewardingPools } from "@/defi/hooks/pools/useAllLpTokenRewardingPools";
 
 export interface StableSwapPoolWithLpBalance extends StableSwapPool { lpBalance: BigNumber }
 export interface ConstantProductPoolWithLpBalance extends StableSwapPool { lpBalance: BigNumber }

@@ -1,7 +1,7 @@
 import useStore from "@/store/useStore";
 import { ConstantProductPool, StableSwapPool } from "@/defi/types";
 import { useMemo } from "react";
-import { PoolStats } from "../poolStats/poolStats.types";
+import { PoolStats } from "@/store/poolStats/poolStats.types";
 
 export const useLiquidityPoolStats = (pool: StableSwapPool | ConstantProductPool): PoolStats | undefined => {
   const { poolStats } = useStore();

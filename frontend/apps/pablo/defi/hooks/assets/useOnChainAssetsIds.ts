@@ -1,7 +1,7 @@
 import { DEFAULT_NETWORK_ID } from "@/defi/utils";
+import useStore from "@/store/useStore";
 import { useEffect, useState } from "react";
-import useStore from "../useStore";
-import { useAllLpTokenRewardingPools } from "./useAllLpTokenRewardingPools";
+import { useAllLpTokenRewardingPools } from "../pools/useAllLpTokenRewardingPools";
 
 export const useOnChainAssetIds = (): Set<string> => {
     const { supportedAssets } = useStore();

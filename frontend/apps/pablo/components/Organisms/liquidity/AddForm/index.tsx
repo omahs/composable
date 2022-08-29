@@ -22,9 +22,10 @@ import { ConfirmingSupplyModal } from "./ConfirmingSupplyModal";
 import { TransactionSettings } from "../../TransactionSettings";
 import { YourPosition } from "../YourPosition";
 import { PoolShare } from "./PoolShare";
-import { useAddLiquidityForm } from "@/store/hooks/useAddLiquidityForm";
+import { useAddLiquidityForm } from "@/defi/hooks/pools/addLiquidity/useAddLiquidityForm";
 import { DEFAULT_NETWORK_ID } from "@/defi/utils";
 import { useSnackbar } from "notistack";
+import BigNumber from "bignumber.js";
 
 export const AddLiquidityForm: React.FC<BoxProps> = ({ ...rest }) => {
   const isMobile = useMobile();
@@ -39,8 +40,8 @@ export const AddLiquidityForm: React.FC<BoxProps> = ({ ...rest }) => {
     setAmount,
     setToken,
     share,
-    assetOneAmountBn,
-    assetTwoAmountBn,
+    assetOneAmount,
+    assetTwoAmount,
     assetOne,
     assetTwo,
     balanceOne,
@@ -54,6 +55,7 @@ export const AddLiquidityForm: React.FC<BoxProps> = ({ ...rest }) => {
     lpReceiveAmount,
     needToSelectToken,
     findPoolManually,
+    spotPrice,
     pool
   } = useAddLiquidityForm();
 
@@ -106,7 +108,7 @@ export const AddLiquidityForm: React.FC<BoxProps> = ({ ...rest }) => {
           maxValue={balanceOne}
           setValid={setValid}
           noBorder
-          value={assetOneAmountBn}
+          value={assetOneAmount}
           setValue={setAmount("assetOneAmount")}
           InputProps={{
             disabled: !isValidToken1,
@@ -170,7 +172,7 @@ export const AddLiquidityForm: React.FC<BoxProps> = ({ ...rest }) => {
           maxValue={balanceTwo}
           setValid={setValid}
           noBorder
-          value={assetTwoAmountBn}
+          value={assetTwoAmount}
           setValue={setAmount("assetTwoAmount")}
           InputProps={{
             disabled: !isValidToken2,
@@ -218,8 +220,8 @@ export const AddLiquidityForm: React.FC<BoxProps> = ({ ...rest }) => {
         <PoolShare
           baseAsset={assetOne}
           quoteAsset={assetTwo}
-          price={assetOneAmountBn.div(assetTwoAmountBn)}
-          revertPrice={assetTwoAmountBn.div(assetOneAmountBn)}
+          price={spotPrice}
+          revertPrice={new BigNumber(1).div(spotPrice)}
           share={share.toNumber()}
         />
       )}
@@ -263,8 +265,8 @@ export const AddLiquidityForm: React.FC<BoxProps> = ({ ...rest }) => {
           noTitle={false}
           token1={assetOne}
           token2={assetTwo}
-          pooledAmount1={assetOneAmountBn}
-          pooledAmount2={assetTwoAmountBn}
+          pooledAmount1={assetOneAmount}
+          pooledAmount2={assetTwoAmount}
           amount={lpReceiveAmount}
           share={share}
           mt={4}
@@ -274,10 +276,10 @@ export const AddLiquidityForm: React.FC<BoxProps> = ({ ...rest }) => {
       <ConfirmSupplyModal
         pool={pool}
         lpReceiveAmount={lpReceiveAmount}
-        priceOneInTwo={assetOneAmountBn.div(assetTwoAmountBn)}
-        priceTwoInOne={assetTwoAmountBn.div(assetOneAmountBn)}
-        assetOneAmount={assetOneAmountBn}
-        assetTwoAmount={assetTwoAmountBn}
+        priceOneInTwo={spotPrice}
+        priceTwoInOne={new BigNumber(1).div(spotPrice)}
+        assetOneAmount={assetOneAmount}
+        assetTwoAmount={assetTwoAmount}
         assetOne={assetOne}
         assetTwo={assetTwo}
         share={share}
@@ -300,10 +302,10 @@ export const AddLiquidityForm: React.FC<BoxProps> = ({ ...rest }) => {
         pool={pool}
         open={isConfirmingSupplyModalOpen}
         lpReceiveAmount={lpReceiveAmount}
-        priceOneInTwo={assetOneAmountBn.div(assetTwoAmountBn)}
-        priceTwoInOne={assetTwoAmountBn.div(assetOneAmountBn)}
-        assetOneAmount={assetOneAmountBn}
-        assetTwoAmount={assetTwoAmountBn}
+        priceOneInTwo={spotPrice}
+        priceTwoInOne={new BigNumber(1).div(spotPrice)}
+        assetOneAmount={assetOneAmount}
+        assetTwoAmount={assetTwoAmount}
         assetOne={assetOne}
         assetTwo={assetTwo}
         share={share}

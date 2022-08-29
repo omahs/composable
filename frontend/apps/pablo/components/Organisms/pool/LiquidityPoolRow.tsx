@@ -1,10 +1,10 @@
 import { TableCell, TableRow, Box, Typography } from "@mui/material";
 import { ConstantProductPool, StableSwapPool } from "@/defi/types";
 import { useAsset } from "@/defi/hooks";
-import { useLiquidityByPool } from "@/store/hooks/useLiquidityByPool";
+import { useLiquidityByPool } from "@/defi/hooks/pools/useLiquidityByPool";
 import millify from "millify";
 import { PairAsset } from "@/components/Atoms";
-import { useLiquidityPoolStats } from "@/store/hooks/useLiquidityPoolStats";
+import { useLiquidityPoolStats } from "@/defi/hooks/pools/useLiquidityPoolStats";
 import { useUSDPriceByAssetId } from "@/store/assets/hooks";
 import {
   calculatePoolTotalValueLocked,

@@ -23,7 +23,7 @@ import { AuctionPriceChart } from "@/components/Organisms/auction/AuctionPriceCh
 import { useEffect, useState } from "react";
 import { DEFAULT_NETWORK_ID, fetchSpotPrice } from "@/defi/utils";
 import { useParachainApi, useSelectedAccount } from "substrate-react";
-import { useAuctionsChart } from "@/store/hooks/useAuctionsChart";
+import { useAuctionsChart } from "@/defi/hooks/auctions/useAuctionsChart";
 import moment from "moment-timezone";
 import useLiquidityBootstrappingPoolStore from "@/store/useStore";
 import { useAsset } from "@/defi/hooks/assets/useAsset";

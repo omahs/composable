@@ -1,6 +1,5 @@
 import { BondOffer, BondPrincipalAsset } from "@/defi/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useAllLpTokenRewardingPools } from "@/store/hooks/useAllLpTokenRewardingPools";
 import { MockedAsset } from "@/store/assets/assets.types";
 import {
   calculateBondROI,
@@ -14,6 +13,7 @@ import { useParachainApi } from "substrate-react";
 import { useBlockInterval } from "../useBlockInterval";
 import useStore from "@/store/useStore";
 import BigNumber from "bignumber.js";
+import { useAllLpTokenRewardingPools } from "../pools/useAllLpTokenRewardingPools";
 
 export default function useBondOffer(offerId: string) {
   const { parachainApi } = useParachainApi(DEFAULT_NETWORK_ID);

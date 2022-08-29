@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParachainApi, useSelectedAccount } from ".";
+import { useParachainApi } from "./useParachainApi";
+import { useSelectedAccount } from "./useSelectedAccount";
 import { ParachainId } from "../types";
 import { useDotSamaContext } from "./useDotSamaContext";
 

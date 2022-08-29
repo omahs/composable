@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useParachainApi } from "substrate-react";
 import { isValidAssetPair } from "@/defi/utils";
 import { useAddLiquiditySlice, setPool, setSelection } from "@/store/addLiquidity/addLiquidity.slice";
-import { useAllLpTokenRewardingPools } from "@/store/hooks/useAllLpTokenRewardingPools";
+import { useAllLpTokenRewardingPools } from "@/defi/hooks/pools/useAllLpTokenRewardingPools";
 
 /**
  * Updates zustand store with all 

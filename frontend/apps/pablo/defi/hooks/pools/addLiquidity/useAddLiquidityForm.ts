@@ -5,13 +5,13 @@ import {
 } from "@/store/addLiquidity/addLiquidity.slice";
 import { DEFAULT_NETWORK_ID } from "@/defi/utils/constants";
 import BigNumber from "bignumber.js";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParachainApi, useSelectedAccount } from "substrate-react";
-import { useLiquidityByPool } from "./useLiquidityByPool";
-import { useAssetBalance } from "../assets/hooks";
-import { fromChainUnits, toChainUnits } from "@/defi/utils";
+import { useAssetBalance } from "../../../../store/assets/hooks";
+import { fetchSpotPrice, fromChainUnits, toChainUnits } from "@/defi/utils";
 import { useAsset } from "@/defi/hooks/assets/useAsset";
 import { useFilteredAssetListDropdownOptions } from "@/defi/hooks/assets/useFilteredAssetListDropdownOptions";
+import { useLiquidityByPool } from "../useLiquidityByPool";
 
 export const useAddLiquidityForm = () => {
   const [valid, setValid] = useState<boolean>(false);
@@ -24,21 +24,35 @@ export const useAddLiquidityForm = () => {
     findPoolManually,
   } = useAddLiquiditySlice();
 
+  const [spotPrice, setSpotPrice] = useState(new BigNumber(0));
+  useEffect(() => {
+    if (parachainApi && pool) {
+      let pair = {
+        base: assetOne,
+        quote: assetTwo,
+      };
+
+      fetchSpotPrice(parachainApi, pair, pool.poolId)
+        .then(setSpotPrice)
+        .catch(console.error);
+    }
+  }, [parachainApi, pool, assetOne, assetTwo]);
+
   const _assetOne = useAsset(assetOne);
   const _assetTwo = useAsset(assetTwo);
+
+  useEffect(() => {
+    return function () {
+      setSelection({
+        assetOneAmount: new BigNumber(0),
+        assetTwoAmount: new BigNumber(0),
+      })
+    }
+  }, [])
 
   const {
     tokenAmounts: { baseAmount, quoteAmount },
   } = useLiquidityByPool(pool);
-
-  const assetOneAmountBn = useMemo(
-    () => new BigNumber(assetOneAmount),
-    [assetOneAmount]
-  );
-  const assetTwoAmountBn = useMemo(
-    () => new BigNumber(assetTwoAmount),
-    [assetTwoAmount]
-  );
 
   const assetList1 = useFilteredAssetListDropdownOptions(assetTwo);
   const assetList2 = useFilteredAssetListDropdownOptions(assetOne);
@@ -48,7 +62,7 @@ export const useAddLiquidityForm = () => {
 
   const setAmount =
     (key: "assetOneAmount" | "assetTwoAmount") => (v: BigNumber) => {
-      setSelection({ [key]: v.toString() });
+      setSelection({ [key]: v });
     };
 
   const setToken = (key: "assetOne" | "assetTwo") => (v: AssetId) => {
@@ -68,27 +82,27 @@ export const useAddLiquidityForm = () => {
     );
   };
 
-  const canSupply = () => {
-    return assetOneAmountBn.lte(balanceOne) && assetTwoAmountBn.lte(balanceTwo) && selectedAccount !== undefined;
-  };
+  const canSupply = useCallback(() => {
+    return assetOneAmount.lte(balanceOne) && assetTwoAmount.lte(balanceTwo);
+  }, [assetOneAmount, assetTwoAmount, balanceOne, balanceTwo]);
 
   useEffect(() => {
     setValid(true);
     assetOne == "none" && setValid(false);
     assetTwo == "none" && setValid(false);
 
-    new BigNumber(0).eq(assetOneAmountBn) && setValid(false);
-    new BigNumber(0).eq(assetTwoAmountBn) && setValid(false);
+    new BigNumber(0).eq(assetOneAmount) && setValid(false);
+    new BigNumber(0).eq(assetTwoAmount) && setValid(false);
 
-    balanceOne.lt(assetOneAmountBn) && setValid(false);
-    balanceTwo.lt(assetTwoAmountBn) && setValid(false);
+    balanceOne.lt(assetOneAmount) && setValid(false);
+    balanceTwo.lt(assetTwoAmount) && setValid(false);
 
     pool && pool.poolId === -1 && setValid(false);
   }, [
     assetOne,
     assetTwo,
-    assetOneAmountBn,
-    assetTwoAmountBn,
+    assetOneAmount,
+    assetTwoAmount,
     balanceOne,
     balanceTwo,
     pool,
@@ -96,7 +110,7 @@ export const useAddLiquidityForm = () => {
 
   const share = useMemo(() => {
     let netAum = new BigNumber(baseAmount).plus(quoteAmount);
-    let netUser = new BigNumber(assetOneAmountBn).plus(assetTwoAmountBn);
+    let netUser = new BigNumber(assetOneAmount).plus(assetTwoAmount);
 
     if (netAum.eq(0)) {
       return new BigNumber(100);
@@ -105,7 +119,7 @@ export const useAddLiquidityForm = () => {
         .div(new BigNumber(netAum).plus(netUser))
         .times(100);
     }
-  }, [baseAmount, quoteAmount, assetOneAmountBn, assetTwoAmountBn]);
+  }, [baseAmount, quoteAmount, assetOneAmount, assetTwoAmount]);
 
   const [lpReceiveAmount, setLpReceiveAmount] = useState(new BigNumber(0));
 
@@ -126,15 +140,17 @@ export const useAddLiquidityForm = () => {
         let b = isReverse ? pool.pair.quote.toString() : pool.pair.base.toString();
         let q = isReverse ? pool.pair.base.toString() : pool.pair.quote.toString();
 
-        // @ts-ignore
         parachainApi.rpc.pablo
           .simulateAddLiquidity(
             parachainApi.createType("AccountId32", selectedAccount.address),
             parachainApi.createType("PalletPabloPoolId", pool.poolId),
-            {
-              [b]: bnBase.toString(),
-              [q]: bnQuote.toString()
-            }
+            parachainApi.createType(
+              "BTreeMap<SafeRpcWrapper, SafeRpcWrapper>",
+              {
+                [b]: bnBase.toString(),
+                [q]: bnQuote.toString(),
+              }
+            )
           )
           .then((expectedLP: any) => {
             setLpReceiveAmount(fromChainUnits(expectedLP.toString()));
@@ -151,8 +167,8 @@ export const useAddLiquidityForm = () => {
     assetTwo: _assetTwo,
     balanceOne,
     balanceTwo,
-    assetOneAmountBn,
-    assetTwoAmountBn,
+    assetOneAmount,
+    assetTwoAmount,
     assetList1,
     assetList2,
     share,
@@ -167,6 +183,7 @@ export const useAddLiquidityForm = () => {
     invalidTokenPair,
     canSupply,
     findPoolManually,
-    pool
+    spotPrice,
+    pool,
   };
 };

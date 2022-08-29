@@ -8,7 +8,7 @@ import { ConstantProductPool, StableSwapPool } from "@/defi/types";
 import { useAsset } from "@/defi/hooks";
 import { useUSDPriceByAssetId } from "@/store/assets/hooks";
 import BigNumber from "bignumber.js";
-import { ConstantProductPoolWithLpBalance, StableSwapPoolWithLpBalance } from "@/store/hooks/overview/usePoolsWithLpBalance";
+import { ConstantProductPoolWithLpBalance, StableSwapPoolWithLpBalance } from "@/defi/hooks/overview/usePoolsWithLpBalance";
 
 const LiquidityProviderPositionRow = ({
   pool,

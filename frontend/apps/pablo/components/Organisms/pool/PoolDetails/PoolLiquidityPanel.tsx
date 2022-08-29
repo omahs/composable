@@ -12,14 +12,14 @@ import { BaseAsset } from "@/components/Atoms";
 import { BoxWrapper } from "../../BoxWrapper";
 import { useRouter } from "next/router";
 import { DonutChart } from "@/components/Atoms/DonutChart";
-import { useLiquidityPoolDetails } from "@/store/hooks/useLiquidityPoolDetails";
+import { useLiquidityPoolDetails } from "@/defi/hooks/pools/useLiquidityPoolDetails";
 import { PoolDetailsProps } from "./index";
 import { useRemoveLiquidityState } from "@/store/removeLiquidity/hooks";
 import {
   setManualPoolSearch,
   setPool,
 } from "@/store/addLiquidity/addLiquidity.slice";
-import { useUserProvidedLiquidityByPool } from "@/store/hooks/useUserProvidedLiquidityByPool";
+import { useUserProvidedLiquidityByPool } from "@/defi/hooks/pools/useUserProvidedLiquidityByPool";
 import { useUSDPriceByAssetId } from "@/store/assets/hooks";
 import { calculatePoolTotalValueLocked } from "@/defi/utils";
 

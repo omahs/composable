@@ -17,9 +17,9 @@ import React, { useEffect, useState } from "react";
 import { InfoOutlined, KeyboardArrowDown } from "@mui/icons-material";
 import { TableHeader } from "@/defi/types";
 
-import { useAllLpTokenRewardingPools } from "@/store/hooks/useAllLpTokenRewardingPools";
 import LiquidityPoolRow from "./pool/LiquidityPoolRow";
-import { usePoolsWithLpBalance } from "@/store/hooks/overview/usePoolsWithLpBalance";
+import { usePoolsWithLpBalance } from "@/defi/hooks/overview/usePoolsWithLpBalance";
+import { useAllLpTokenRewardingPools } from "@/defi/hooks/pools/useAllLpTokenRewardingPools";
 
 const tableHeaders: TableHeader[] = [
   {

@@ -13,7 +13,7 @@ import { BaseAsset } from "@/components/Atoms";
 import React from "react";
 import { TableHeader } from "@/defi/types";
 import { BoxWrapper } from "../BoxWrapper";
-import { useAssetsOverview } from "@/store/hooks/overview/useAssetsOverview";
+import { useAssetsOverview } from "@/defi/hooks/overview/useAssetsOverview";
 import { NoPositionsPlaceholder } from "./NoPositionsPlaceholder";
 import { OVERVIEW_ERRORS } from "./errors";
 

@@ -6,7 +6,7 @@ import {
   Grid,
   alpha,
 } from "@mui/material";
-import { useLiquidityPoolDetails } from "@/store/hooks/useLiquidityPoolDetails";
+import { useLiquidityPoolDetails } from "@/defi/hooks/pools/useLiquidityPoolDetails";
 import { PoolDetailsProps } from "./index";
 import { BaseAsset } from "@/components/Atoms";
 import { useUSDPriceByAssetId } from "@/store/assets/hooks";
