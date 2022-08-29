@@ -1,5 +1,5 @@
 use crate::{
-	mock::{AccountId, Call, Extrinsic, *},
+	mock::{AccountId, Call, Event, Extrinsic, *},
 	AssetInfo, Error, PrePrice, Withdraw, *,
 };
 use codec::Decode;
@@ -31,7 +31,11 @@ use composable_tests_helpers::{
 };
 use proptest::prelude::*;
 
+use composable_tests_helpers::test::{block::process_and_progress_blocks, helper::assert_no_event};
+use composable_traits::{oracle::RewardTracker, time::MS_PER_YEAR_NAIVE};
 use sp_core::H256;
+
+const UNIT: Balance = 1_000_000_000_000;
 
 prop_compose! {
 	fn asset_info()
@@ -40,8 +44,8 @@ prop_compose! {
 			max_answers in 1..MaxAnswerBound::get(),
 			block_interval in (StalePrice::get()+1)..(BlockNumber::MAX/16),
 			threshold in 0..100u8,
-			reward in 0..u64::MAX,
-			slash in 0..u64::MAX,
+			reward in 0..u128::MAX,
+			slash in 0..u128::MAX,
 		) -> AssetInfo<Percent, BlockNumber, Balance> {
 			let min_answers = max_answers.saturating_sub(min_answers) + 1;
 			let threshold: Percent = Percent::from_percent(threshold);
@@ -51,8 +55,9 @@ prop_compose! {
 				min_answers,
 				max_answers,
 				block_interval,
-				reward,
+				reward_weight: reward,
 				slash,
+				emit_price_changes: false,
 			}
 		}
 }
@@ -100,8 +105,9 @@ mod add_asset_and_info {
 					Validated::new(asset_info.min_answers).unwrap(),
 					Validated::new(asset_info.max_answers).unwrap(),
 					Validated::new(asset_info.block_interval).unwrap(),
-					asset_info.reward,
+					asset_info.reward_weight,
 					asset_info.slash,
+					asset_info.emit_price_changes,
 				));
 
 				Ok(())
@@ -124,8 +130,9 @@ mod add_asset_and_info {
 					Validated::new(asset_info_1.min_answers).unwrap(),
 					Validated::new(asset_info_1.max_answers).unwrap(),
 					Validated::new(asset_info_1.block_interval).unwrap(),
-					asset_info_1.reward,
+					asset_info_1.reward_weight,
 					asset_info_1.slash,
+					asset_info_1.emit_price_changes,
 				));
 
 				// does not increment asset_count because we have info for the same asset_id
@@ -136,8 +143,9 @@ mod add_asset_and_info {
 					Validated::new(asset_info_2.min_answers).unwrap(),
 					Validated::new(asset_info_2.max_answers).unwrap(),
 					Validated::new(asset_info_2.block_interval).unwrap(),
-					asset_info_2.reward,
+					asset_info_2.reward_weight,
 					asset_info_2.slash,
+					asset_info_2.emit_price_changes,
 				));
 				prop_assert_eq!(Oracle::assets_count(), 1);
 
@@ -163,8 +171,9 @@ mod add_asset_and_info {
 						Validated::new(asset_info.min_answers).unwrap(),
 						Validated::new(asset_info.max_answers).unwrap(),
 						Validated::new(asset_info.block_interval).unwrap(),
-						asset_info.reward,
+						asset_info.reward_weight,
 						asset_info.slash,
+						asset_info.emit_price_changes,
 					),
 					BadOrigin
 				);
@@ -190,8 +199,9 @@ mod add_asset_and_info {
 					Validated::new(asset_info_1.min_answers).unwrap(),
 					Validated::new(asset_info_1.max_answers).unwrap(),
 					Validated::new(asset_info_1.block_interval).unwrap(),
-					asset_info_1.reward,
+					asset_info_1.reward_weight,
 					asset_info_1.slash,
+					asset_info_1.emit_price_changes,
 				));
 
 				prop_assert_ok!(Oracle::add_asset_and_info(
@@ -201,8 +211,9 @@ mod add_asset_and_info {
 					Validated::new(asset_info_2.min_answers).unwrap(),
 					Validated::new(asset_info_2.max_answers).unwrap(),
 					Validated::new(asset_info_2.block_interval).unwrap(),
-					asset_info_2.reward,
+					asset_info_2.reward_weight,
 					asset_info_2.slash,
+					asset_info_2.emit_price_changes,
 				));
 
 				prop_assert_eq!(Oracle::asset_info(asset_id_1), Some(asset_info_1));
@@ -231,8 +242,9 @@ mod add_asset_and_info {
 						Validated::new(asset_info.max_answers).unwrap(),     // MIN
 						Validated::new(asset_info.min_answers - 1).unwrap(), // MAX
 						Validated::new(asset_info.block_interval).unwrap(),
-						asset_info.reward,
+						asset_info.reward_weight,
 						asset_info.slash,
+						asset_info.emit_price_changes,
 					),
 					Error::<Test>::MaxAnswersLessThanMinAnswers
 				);
@@ -240,10 +252,6 @@ mod add_asset_and_info {
 				Ok(())
 			})?;
 		}
-
-
-
-
 
 		#[test]
 		fn cannot_exceed_max_assets_count(
@@ -273,8 +281,9 @@ mod add_asset_and_info {
 					Validated::new(asset_info_1.min_answers).unwrap(),
 					Validated::new(asset_info_1.max_answers).unwrap(),
 					Validated::new(asset_info_1.block_interval).unwrap(),
-					asset_info_1.reward,
+					asset_info_1.reward_weight,
 					asset_info_1.slash,
+					asset_info_1.emit_price_changes,
 				));
 
 				prop_assert_ok!(Oracle::add_asset_and_info(
@@ -284,8 +293,9 @@ mod add_asset_and_info {
 					Validated::new(asset_info_2.min_answers).unwrap(),
 					Validated::new(asset_info_2.max_answers).unwrap(),
 					Validated::new(asset_info_2.block_interval).unwrap(),
-					asset_info_2.reward,
+					asset_info_2.reward_weight,
 					asset_info_2.slash,
+					asset_info_2.emit_price_changes,
 				));
 
 				prop_assert_eq!(Oracle::asset_info(asset_id_1), Some(asset_info_1));
@@ -300,8 +310,9 @@ mod add_asset_and_info {
 					Validated::new(asset_info_3.min_answers).unwrap(),
 					Validated::new(asset_info_3.max_answers).unwrap(),
 					Validated::new(asset_info_3.block_interval).unwrap(),
-					asset_info_3.reward,
+					asset_info_3.reward_weight,
 					asset_info_3.slash,
+					asset_info_3.emit_price_changes,
 				),
 				Error::<Test>::ExceedAssetsCount);
 
@@ -710,8 +721,9 @@ mod submit_price {
 					Validated::new(asset_info.min_answers).unwrap(),
 					Validated::new(asset_info.max_answers).unwrap(),
 					Validated::new(asset_info.block_interval).unwrap(),
-					asset_info.reward,
+					asset_info.reward_weight,
 					asset_info.slash,
+					asset_info.emit_price_changes,
 				));
 
 				let last_update = Oracle::prices(asset_id).block;
@@ -742,7 +754,8 @@ mod submit_price {
 				Validated::new(3).unwrap(),
 				Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 				5,
-				200
+				200,
+				false,
 			));
 
 			System::set_block_number(6);
@@ -773,7 +786,8 @@ fn add_price() {
 			Validated::new(3).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 
 		System::set_block_number(6);
@@ -848,7 +862,8 @@ fn submit_price_fails_stake_less_than_asset_slash() {
 			Validated::new(3).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			200
+			200,
+			false,
 		));
 
 		System::set_block_number(6);
@@ -869,8 +884,9 @@ fn halborm_test_price_manipulation() {
 		const MAX_ANSWERS: u32 = 5;
 		const THRESHOLD: Percent = Percent::from_percent(80);
 		const BLOCK_INTERVAL: u64 = 5;
-		const REWARD: u64 = 5;
-		const SLASH: u64 = 5;
+		const REWARD: u128 = 5;
+		const SLASH: u128 = 5;
+		const emit_price_changes: bool = false;
 
 		let root_account = get_root_account();
 		let account_1 = get_account_1();
@@ -878,14 +894,6 @@ fn halborm_test_price_manipulation() {
 		let account_4 = get_account_4();
 		let account_5 = get_account_5();
 
-		let asset_info = AssetInfo {
-			threshold: Percent::from_percent(80),
-			min_answers: MIN_ANSWERS,
-			max_answers: MAX_ANSWERS,
-			block_interval: BLOCK_INTERVAL,
-			reward: REWARD,
-			slash: SLASH,
-		};
 		assert_ok!(Oracle::add_asset_and_info(
 			Origin::signed(root_account),
 			ASSET_ID,
@@ -894,7 +902,8 @@ fn halborm_test_price_manipulation() {
 			Validated::new(MAX_ANSWERS).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(BLOCK_INTERVAL).unwrap(),
 			REWARD,
-			SLASH
+			SLASH,
+			emit_price_changes,
 		));
 		System::set_block_number(6);
 		assert_ok!(Oracle::set_signer(Origin::signed(account_3), account_1));
@@ -954,7 +963,8 @@ fn check_request() {
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 		System::set_block_number(6);
 		Oracle::check_requests();
@@ -980,7 +990,8 @@ fn is_requested() {
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 		System::set_block_number(6);
 		assert!(Oracle::is_requested(&0));
@@ -1004,6 +1015,11 @@ fn test_payout_slash() {
 		let account_4 = get_account_4();
 		let account_5 = get_account_5();
 		let treasury_account = get_treasury_account();
+		let mut reward_tracker = RewardTracker::default();
+		reward_tracker.start = 1;
+		reward_tracker.current_block_reward = 100;
+		reward_tracker.total_reward_weight = 82;
+		RewardTrackerStore::<Test>::set(Option::from(reward_tracker));
 		assert_ok!(Oracle::set_signer(Origin::signed(account_5), account_2));
 
 		let one = PrePrice { price: 79, block: 0, who: account_1 };
@@ -1018,11 +1034,12 @@ fn test_payout_slash() {
 			min_answers: 0,
 			max_answers: 0,
 			block_interval: 0,
-			reward: 0,
+			reward_weight: 0,
 			slash: 0,
+			emit_price_changes: false,
 		};
 		// doesn't panic when percent not set
-		Oracle::handle_payout(&vec![one, two, three, four, five], 100, 0, &asset_info);
+		assert_ok!(Oracle::handle_payout(&vec![one, two, three, four, five], 100, 0, &asset_info));
 		assert_eq!(Balances::free_balance(account_1), 100);
 
 		assert_ok!(Oracle::add_asset_and_info(
@@ -1032,9 +1049,12 @@ fn test_payout_slash() {
 			Validated::new(3).unwrap(),
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
+			18,
 			5,
-			5
+			false,
 		));
+		let reward_tracker = RewardTrackerStore::<Test>::get().unwrap();
+		assert_eq!(reward_tracker.total_reward_weight, 100);
 
 		add_price_storage(79, 0, account_1, 0);
 		add_price_storage(100, 0, account_2, 0);
@@ -1047,19 +1067,21 @@ fn test_payout_slash() {
 		assert_eq!(Oracle::answer_in_transit(account_2), Some(5));
 		assert_eq!(Balances::free_balance(treasury_account), 100);
 
-		Oracle::handle_payout(
+		assert_ok!(Oracle::handle_payout(
 			&vec![one, two, three, four, five],
 			100,
 			0,
 			&Oracle::asset_info(0).unwrap(),
-		);
+		));
 
 		assert_eq!(Oracle::answer_in_transit(account_1), Some(0));
 		assert_eq!(Oracle::answer_in_transit(account_2), Some(0));
 		// account 1 and 4 gets slashed 2 and 5 gets rewarded
 		assert_eq!(Oracle::oracle_stake(account_1), Some(0));
 		// 5 gets 2's reward and its own
-		assert_eq!(Balances::free_balance(account_5), 109);
+		let reward_tracker = RewardTrackerStore::<Test>::get().unwrap();
+		assert_eq!(reward_tracker.total_already_rewarded, 18);
+		assert_eq!(Balances::free_balance(account_5), 117);
 		assert_eq!(Balances::free_balance(account_2), 99);
 
 		assert_eq!(Balances::free_balance(account_3), 100);
@@ -1075,20 +1097,23 @@ fn test_payout_slash() {
 			Validated::new(3).unwrap(),
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
-			4,
-			5
+			18,
+			5,
+			false,
 		));
-		Oracle::handle_payout(
+		let reward_tracker = RewardTrackerStore::<Test>::get().unwrap();
+		assert_eq!(reward_tracker.total_reward_weight, 100);
+		assert_ok!(Oracle::handle_payout(
 			&vec![one, two, three, four, five],
 			100,
 			0,
 			&Oracle::asset_info(0).unwrap(),
-		);
+		));
 
 		// account 4 gets slashed 2 5 and 1 gets rewarded
 		assert_eq!(Balances::free_balance(account_1), 99);
 		// 5 gets 2's reward and its own
-		assert_eq!(Balances::free_balance(account_5), 117);
+		assert_eq!(Balances::free_balance(account_5), 135);
 		assert_eq!(Balances::free_balance(account_2), 99);
 
 		assert_eq!(Balances::free_balance(account_3), 100);
@@ -1099,6 +1124,118 @@ fn test_payout_slash() {
 }
 
 #[test]
+fn test_reset_reward_tracker_if_expired() {
+	new_test_ext().execute_with(|| {
+		let mut reward_tracker = RewardTracker::default();
+		reward_tracker.period = 1000;
+		reward_tracker.total_already_rewarded = 100000;
+		reward_tracker.start = 1;
+		reward_tracker.current_block_reward = 100;
+		reward_tracker.total_reward_weight = 50000;
+		RewardTrackerStore::<Test>::set(Option::from(reward_tracker));
+		Timestamp::set_timestamp(1001);
+		Oracle::reset_reward_tracker_if_expired();
+
+		let reward_tracker = RewardTrackerStore::<Test>::get().unwrap();
+		assert_eq!(reward_tracker.period, 1000);
+		assert_eq!(reward_tracker.total_already_rewarded, 0);
+		assert_eq!(reward_tracker.start, 1001);
+		assert_eq!(reward_tracker.current_block_reward, 100);
+		assert_eq!(reward_tracker.total_reward_weight, 50000);
+	});
+}
+
+#[test]
+fn test_adjust_rewards() {
+	new_test_ext().execute_with(|| {
+		let annual_cost_per_oracle: Balance = 100_000 * UNIT;
+		let mut num_ideal_oracles: u8 = 10;
+		const BLOCKS_PER_YEAR: u64 = MS_PER_YEAR_NAIVE / MILLISECS_PER_BLOCK;
+		Timestamp::set_timestamp(1);
+
+		// first time
+		assert_ok!(Oracle::adjust_rewards(
+			Origin::root(),
+			annual_cost_per_oracle,
+			num_ideal_oracles
+		));
+		assert_reward_tracker(
+			annual_cost_per_oracle,
+			num_ideal_oracles,
+			BLOCKS_PER_YEAR as Balance,
+		);
+
+		// second time after quarter of the year has passed. Increase the ideal number of Oracles.
+		// Rewards have not been issued yet so the .
+		Timestamp::set_timestamp(MS_PER_YEAR_NAIVE / 4);
+		num_ideal_oracles = 12;
+		assert_ok!(Oracle::adjust_rewards(
+			Origin::root(),
+			annual_cost_per_oracle,
+			num_ideal_oracles
+		));
+		let remaining_blocks_per_year = (BLOCKS_PER_YEAR * 3 / 4) as Balance;
+		assert_reward_tracker(annual_cost_per_oracle, num_ideal_oracles, remaining_blocks_per_year);
+
+		// third time after half of the year has passed. Decrease the ideal number of Oracles.
+		// set the total already rewarded to be half of the annual reward.
+		Timestamp::set_timestamp(MS_PER_YEAR_NAIVE / 2);
+		num_ideal_oracles = 10;
+		let mut reward_tracker = Oracle::reward_tracker_store().unwrap();
+		reward_tracker.total_already_rewarded =
+			annual_cost_per_oracle * (num_ideal_oracles as Balance) / 2;
+		RewardTrackerStore::<Test>::set(Option::from(reward_tracker));
+		assert_ok!(Oracle::adjust_rewards(
+			Origin::root(),
+			annual_cost_per_oracle,
+			num_ideal_oracles
+		));
+		let remaining_blocks_per_year = (BLOCKS_PER_YEAR / 2) as Balance;
+		// dividing the annual cost per oracle by 2 because the total already rewarded is half of
+		// the annual cost per oracle.
+		assert_reward_tracker(
+			annual_cost_per_oracle / 2,
+			num_ideal_oracles,
+			remaining_blocks_per_year,
+		);
+
+		// fourth time after a year and a half has passed. Increase the ideal number of Oracles.
+		// set the total already rewarded to be half the annual cost per oracle.
+		Timestamp::set_timestamp(MS_PER_YEAR_NAIVE * 3 / 2);
+		num_ideal_oracles = 20;
+		let mut reward_tracker = Oracle::reward_tracker_store().unwrap();
+		reward_tracker.total_already_rewarded =
+			annual_cost_per_oracle * (num_ideal_oracles as Balance) / 2;
+		RewardTrackerStore::<Test>::set(Option::from(reward_tracker));
+		assert_ok!(Oracle::adjust_rewards(
+			Origin::root(),
+			annual_cost_per_oracle,
+			num_ideal_oracles
+		));
+		let remaining_blocks_per_year = (BLOCKS_PER_YEAR / 2) as Balance;
+		// dividing the annual cost per oracle by 2 because the total already rewarded is half of
+		// the annual cost per oracle.
+		assert_reward_tracker(
+			annual_cost_per_oracle / 2,
+			num_ideal_oracles,
+			remaining_blocks_per_year,
+		);
+	});
+}
+
+fn assert_reward_tracker(
+	annual_cost_per_oracle: Balance,
+	num_ideal_oracles: u8,
+	remaining_blocks_per_year: Balance,
+) {
+	let reward_tracker = Oracle::reward_tracker_store().unwrap();
+	assert_eq!(
+		reward_tracker.current_block_reward,
+		annual_cost_per_oracle * (num_ideal_oracles as Balance) / remaining_blocks_per_year
+	);
+}
+
+#[test]
 fn halborn_test_bypass_slashing() {
 	new_test_ext().execute_with(|| {
 		const ASSET_ID: u128 = 0;
@@ -1106,9 +1243,17 @@ fn halborn_test_bypass_slashing() {
 		const MAX_ANSWERS: u32 = 5;
 		const THRESHOLD: Percent = Percent::from_percent(80);
 		const BLOCK_INTERVAL: u64 = 5;
-		const REWARD: u64 = 5;
-		const SLASH: u64 = 5;
+		const REWARD: u128 = 5;
+		const SLASH: u128 = 5;
+		const emit_price_changes: bool = false;
+		Timestamp::set_timestamp(10);
+		let mut reward_tracker = RewardTracker::default();
+		reward_tracker.start = 1;
+		reward_tracker.current_block_reward = 100;
+		reward_tracker.total_reward_weight = 100;
+		RewardTrackerStore::<Test>::set(Option::from(reward_tracker));
 
+		//assert_ok!(Oracle::set_reward_rate(Origin::root(), REWARD_RATE));
 		let account_1 = get_account_1();
 		let account_2 = get_root_account();
 		let account_4 = get_account_4();
@@ -1123,7 +1268,8 @@ fn halborn_test_bypass_slashing() {
 			Validated::new(MAX_ANSWERS).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(BLOCK_INTERVAL).unwrap(),
 			REWARD,
-			SLASH
+			SLASH,
+			emit_price_changes,
 		));
 
 		let balance1 = Balances::free_balance(account_1);
@@ -1192,9 +1338,9 @@ fn halborn_test_bypass_slashing() {
 		println!("TreasuryAccount Balance: {}", balance_treasury);
 		// account4 (signer) with controller account5 has reported skewed price.
 		// So account5 's stake is slashed and slashed amount is transferred to treasury_account
-		assert_eq!(balance5, 95_u64);
-		assert_eq!(balance_treasury, 105_u64);
-		assert_eq!(Balances::free_balance(account_1), 54);
+		assert_eq!(balance5, 95_u128);
+		assert_eq!(balance_treasury, 105_u128);
+		assert_eq!(Balances::free_balance(account_1), 51);
 		assert_eq!(Balances::free_balance(account_4), 0);
 	});
 }
@@ -1218,7 +1364,8 @@ fn on_init() {
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 		// set prices into storage
 		let account_1 = get_account_1();
@@ -1248,6 +1395,66 @@ fn on_init() {
 }
 
 #[test]
+fn update_price() {
+	new_test_ext().execute_with(|| {
+		let account_2 = get_root_account();
+		let account_1 = get_account_1();
+
+		// Add KSM info.
+		assert_ok!(Oracle::add_asset_and_info(
+			Origin::signed(account_2),
+			4, // KSM
+			Validated::new(Percent::from_percent(80)).unwrap(),
+			Validated::new(3).unwrap(),
+			Validated::new(5).unwrap(),
+			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
+			5,
+			5,
+			false, // do not emit PriceChange event
+		));
+
+		// Update price for KSM.
+		do_price_update(4, 2);
+
+		// `PriceChanged` Event should NOT be emitted.
+		assert_no_event::<Test>(Event::Oracle(crate::Event::PriceChanged(0, 101)));
+
+		// Add PICA info.
+		assert_ok!(Oracle::add_asset_and_info(
+			Origin::signed(account_2),
+			1, // PICA
+			Validated::new(Percent::from_percent(80)).unwrap(),
+			Validated::new(3).unwrap(),
+			Validated::new(5).unwrap(),
+			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
+			5,
+			5,
+			true, // emit PriceChange event
+		));
+
+		// Update price for PICA.
+		do_price_update(1, 3);
+
+		// `PriceChanged` Event should be emitted.
+		System::assert_has_event(Event::Oracle(crate::Event::PriceChanged(1, 101)));
+
+		// Set series of EQUAL prices for PICA into storage.
+		//				 -----
+		for _ in 0..3 {
+			let price = 100_u128;
+			add_price_storage(price, 1, account_1, 2);
+		}
+
+		// Process next block
+		process_and_progress_blocks::<Oracle, Test>(1);
+
+		// `PriceChanged` event for last price (100) should NOT be emitted, as prices didn't
+		// change
+		assert_no_event::<Test>(Event::Oracle(crate::Event::PriceChanged(1, 100)));
+	});
+}
+
+#[test]
 fn historic_pricing() {
 	new_test_ext().execute_with(|| {
 		// add and request oracle id
@@ -1260,7 +1467,8 @@ fn historic_pricing() {
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 
 		let mut price_history = vec![];
@@ -1387,7 +1595,8 @@ fn get_twap() {
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 
 		let asset_id = 0;
@@ -1423,7 +1632,8 @@ fn get_twap_for_amount() {
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 		let block = 26;
 		let account_1 = get_account_1();
@@ -1461,7 +1671,8 @@ fn on_init_prune_scenerios() {
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false
 		));
 		// set prices into storage
 		let account_1 = get_account_1();
@@ -1521,7 +1732,8 @@ fn on_init_over_max_answers() {
 			Validated::new(2).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 		// set prices into storage
 		let account_1 = get_account_1();
@@ -1551,8 +1763,9 @@ fn prune_old_pre_prices_edgecase() {
 			min_answers: 3,
 			max_answers: 5,
 			block_interval: 5,
-			reward: 5,
+			reward_weight: 5,
 			slash: 5,
+			emit_price_changes: false,
 		};
 		Oracle::prune_old_pre_prices(&asset_info, vec![], 0);
 	});
@@ -1623,7 +1836,8 @@ fn should_submit_signed_transaction_on_chain() {
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 
 		// when
@@ -1654,7 +1868,8 @@ fn should_check_oracles_submitted_price() {
 			Validated::new(5).unwrap(),
 			Validated::<BlockNumber, ValidBlockInterval<StalePrice>>::new(5).unwrap(),
 			5,
-			5
+			5,
+			false,
 		));
 
 		add_price_storage(100_u128, 0, oracle_account_id, 0);
@@ -1672,8 +1887,9 @@ fn should_check_oracles_max_answer() {
 		min_answers: 0,
 		max_answers: 0,
 		block_interval: 0,
-		reward: 0,
+		reward_weight: 0,
 		slash: 0,
+		emit_price_changes: false,
 	};
 	t.execute_with(|| {
 		Oracle::fetch_price_and_send_signed(&0, asset_info).unwrap();

@@ -227,19 +227,21 @@ pub fn client_type_from_bytes(client_type: Vec<u8>) -> Result<ClientType, Error>
 		.map_err(|_| Error::DecodingError)
 }
 
-/// Get trie key by applying the commitment prefix to the path and scale encoding the result
-pub fn apply_prefix_and_encode(prefix: &[u8], path: Vec<String>) -> Result<Vec<u8>, Error> {
-	let mut key_path = vec![prefix];
-	let path = path.iter().map(|val| val.as_bytes()).collect::<Vec<_>>();
+/// Get trie key by applying the commitment prefix to the path
+pub fn apply_prefix(prefix: &[u8], path: Vec<String>) -> Vec<u8> {
+	let mut key_path = prefix.to_vec();
+	let path = path.iter().flat_map(|val| val.as_bytes()).collect::<Vec<_>>();
 	key_path.extend(path);
-	Ok(key_path.encode())
+	key_path
 }
 
 pub fn ibc_denom_to_foreign_asset_id(denom: &str) -> XcmAssetLocation {
 	let hash = sp_io::hashing::sha2_256(denom.as_bytes()).to_vec();
 	XcmAssetLocation::new(MultiLocation {
 		parents: 0,
-		interior: Junctions::X1(Junction::GeneralKey(hash)),
+		interior: Junctions::X1(Junction::GeneralKey(
+			frame_support::storage::weak_bounded_vec::WeakBoundedVec::force_from(hash, None),
+		)),
 	})
 }
 

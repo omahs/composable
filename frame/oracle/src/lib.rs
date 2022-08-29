@@ -40,12 +40,13 @@ pub mod pallet {
 				start_at::ZeroInit,
 			},
 		},
-		math::safe::SafeDiv,
+		math::safe::{safe_multiply_by_rational, SafeDiv},
 		validation::Validated,
 	};
 	use composable_traits::{
-		currency::LocalAssets,
-		oracle::{Oracle, Price},
+		currency::{BalanceLike, LocalAssets},
+		oracle::{Oracle, Price, RewardTracker},
+		time::MS_PER_YEAR_NAIVE,
 	};
 	use frame_support::{
 		dispatch::{DispatchResult, DispatchResultWithPostInfo},
@@ -53,9 +54,11 @@ pub mod pallet {
 		traits::{
 			BalanceStatus, Currency, EnsureOrigin,
 			ExistenceRequirement::{AllowDeath, KeepAlive},
-			ReservableCurrency,
+			ReservableCurrency, Time,
 		},
+		transactional,
 		weights::{DispatchClass::Operational, Pays},
+		PalletId,
 	};
 	use frame_system::{
 		offchain::{
@@ -63,22 +66,22 @@ pub mod pallet {
 			SigningTypes,
 		},
 		pallet_prelude::*,
-		Config as SystemConfig,
 	};
 	use lite_json::json::JsonValue;
 	use scale_info::TypeInfo;
 	use sp_core::crypto::KeyTypeId;
 	use sp_runtime::{
-		helpers_128bit::multiply_by_rational,
 		offchain::{http, Duration},
 		traits::{
-			AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, Saturating,
-			UniqueSaturatedInto as _, Zero,
+			AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub,
+			Saturating, UniqueSaturatedInto as _, Zero,
 		},
 		AccountId32, ArithmeticError, FixedPointNumber, FixedU128, KeyTypeId as CryptoKeyTypeId,
 		PerThing, Percent, RuntimeDebug,
 	};
-	use sp_std::{borrow::ToOwned, fmt::Debug, str, vec, vec::Vec};
+	use sp_std::{
+		borrow::ToOwned, collections::btree_set::BTreeSet, fmt::Debug, str, vec, vec::Vec,
+	};
 
 	// Key Id for location of signer key in keystore
 	pub const KEY_ID: [u8; 4] = *b"orac";
@@ -118,8 +121,9 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: CreateSignedTransaction<Call<Self>> + frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type Balance: BalanceLike + From<u128>;
 		/// The currency mechanism.
-		type Currency: ReservableCurrency<Self::AccountId>;
+		type Currency: ReservableCurrency<Self::AccountId, Balance = Self::Balance>;
 		type AssetId: FullCodec
 			+ Eq
 			+ PartialEq
@@ -154,6 +158,8 @@ pub mod pallet {
 		type StalePrice: Get<Self::BlockNumber>;
 		/// Origin to add new price types
 		type AddOracle: EnsureOrigin<Self::Origin>;
+		/// Origin to manage rewards
+		type RewardOrigin: EnsureOrigin<Self::Origin>;
 		/// Upper bound for max answers for a price
 		type MaxAnswerBound: Get<u32>;
 		/// Upper bound for total assets available for the oracle
@@ -170,18 +176,32 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxPrePrices: Get<u32>;
 
+		#[pallet::constant]
+		type MsPerBlock: Get<u64>;
+
 		/// The weight information of this pallet.
 		type WeightInfo: WeightInfo;
 		type LocalAssets: LocalAssets<Self::AssetId>;
+
+		/// Type for timestamps
+		type Moment: AtLeast32Bit + Parameter + Default + Copy + MaxEncodedLen + FullCodec;
+
+		/// The time provider.
+		type Time: Time<Moment = Self::Moment>;
+
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
 	}
 
-	#[derive(Encode, Decode, MaxEncodedLen, Default, Debug, PartialEq, TypeInfo, Clone)]
+	#[derive(Encode, Decode, MaxEncodedLen, Default, Debug, PartialEq, Eq, TypeInfo, Clone)]
 	pub struct Withdraw<Balance, BlockNumber> {
 		pub stake: Balance,
 		pub unlock_block: BlockNumber,
 	}
 
-	#[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Default, Debug, PartialEq, TypeInfo)]
+	#[derive(
+		Encode, Decode, MaxEncodedLen, Clone, Copy, Default, Debug, PartialEq, Eq, TypeInfo,
+	)]
 	pub struct PrePrice<PriceValue, BlockNumber, AccountId> {
 		/// The price of an asset, normalized to 12 decimals.
 		pub price: PriceValue,
@@ -191,18 +211,19 @@ pub mod pallet {
 		pub who: AccountId,
 	}
 
-	#[derive(Encode, Decode, MaxEncodedLen, Default, Debug, PartialEq, Clone, TypeInfo)]
+	#[derive(Encode, Decode, MaxEncodedLen, Default, Debug, PartialEq, Eq, Clone, TypeInfo)]
 	pub struct AssetInfo<Percent, BlockNumber, Balance> {
 		pub threshold: Percent,
 		pub min_answers: u32,
 		pub max_answers: u32,
 		pub block_interval: BlockNumber,
-		pub reward: Balance,
+		/// Reward allocation weight for this asset type out of the total block reward.
+		pub reward_weight: Balance,
 		pub slash: Balance,
+		pub emit_price_changes: bool,
 	}
 
-	type BalanceOf<T> =
-		<<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
+	type BalanceOf<T> = <T as Config>::Balance;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -215,6 +236,13 @@ pub mod pallet {
 	// TODO: Replace SafeIncrement with IncrementToMax
 	pub type AssetsCount<T: Config> =
 		StorageValue<_, u32, ValueQuery, Nonce<ZeroInit, SafeIncrement>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn reward_tracker_store)]
+	#[allow(clippy::disallowed_types)]
+	/// Rewarding history for Oracles. Used for calculating the current block reward.
+	pub type RewardTrackerStore<T: Config> =
+		StorageValue<_, RewardTracker<BalanceOf<T>, T::Moment>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn signer_to_controller)]
@@ -314,9 +342,13 @@ pub mod pallet {
 		/// Oracle slashed. \[oracle_address, asset_id, amount\]
 		UserSlashed(T::AccountId, T::AssetId, BalanceOf<T>),
 		/// Oracle rewarded. \[oracle_address, asset_id, price\]
-		UserRewarded(T::AccountId, T::AssetId, BalanceOf<T>),
+		OracleRewarded(T::AccountId, T::AssetId, BalanceOf<T>),
+		/// Rewarding Started \[rewarding start timestamp]
+		RewardingAdjustment(T::Moment),
 		/// Answer from oracle removed for staleness. \[oracle_address, price\]
 		AnswerPruned(T::AccountId, T::PriceValue),
+		/// Price changed by oracle \[asset_id, price\]
+		PriceChanged(T::AssetId, T::PriceValue),
 	}
 
 	#[pallet::error]
@@ -367,6 +399,8 @@ pub mod pallet {
 		PriceNotFound,
 		/// Stake exceeded
 		ExceedStake,
+		/// Price weight must sum to 100
+		MustSumTo100,
 		/// Too many weighted averages requested
 		DepthTooLarge,
 		ArithmeticError,
@@ -376,11 +410,16 @@ pub mod pallet {
 		TransferError,
 		MaxHistory,
 		MaxPrePrices,
+		/// Rewarding has not started
+		NoRewardTrackerSet,
+		/// Annual rewarding cost too high
+		AnnualRewardLessThanAlreadyRewarded,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(block: T::BlockNumber) -> Weight {
+			Self::reset_reward_tracker_if_expired();
 			Self::update_prices(block)
 		}
 
@@ -391,8 +430,8 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Oracle for Pallet<T> {
-		type Balance = T::PriceValue;
 		type AssetId = T::AssetId;
+		type Balance = T::PriceValue;
 		type Timestamp = <T as frame_system::Config>::BlockNumber;
 		type LocalAssets = T::LocalAssets;
 		type MaxAnswerBound = T::MaxAnswerBound;
@@ -459,7 +498,7 @@ pub mod pallet {
 			let asset_price_per_unit: u128 = Self::get_price(asset_id, unit)?.price.into();
 
 			let amount: u128 = amount.into();
-			let result = multiply_by_rational(amount, unit.into(), asset_price_per_unit)?;
+			let result = safe_multiply_by_rational(amount, unit.into(), asset_price_per_unit)?;
 			let result: u64 = result.try_into().map_err(|_| ArithmeticError::Overflow)?;
 
 			Ok(result.into())
@@ -477,6 +516,7 @@ pub mod pallet {
 		/// - `block_interval`: blocks until oracle triggered
 		/// - `reward`: reward amount for correct answer
 		/// - `slash`: slash amount for bad answer
+		/// - `emit_price_changes`: emit PriceChanged event when asset price changes
 		///
 		/// Emits `DepositEvent` event when successful.
 		#[pallet::weight(T::WeightInfo::add_asset_and_info())]
@@ -487,8 +527,9 @@ pub mod pallet {
 			min_answers: Validated<u32, ValidMinAnswers>,
 			max_answers: Validated<u32, ValidMaxAnswer<T::MaxAnswerBound>>,
 			block_interval: Validated<T::BlockNumber, ValidBlockInterval<T::StalePrice>>,
-			reward: BalanceOf<T>,
+			reward_weight: BalanceOf<T>,
 			slash: BalanceOf<T>,
+			emit_price_changes: bool,
 		) -> DispatchResultWithPostInfo {
 			T::AddOracle::ensure_origin(origin)?;
 
@@ -504,14 +545,21 @@ pub mod pallet {
 				min_answers: *min_answers,
 				max_answers: *max_answers,
 				block_interval: *block_interval,
-				reward,
+				reward_weight,
 				slash,
+				emit_price_changes,
 			};
-
-			let current_asset_info = Self::asset_info(asset_id);
-			if current_asset_info.is_none() {
+			// track reward total weight for all assets
+			let mut reward_tracker = RewardTrackerStore::<T>::get().unwrap_or_default();
+			if let Some(current_asset_info) = Self::asset_info(asset_id) {
+				reward_tracker.total_reward_weight = reward_tracker.total_reward_weight +
+					reward_weight - current_asset_info
+					.reward_weight;
+			} else {
 				AssetsCount::<T>::increment()?;
+				reward_tracker.total_reward_weight += reward_weight;
 			}
+			RewardTrackerStore::<T>::set(Option::from(reward_tracker));
 
 			AssetsInfo::<T>::insert(asset_id, asset_info);
 			Self::deposit_event(Event::AssetInfoChange(
@@ -520,7 +568,7 @@ pub mod pallet {
 				*min_answers,
 				*max_answers,
 				*block_interval,
-				reward,
+				reward_weight,
 				slash,
 			));
 			Ok(().into())
@@ -549,6 +597,48 @@ pub mod pallet {
 			SignerToController::<T>::insert(signer.clone(), who.clone());
 
 			Self::deposit_event(Event::SignerSet(signer, who));
+			Ok(().into())
+		}
+
+		/// Call to start rewarding Oracles.
+		/// - `annual_cost_per_oracle`: Annual cost of an Oracle.
+		/// - `num_ideal_oracles`: Number of ideal Oracles. This in fact should be higher than the
+		///   actual ideal number so that the Oracles make a profit under ideal conditions.
+		///
+		/// Emits `RewardRateSet` event when successful.
+		#[pallet::weight(T::WeightInfo::adjust_rewards())]
+		pub fn adjust_rewards(
+			origin: OriginFor<T>,
+			annual_cost_per_oracle: BalanceOf<T>,
+			num_ideal_oracles: u8,
+		) -> DispatchResultWithPostInfo {
+			T::RewardOrigin::ensure_origin(origin)?;
+			let now = T::Time::now();
+			let period: T::Moment = MS_PER_YEAR_NAIVE.unique_saturated_into();
+			let mut reward_tracker = RewardTrackerStore::<T>::get().unwrap_or_default();
+			if reward_tracker.start == Zero::zero() {
+				reward_tracker.start = now;
+				reward_tracker.period = period;
+			}
+			// calculate the current block reward by dividing the total possible reward by the
+			// remaining number of blocks in the year.
+			let elapsed_period = (now - reward_tracker.start) % period;
+			let period_left: u64 = (period - elapsed_period).unique_saturated_into();
+			let remaining_blocks_in_year: T::Balance = period_left
+				.checked_div(T::MsPerBlock::get())
+				.ok_or(ArithmeticError::DivisionByZero)?
+				.unique_saturated_into();
+			let new_annual_reward = annual_cost_per_oracle.saturating_mul(num_ideal_oracles.into());
+			ensure!(
+				new_annual_reward > reward_tracker.total_already_rewarded,
+				Error::<T>::AnnualRewardLessThanAlreadyRewarded
+			);
+			reward_tracker.current_block_reward = (new_annual_reward -
+				reward_tracker.total_already_rewarded)
+				.checked_div(&remaining_blocks_in_year)
+				.ok_or(ArithmeticError::Overflow)?;
+			RewardTrackerStore::<T>::set(Option::from(reward_tracker));
+			Self::deposit_event(Event::RewardingAdjustment(T::Time::now()));
 			Ok(().into())
 		}
 
@@ -701,8 +791,11 @@ pub mod pallet {
 			price: T::PriceValue,
 			asset_id: T::AssetId,
 			asset_info: &AssetInfo<Percent, T::BlockNumber, BalanceOf<T>>,
-		) {
+		) -> DispatchResult {
+			let mut rewarded_oracles = BTreeSet::new();
 			for answer in pre_prices {
+				// TODO vim: duplicated code could be refactored to do these accuracy calculations
+				// once
 				let accuracy: Percent = if answer.price < price {
 					PerThing::from_rational(answer.price, price)
 				} else {
@@ -737,22 +830,78 @@ pub mod pallet {
 						slash_amount,
 					));
 				} else {
-					let reward_amount = asset_info.reward;
 					let controller = SignerToController::<T>::get(&answer.who)
 						.unwrap_or_else(|| answer.who.clone());
-
-					let result = T::Currency::deposit_into_existing(&controller, reward_amount);
-					if result.is_err() {
-						log::warn!("Failed to deposit {:?}", controller);
-					}
-					Self::deposit_event(Event::UserRewarded(
-						answer.who.clone(),
-						asset_id,
-						reward_amount,
-					));
-				};
+					rewarded_oracles.insert((answer.who.clone(), controller.clone()));
+				}
 				Self::remove_price_in_transit(&answer.who, asset_info)
 			}
+			if let Some(mut reward_tracker) = Self::get_reward_tracker_if_enabled() {
+				// divide the per asset reward(by weight) by the number of oracles
+				let reward_amount_per_oracle: T::Balance = safe_multiply_by_rational(
+					reward_tracker.current_block_reward.unique_saturated_into(),
+					asset_info.reward_weight.unique_saturated_into(),
+					reward_tracker.total_reward_weight.unique_saturated_into(),
+				)?
+				.checked_div(rewarded_oracles.len() as u128)
+				.ok_or(ArithmeticError::DivisionByZero)?
+				.into();
+				if !reward_amount_per_oracle.is_zero() {
+					for accounts in rewarded_oracles {
+						Self::transfer_reward(
+							accounts.0,
+							accounts.1,
+							asset_id,
+							reward_amount_per_oracle,
+						);
+						// track the total being rewarded
+						reward_tracker.total_already_rewarded = reward_tracker
+							.total_already_rewarded
+							.saturating_add(reward_amount_per_oracle);
+					}
+					RewardTrackerStore::<T>::mutate(|r| *r = Some(reward_tracker));
+				}
+			} else {
+				log::warn!("Oracle rewarding not enabled");
+			}
+			Ok(())
+		}
+
+		fn get_reward_tracker_if_enabled(
+		) -> Option<RewardTracker<<T as Config>::Balance, <T as Config>::Moment>> {
+			RewardTrackerStore::<T>::get().and_then(|r| {
+				if r.start != Zero::zero() {
+					Some(r)
+				} else {
+					None
+				}
+			})
+		}
+
+		fn transfer_reward(
+			who: T::AccountId,
+			controller: T::AccountId,
+			asset_id: T::AssetId,
+			reward_amount: BalanceOf<T>,
+		) {
+			let result = T::Currency::deposit_into_existing(&controller, reward_amount);
+			if result.is_err() {
+				log::warn!("Failed to deposit {:?}", controller);
+			}
+			Self::deposit_event(Event::OracleRewarded(who, asset_id, reward_amount));
+		}
+
+		pub fn reset_reward_tracker_if_expired() {
+			RewardTrackerStore::<T>::mutate(|reward_tracker_opt| match reward_tracker_opt {
+				Some(reward_tracker) => {
+					let now = T::Time::now();
+					if now - reward_tracker.start >= reward_tracker.period {
+						reward_tracker.start = now;
+						reward_tracker.total_already_rewarded = Zero::zero();
+					}
+				},
+				None => {},
+			});
 		}
 
 		pub fn update_prices(block: T::BlockNumber) -> Weight {
@@ -810,6 +959,7 @@ pub mod pallet {
 			Ok((prev_pre_prices_len - pre_prices.len(), pre_prices))
 		}
 
+		#[transactional]
 		pub fn update_price(
 			asset_id: T::AssetId,
 			asset_info: AssetInfo<Percent, T::BlockNumber, BalanceOf<T>>,
@@ -821,6 +971,11 @@ pub mod pallet {
 			// (type of AssetsInfo::<T>::get(asset_id).max_answers).
 			if pre_prices.len() as u32 >= asset_info.min_answers {
 				if let Some(price) = Self::calculate_price(&pre_prices, &asset_info) {
+					let last_price = match pre_prices.last() {
+						Some(pre_price) => pre_price.price,
+						_ => Zero::zero(),
+					};
+
 					Prices::<T>::insert(asset_id, Price { price, block });
 					PriceHistory::<T>::try_mutate(asset_id, |prices| -> DispatchResult {
 						if prices.len() as u32 >= T::MaxHistory::get() {
@@ -835,7 +990,12 @@ pub mod pallet {
 					})?;
 					PrePrices::<T>::remove(asset_id);
 
-					Self::handle_payout(&pre_prices, price, asset_id, &asset_info);
+					Self::handle_payout(&pre_prices, price, asset_id, &asset_info)?;
+
+					// Emit `PriceChanged` event when prices have changed, if required.
+					if price != last_price && asset_info.emit_price_changes {
+						Self::deposit_event(Event::PriceChanged(asset_id, price));
+					}
 				}
 			}
 			Ok(())
@@ -1020,9 +1180,7 @@ pub mod pallet {
 			amount: T::PriceValue,
 		) -> Result<T::PriceValue, DispatchError> {
 			let unit = <Self as Oracle>::LocalAssets::unit(asset_id)?;
-			// dbg!(&unit);
-			// dbg!(&amount);
-			let price = multiply_by_rational(price.into(), amount.into(), unit)?;
+			let price = safe_multiply_by_rational(price.into(), amount.into(), unit)?;
 			Ok(price.into())
 		}
 
