@@ -129,8 +129,7 @@ fn get_collateral(account_id: AccountId) -> Balance {
 }
 
 fn get_position(account_id: &AccountId, market_id: &MarketId) -> Option<Position> {
-	let positions = TestPallet::get_positions(account_id);
-	positions.into_iter().find(|p| p.market_id == *market_id)
+	helpers::get_position::<Runtime>(account_id, market_id)
 }
 
 fn get_outstanding_profits(account_id: AccountId) -> Balance {

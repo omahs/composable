@@ -7,7 +7,7 @@ use crate::{
 	},
 	tests::helpers,
 	Direction::{Long, Short},
-	Error, Event, Market, MarketConfig as MarketConfigGeneric,
+	Error, Event, Market, MarketConfig as MarketConfigGeneric, Position
 };
 
 use composable_support::validation::Validated;
@@ -125,8 +125,23 @@ fn get_market_fee_pool(market_id: MarketId) -> Balance {
 	helpers::get_market_fee_pool::<Runtime>(market_id)
 }
 
+fn get_insurance_acc_balance() -> Balance {
+	helpers::get_insurance_acc_balance::<Runtime>()
+}
+
 fn get_vamm(vamm_id: &VammId) -> VammStateOf<Runtime> {
 	Vamm::get_vamm(vamm_id).unwrap()
+}
+
+fn get_position(account_id: &AccountId, market_id: &MarketId) -> Position<Runtime> {
+	helpers::get_position::<Runtime>(account_id, market_id).unwrap()
+}
+
+fn get_unrealized_pnl(account_id: &AccountId, market_id: &MarketId) -> Decimal {
+	let market = get_market(market_id);
+	let position = get_position(account_id, market_id);
+	let (_, pnl) = TestPallet::abs_position_notional_and_pnl(&market, &position, position.direction().unwrap()).unwrap();
+	pnl
 }
 
 fn set_maximum_oracle_mark_divergence(fraction: Decimal) {
@@ -779,9 +794,12 @@ mod liquidate {
 
 	#[test]
 	fn should_liquidate_if_below_partial_margin_ratio_by_pnl() {
+		let alice_col = UNIT * 10;
+		let bob_col = UNIT * 1_000;
+
 		ExtBuilder {
 			native_balances: vec![(ALICE, UNIT), (BOB, UNIT)],
-			balances: vec![(ALICE, USDC, UNIT * 10), (BOB, USDC, UNIT * 1_000_000)],
+			balances: vec![(ALICE, USDC, alice_col), (BOB, USDC, bob_col)],
 			..Default::default()
 		}
 		.build()
@@ -807,8 +825,8 @@ mod liquidate {
 			};
 			assert_ok!(TestPallet::create_market(Origin::signed(ALICE), config));
 
-			assert_ok!(TestPallet::deposit_collateral(Origin::signed(ALICE), USDC, UNIT * 10));
-			assert_ok!(TestPallet::deposit_collateral(Origin::signed(BOB), USDC, UNIT * 10_000));
+			assert_ok!(TestPallet::deposit_collateral(Origin::signed(ALICE), USDC, alice_col));
+			assert_ok!(TestPallet::deposit_collateral(Origin::signed(BOB), USDC, bob_col));
 
 			let market_id = Zero::zero();
 
@@ -817,7 +835,7 @@ mod liquidate {
 				Origin::signed(ALICE),
 				market_id,
 				Long,
-				UNIT * 100,
+				alice_col * 10,
 				0
 			));
 
@@ -827,11 +845,16 @@ mod liquidate {
 				Origin::signed(BOB),
 				market_id,
 				Short,
-				UNIT * 10_000,
+				bob_col,
 				Balance::MAX
 			));
 
+			let unrealized_pnl = get_unrealized_pnl(&ALICE, &market_id);
+			assert!(unrealized_pnl < Zero::zero());
+
 			assert_ok!(TestPallet::liquidate(Origin::signed(BOB), ALICE));
+			assert!(get_collateral(&BOB) > bob_col);
+			assert!(get_insurance_acc_balance() > Zero::zero());
 		})
 	}
 

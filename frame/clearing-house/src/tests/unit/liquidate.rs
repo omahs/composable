@@ -1,10 +1,9 @@
 use crate::{
 	mock::{
-		assets::USDC,
 		unit::{
 			accounts::{ALICE, BOB},
 			runtime::{
-				Assets as AssetsPallet, Balance, Origin, Runtime, System as SystemPallet,
+				Balance, Origin, Runtime, System as SystemPallet,
 				TestPallet, Vamm as VammPallet,
 			},
 		},
@@ -14,14 +13,14 @@ use crate::{
 		helpers,
 		unit::{
 			as_balance, multi_market_and_trader_context, run_for_seconds, run_to_time,
-			set_fee_pool_depth, set_oracle_twap, traders_in_one_market_context, MarketConfig,
+			set_fee_pool_depth, set_oracle_twap, traders_in_one_market_context, MarketConfig, get_collateral,
 		},
 	},
 	Direction, Error, Event,
 };
 
 use composable_traits::clearing_house::ClearingHouse;
-use frame_support::{assert_err, assert_noop, assert_ok, traits::tokens::fungibles::Inspect};
+use frame_support::{assert_err, assert_noop, assert_ok};
 use sp_runtime::FixedI128;
 
 // -------------------------------------------------------------------------------------------------
@@ -49,7 +48,7 @@ fn set_liquidator_share_partial(decimal: FixedI128) {
 }
 
 fn get_insurance_acc_balance() -> Balance {
-	AssetsPallet::balance(USDC, &TestPallet::get_insurance_account())
+	helpers::get_insurance_acc_balance::<Runtime>()
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -162,6 +161,7 @@ fn can_partially_liquidate_if_below_partial_margin_ratio_by_funding() {
 		// - margin = 50 - 44 = 6
 
 		assert_ok!(TestPallet::liquidate(Origin::signed(BOB), ALICE));
+		assert!(get_collateral(BOB) > 0);
 	});
 }
 

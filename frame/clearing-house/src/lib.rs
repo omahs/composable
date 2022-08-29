@@ -2125,7 +2125,8 @@ pub mod pallet {
 			})
 		}
 
-		fn abs_position_notional_and_pnl(
+		/// Returns the absolute value of the position (in quote asset) and its unrealized PnL.
+		pub fn abs_position_notional_and_pnl(
 			market: &Market<T>,
 			position: &Position<T>,
 			position_direction: Direction,
