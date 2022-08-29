@@ -1,6 +1,6 @@
 use codec::Codec;
 use frame_support::{pallet_prelude::*, sp_std::fmt::Debug, RuntimeDebug};
-use sp_runtime::{Perquintill, Permill};
+use sp_runtime::{Permill, Perquintill};
 
 /// An indication of pool state. Shows whether the transfer of assets is currently taking place with
 /// the current pool.
