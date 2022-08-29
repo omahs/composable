@@ -920,3 +920,40 @@ mod liquidate {
 		})
 	}
 }
+
+// -------------------------------------------------------------------------------------------------
+//                                          Close Market
+// -------------------------------------------------------------------------------------------------
+
+mod close_market {
+	use frame_support::{error::BadOrigin, traits::UnixTime};
+
+use super::*;
+
+	#[test]
+	fn should_allow_root_to_close_market() {
+		ExtBuilder {
+			native_balances: vec![(ALICE, UNIT), (BOB, UNIT)],
+			..Default::default()
+		}
+		.build()
+		.execute_with(|| {
+			let asset_id = DOT;
+			set_oracle_for(asset_id, 1_000);
+
+			let config = MarketConfig::default();
+			assert_ok!(TestPallet::create_market(Origin::signed(ALICE), config));
+
+			let market_id = Zero::zero();
+			assert_noop!(
+				TestPallet::close_market(Origin::signed(BOB), market_id, <Timestamp as UnixTime>::now().as_secs() + 10),
+				BadOrigin
+			);
+			assert_ok!(TestPallet::close_market(
+				Origin::root(),
+				market_id,
+				<Timestamp as UnixTime>::now().as_secs() + 10
+			));
+		})
+	}
+}
