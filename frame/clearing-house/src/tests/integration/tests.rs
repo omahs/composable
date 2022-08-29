@@ -736,6 +736,10 @@ mod liquidate {
 		}
 		.build()
 		.execute_with(|| {
+			set_partial_liquidation_close((25, 100).into());
+			set_partial_liquidation_penalty((25, 1000).into());
+			set_liquidator_share_partial((50, 100).into());
+
 			let asset_id = DOT;
 			set_oracle_for(asset_id, 1_000);
 
