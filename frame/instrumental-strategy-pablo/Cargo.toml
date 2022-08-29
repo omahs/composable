@@ -41,6 +41,7 @@ pallet-pablo = { path = "../pablo", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24", default-features = false }
 pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24", default-features = false }
 pallet-vault = { path = "../vault", default-features = false }
+pallet-staking-rewards = { path = "../staking-rewards" }
 primitives = { path = "../../runtime/primitives", default-features = false }
 proptest = "1.0.0"
 

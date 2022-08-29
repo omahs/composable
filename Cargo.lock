@@ -4831,6 +4831,7 @@ dependencies = [
  "pallet-governance-registry",
  "pallet-instrumental",
  "pallet-pablo",
+ "pallet-staking-rewards",
  "pallet-timestamp",
  "pallet-vault",
  "parity-scale-codec",

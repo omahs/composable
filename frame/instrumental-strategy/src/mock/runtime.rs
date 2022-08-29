@@ -6,7 +6,7 @@ use primitives::currency::{CurrencyId, ValidateCurrencyId};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{ConvertInto, IdentityLookup},
+	traits::{ConvertInto, IdentityLookup, ConvertInto},
 	Permill,
 };
 
@@ -194,6 +194,7 @@ impl instrumental_strategy_pablo::Config for MockRuntime {
 	type WeightInfo = ();
 	type AssetId = CurrencyId;
 	type Balance = Balance;
+	type Convert = ConvertInto;
 	type VaultId = VaultId;
 	type Vault = Vault;
 	type MaxAssociatedVaults = MaxAssociatedVaults;

@@ -23,6 +23,7 @@ pub type Balance = u128;
 pub type PoolId = u128;
 pub type Moment = composable_traits::time::Timestamp;
 pub type VaultId = u64;
+pub type RewardPoolId = u16;
 
 pub const MAX_ASSOCIATED_VAULTS: u32 = 10;
 const NATIVE_ASSET: CurrencyId = CurrencyId::PICA;
@@ -266,6 +267,10 @@ parameter_types! {
 	pub const MaxInitialWeight: Permill = Permill::from_percent(95);
 	pub const MinFinalWeight: Permill = Permill::from_percent(5);
 	pub const TWAPInterval: Moment = MILLISECS_PER_BLOCK * 10;
+	pub const MaxStakingRewardPools: u32 = 10;
+	pub const MaxRewardConfigsPerPool: u32 = 10;
+	pub const MaxStakingDurationPresets: u32 = 10;
+	pub const MillisecsPerBlock: u32 = 12000;
 }
 
 impl pallet_pablo::Config for MockRuntime {
@@ -276,14 +281,21 @@ impl pallet_pablo::Config for MockRuntime {
 	type CurrencyFactory = LpTokenFactory;
 	type Assets = Assets;
 	type PoolId = PoolId;
+	type RewardPoolId = RewardPoolId;
 	type PalletId = PabloPalletId;
 	type LocalAssets = LpTokenFactory;
 	type LbpMinSaleDuration = MinSaleDuration;
+	type MaxStakingDurationPresets = MaxStakingDurationPresets;
 	type LbpMaxSaleDuration = MaxSaleDuration;
+	type MaxStakingRewardPools = MaxStakingRewardPools;
 	type LbpMaxInitialWeight = MaxInitialWeight;
+	type ManageStaking = StakingRewards;
+	type MaxRewardConfigsPerPool = MaxRewardConfigsPerPool;
 	type LbpMinFinalWeight = MinFinalWeight;
 	type PoolCreationOrigin = EnsureSigned<Self::AccountId>;
 	type EnableTwapOrigin = EnsureRoot<AccountId>;
+	type ProtocolStaking = StakingRewards;
+	type MsPerBlock = MillisecsPerBlock;
 	type Time = Timestamp;
 	type TWAPInterval = TWAPInterval;
 	type WeightInfo = ();
@@ -354,6 +366,7 @@ frame_support::construct_runtime!(
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage},
 		Pablo: pallet_pablo::{Pallet, Call, Storage, Event<T>},
 		CollectiveInstrumental: pallet_collective::<Instance1>::{Pallet, Call, Event<T>, Origin<T>, Config<T>},
+		StakingRewards: pallet_staking_rewards::{Pallet, Storage, Call, Event<T>},
 
 		InstrumentalStrategy: instrumental_strategy::{Pallet, Call, Storage, Event<T>},
 		Instrumental: pallet_instrumental::{Pallet, Call, Storage, Event<T>},
