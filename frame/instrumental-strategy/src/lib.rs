@@ -39,8 +39,11 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*, storage::bounded_btree_set::BoundedBTreeSet, transactional, PalletId,
 	};
-	use sp_runtime::traits::{
-		AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, Zero,
+	use sp_runtime::{
+		traits::{
+			AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedMul, CheckedSub, Zero,
+		},
+		Permill,
 	};
 	use sp_std::fmt::Debug;
 
@@ -274,6 +277,17 @@ pub mod pallet {
 		fn set_pool_id_for_asset(_asset_id: T::AssetId, _pool_id: T::PoolId) -> DispatchResult {
 			// TODO: (belousm)
 			// The same functionality like in `instrumental-strategy-pablo`
+			Ok(())
+		}
+
+		fn transferring_funds(
+			_vault_id: &Self::VaultId,
+			_asset_id: Self::AssetId,
+			_new_pool_id: Self::PoolId,
+			_percentage_of_funds: Permill,
+		) -> DispatchResult {
+			// TODO: (belousm)
+			// implement transferring funds
 			Ok(())
 		}
 
