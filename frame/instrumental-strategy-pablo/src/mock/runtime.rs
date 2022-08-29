@@ -24,6 +24,7 @@ pub type PoolId = u128;
 pub type Moment = composable_traits::time::Timestamp;
 pub type VaultId = u64;
 pub type RewardPoolId = u16;
+pub type PositionId = u128;
 
 pub const MAX_ASSOCIATED_VAULTS: u32 = 10;
 const NATIVE_ASSET: CurrencyId = CurrencyId::PICA;
@@ -253,6 +254,32 @@ impl pallet_timestamp::Config for MockRuntime {
 	type Moment = Moment;
 	type OnTimestampSet = ();
 	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
+}
+
+// -------------------------------------------------------------------------------------------------
+//                                             Staking rewards
+// -------------------------------------------------------------------------------------------------
+
+parameter_types! {
+	pub const StakingRewardsPalletId: PalletId = PalletId(*b"stk_rwrd");
+}
+
+impl pallet_staking_rewards::Config for MockRuntime {
+	type Event = Event;
+	type Balance = Balance;
+	type RewardPoolId = RewardPoolId;
+	type PositionId = PositionId;
+	type AssetId = CurrencyId;
+	type Assets = Tokens;
+	type CurrencyFactory = LpTokenFactory;
+	type UnixTime = Timestamp;
+	type RewardPoolUpdateOrigin = EnsureRoot<Self::AccountId>;
+	type ReleaseRewardsPoolsBatchSize = frame_support::traits::ConstU8<13>;
+	type PalletId = StakingRewardsPalletId;
+	type MaxStakingDurationPresets = MaxStakingDurationPresets;
+	type MaxRewardConfigsPerPool = MaxRewardConfigsPerPool;
+	type RewardPoolCreationOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }
 

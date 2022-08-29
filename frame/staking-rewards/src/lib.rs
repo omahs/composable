@@ -65,7 +65,7 @@ pub mod pallet {
 	};
 	use composable_traits::{
 		currency::{BalanceLike, CurrencyFactory},
-		fnft::{FinancialNft, FinancialNftProtocol},
+		// fnft::{FinancialNft, FinancialNftProtocol},
 		staking::{
 			RewardPoolConfiguration::RewardRateBasedIncentive, RewardRatePeriod,
 			DEFAULT_MAX_REWARDS,
@@ -227,22 +227,22 @@ pub mod pallet {
 			+ From<u128>
 			+ Into<u128>;
 
-		type FinancialNftInstanceId: FullCodec
-			+ Debug
-			+ SafeAdd
-			+ MaxEncodedLen
-			+ Default
-			+ TypeInfo
-			+ Eq
-			+ PartialEq
-			+ Ord
-			+ Copy
-			+ Zero
-			+ One;
+		// type FinancialNftInstanceId: FullCodec
+		// 	+ Debug
+		// 	+ SafeAdd
+		// 	+ MaxEncodedLen
+		// 	+ Default
+		// 	+ TypeInfo
+		// 	+ Eq
+		// 	+ PartialEq
+		// 	+ Ord
+		// 	+ Copy
+		// 	+ Zero
+		// 	+ One;
 
-		type FinancialNft: nonfungibles::Mutate<AccountIdOf<Self>>
-			+ nonfungibles::Create<AccountIdOf<Self>>
-			+ FinancialNft<AccountIdOf<Self>>;
+		// type FinancialNft: nonfungibles::Mutate<AccountIdOf<Self>>
+		// 	+ nonfungibles::Create<AccountIdOf<Self>>
+		// 	+ FinancialNft<AccountIdOf<Self>>;
 
 		/// Is used to create staked asset per `Self::RewardPoolId`
 		type CurrencyFactory: CurrencyFactory<Self::AssetId, Self::Balance>;
@@ -508,24 +508,24 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> FinancialNftProtocol for Pallet<T> {
-		type ItemId = T::FinancialNftInstanceId;
-		type AssetId = AssetIdOf<T>;
-		type Balance = BalanceOf<T>;
+	// impl<T: Config> FinancialNftProtocol for Pallet<T> {
+	// 	type ItemId = T::FinancialNftInstanceId;
+	// 	type AssetId = AssetIdOf<T>;
+	// 	type Balance = BalanceOf<T>;
 
-		fn collection_asset_ids() -> Vec<Self::AssetId> {
-			// TODO (vim): Following is a dummy value. Store and retrieve from storage
-			[Self::AssetId::from(1000_u128)].into()
-		}
+	// 	fn collection_asset_ids() -> Vec<Self::AssetId> {
+	// 		// TODO (vim): Following is a dummy value. Store and retrieve from storage
+	// 		[Self::AssetId::from(1000_u128)].into()
+	// 	}
 
-		fn value_of(
-			_collection: &Self::AssetId,
-			_instance: &Self::ItemId,
-		) -> Vec<(Self::AssetId, Self::Balance)> {
-			// TODO (vim): Following is a dummy value. Store and retrieve from storage
-			[(Self::AssetId::from(1001_u128), Self::Balance::zero())].into()
-		}
-	}
+	// 	fn value_of(
+	// 		_collection: &Self::AssetId,
+	// 		_instance: &Self::ItemId,
+	// 	) -> Vec<(Self::AssetId, Self::Balance)> {
+	// 		// TODO (vim): Following is a dummy value. Store and retrieve from storage
+	// 		[(Self::AssetId::from(1001_u128), Self::Balance::zero())].into()
+	// 	}
+	// }
 
 	impl<T: Config> Staking for Pallet<T> {
 		type AccountId = T::AccountId;
