@@ -956,18 +956,10 @@ mod close_market {
 				let market_id = Zero::zero();
 				let now = get_time_now();
 				assert_noop!(
-					TestPallet::close_market(
-						Origin::signed(BOB),
-						market_id,
-						now + 10
-					),
+					TestPallet::close_market(Origin::signed(BOB), market_id, now + 10),
 					BadOrigin
 				);
-				assert_ok!(TestPallet::close_market(
-					Origin::root(),
-					market_id,
-					now + 10
-				));
+				assert_ok!(TestPallet::close_market(Origin::root(), market_id, now + 10));
 
 				let market = get_market(&market_id);
 				let vamm = get_vamm(&market.vamm_id);
@@ -1045,13 +1037,7 @@ mod close_market {
 			advance_blocks_by(1, 6);
 			assert_ok!(TestPallet::deposit_collateral(Origin::signed(ALICE), USDC, UNIT * 100));
 			assert_noop!(
-				TestPallet::open_position(
-					Origin::signed(ALICE),
-					market_id,
-					Long,
-					UNIT * 100,
-					0
-				),
+				TestPallet::open_position(Origin::signed(ALICE), market_id, Long, UNIT * 100, 0),
 				Error::<Runtime>::MarketShuttingDown
 			);
 
