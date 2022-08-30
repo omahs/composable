@@ -1222,22 +1222,22 @@ parameter_types! {
 	pub const StablecoinAssetId: CurrencyId = CurrencyId::USDC;
 }
 
-// impl tokenized_options::Config for Runtime {
-// 	type Event = Event;
-// 	type PalletId = TokenizedOptionsPalletId;
-// 	type WeightInfo = (); // Not sure what to put here right now
-// 	type Oracle = Oracle;
-// 	type Moment = Moment;
-// 	type Convert = ConvertInto;
-// 	type Time = Timestamp;
-// 	type StablecoinAssetId = StablecoinAssetId;
-// 	type LocalAssets = CurrencyFactory;
-// 	type ProtocolOrigin = EnsureRootOrHalfCouncil;
-// 	type CurrencyFactory = CurrencyFactory;
-// 	type Assets = Assets;
-// 	type VaultId = u64;
-// 	type Vault = Vault;
-// }
+impl tokenized_options::Config for Runtime {
+	type Event = Event;
+	type PalletId = TokenizedOptionsPalletId;
+	type WeightInfo = weights::tokenized_options::WeightInfo<Runtime>;
+	type Oracle = Oracle;
+	type Moment = Moment;
+	type Convert = ConvertInto;
+	type Time = Timestamp;
+	type StablecoinAssetId = StablecoinAssetId;
+	type LocalAssets = CurrencyFactory;
+	type ProtocolOrigin = EnsureRootOrHalfNativeCouncil;
+	type CurrencyFactory = CurrencyFactory;
+	type Assets = Assets;
+	type VaultId = u64;
+	type Vault = Vault;
+}
 
 construct_runtime!(
 	pub enum Runtime where
@@ -1307,7 +1307,7 @@ construct_runtime!(
 		DexRouter: dex_router = 66,
 		StakingRewards: pallet_staking_rewards = 67,
 		Fnft: pallet_fnft = 68,
-		// TokenizedOptions: tokenized_options::{Pallet, Call, Storage, Event<T>} = 68,
+		TokenizedOptions: tokenized_options = 69,
 
 		CallFilter: call_filter = 140,
 
@@ -1392,6 +1392,7 @@ mod benches {
 		[pallet_staking_rewards, StakingRewards]
 		[pallet_account_proxy, Proxy]
 		[dex_router, DexRouter]
+		[tokenized_options, TokenizedOptions]
 	// TODO: Broken
 		// [pallet_ibc, Ibc]
 		// [ibc_transfer, Transfer]
