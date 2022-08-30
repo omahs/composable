@@ -294,7 +294,42 @@ mod open_position {
 		})
 	}
 
-	// TODO(0xangelo): should enforce slippage controls
+	#[test]
+	fn should_enforce_slippage_controls() {
+		ExtBuilder {
+			native_balances: vec![(ALICE, UNIT), (BOB, UNIT)],
+			balances: vec![(ALICE, USDC, UNIT * 100)],
+			..Default::default()
+		}
+		.build()
+		.execute_with(|| {
+			let asset_id = DOT;
+			set_oracle_for(asset_id, 10_000);
+
+			let config = MarketConfig {
+				asset: asset_id,
+				vamm_config: VammConfig {
+					// Start with a mark price of 100
+					base_asset_reserves: UNIT * 100,
+					quote_asset_reserves: UNIT * 10_000,
+					peg_multiplier: 1,
+					twap_period: ONE_HOUR,
+				},
+				..Default::default()
+			};
+			assert_ok!(TestPallet::create_market(Origin::signed(BOB), config));
+
+			assert_ok!(TestPallet::deposit_collateral(Origin::signed(ALICE), USDC, UNIT * 100));
+
+			let market_id = Zero::zero();
+			assert_noop!(
+				TestPallet::open_position(
+					Origin::signed(ALICE), market_id, Long, UNIT * 100, UNIT
+				),
+				pallet_vamm::Error::<Runtime>::SwappedAmountLessThanMinimumLimit
+			);
+		})
+	}
 
 	#[test]
 	fn should_succeed_with_two_traders_in_a_market() {
@@ -324,12 +359,13 @@ mod open_position {
 				..Default::default()
 			};
 			assert_ok!(TestPallet::create_market(Origin::signed(ALICE), config));
-			let market_id = Zero::zero();
-			let market = get_market(&market_id);
-			let vamm_state_before = get_vamm(&market.vamm_id);
 
 			assert_ok!(TestPallet::deposit_collateral(Origin::signed(ALICE), USDC, UNIT * 100));
 			assert_ok!(TestPallet::deposit_collateral(Origin::signed(BOB), USDC, UNIT * 100));
+
+			let market_id = Zero::zero();
+			let market = get_market(&market_id);
+			let vamm_state_before = get_vamm(&market.vamm_id);
 
 			assert_ok!(TestPallet::open_position(
 				Origin::signed(ALICE),
