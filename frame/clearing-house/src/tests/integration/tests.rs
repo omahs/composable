@@ -323,9 +323,7 @@ mod open_position {
 
 			let market_id = Zero::zero();
 			assert_noop!(
-				TestPallet::open_position(
-					Origin::signed(ALICE), market_id, Long, UNIT * 100, UNIT
-				),
+				TestPallet::open_position(Origin::signed(ALICE), market_id, Long, UNIT * 100, UNIT),
 				pallet_vamm::Error::<Runtime>::SwappedAmountLessThanMinimumLimit
 			);
 		})
