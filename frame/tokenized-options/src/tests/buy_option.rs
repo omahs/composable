@@ -22,7 +22,7 @@ pub fn buy_option_success_checks(option_id: AssetId, option_amount: Balance, who
 	let option = OptionIdToOption::<MockRuntime>::get(option_id).unwrap();
 
 	let asset_id = USDC;
-	let option_premium = TokenizedOptions::fake_option_price().unwrap() * option_amount;
+	let option_premium = TokenizedOptions::fake_option_price() * option_amount;
 
 	// ---------------------------
 	// |  Data before extrinsic  |

@@ -1,27 +1,38 @@
 //! # Tokenized Options Pallet
 //!
 //! ## Overview
-//! This pallet provides an implementation for creating, selling, buying and exercise options as tokens.
-//! For all the possible actions available in an option's epoch, look at the `diagrams` folder
+//! This pallet provides an implementation for creating, selling, buying and exercise options as
+//! tokens. For all the possible actions available in an option's epoch, look at the `diagrams`
+//! folder
 //!
 //! ### Terminology
 //! - **Base asset**: the asset the user wants to buy/sell in future.
 //! - **Quote asset**: the asset traded against the base asset (usually a stablecoin).
-//! - **Option**: a financial instrument that gives you the right to buy/sell a base asset at a fixed price (denominated in quote asset)
-//!  in the future. You can either buy (or long) an option (obtaining the right to buy/sell the base asset) or sell (or short) an option
-//! (give another user the right to buy/sell the base asset you provide as collateral).
-//! - **Call / Put**: option type, used to choose if you want to buy (Call) the base asset in the future or sell it (Put).
-//! - **Strike price**: the price at which the user has the right to buy/sell the base asset in the future denominated in quote asset.
+//! - **Option**: a financial instrument that gives you the right to buy/sell a base asset at a
+//!   fixed price (denominated in quote asset)
+//!  in the future. You can either buy (or long) an option (obtaining the right to buy/sell the base
+//! asset) or sell (or short) an option (give another user the right to buy/sell the base asset you
+//! provide as collateral).
+//! - **Call / Put**: option type, used to choose if you want to buy (Call) the base asset in the
+//!   future or sell it (Put).
+//! - **Strike price**: the price at which the user has the right to buy/sell the base asset in the
+//!   future denominated in quote asset.
 //! - **Spot price**: the current price of the base asset denominated in quote asset.
-//! - **Expiration date**: the date of maturity of the option, after which the user can exercise it if the option is in profit.
-//! - **Premium**: the cost the user has to pay denominated in quote asset to buy the option from the seller.
-//! - **Collateral**: base/quote asset backing the seller's position, used to pay the buyer if the option ends in profit.
-//! For selling `Call` options, the user needs to provide the right amount of base asset as collateral; for selling `Put` options,
-//! the user needs to provide the right amount of quote asset as collateral.
-//! - **Epoch**: the full lifecycle of an option. It's composed by the deposit phase, the purchase phase and the exercise phase.
+//! - **Expiration date**: the date of maturity of the option, after which the user can exercise it
+//!   if the option is in profit.
+//! - **Premium**: the cost the user has to pay denominated in quote asset to buy the option from
+//!   the seller.
+//! - **Collateral**: base/quote asset backing the seller's position, used to pay the buyer if the
+//!   option ends in profit.
+//! For selling `Call` options, the user needs to provide the right amount of base asset as
+//! collateral; for selling `Put` options, the user needs to provide the right amount of quote asset
+//! as collateral.
+//! - **Epoch**: the full lifecycle of an option. It's composed by the deposit phase, the purchase
+//!   phase and the exercise phase.
 //!
 //! ### Actors
-//! - Sellers: users that provide collateral for selling options and collect the corresponding premium.
+//! - Sellers: users that provide collateral for selling options and collect the corresponding
+//!   premium.
 //! - Buyers: users that pay the premium for buying (and later exercise if in profit) the options.
 //!
 //! ### Implementations
@@ -31,29 +42,38 @@
 //! ## Interface
 //!
 //! ### Extrinsics
-//! - [`create_asset_vault`](Pallet::create_asset_vault): creates a vault that is responsible for collecting the
-//!   specified asset and apply a particular strategy.
+//! - [`create_asset_vault`](Pallet::create_asset_vault): creates a vault that is responsible for
+//!   collecting the specified asset and apply a particular strategy.
 //!
-//! - [`create_option`](Pallet::create_option): creates an option that can be sold or bought from users.
+//! - [`create_option`](Pallet::create_option): creates an option that can be sold or bought from
+//!   users.
 //!
 //! - [`sell_option`](Pallet::sell_option): deposit collateral used for selling an option.
 //!
-//! - [`delete_sell_option`](Pallet::delete_sell_option): withdraw the deposited collateral used for selling an option.
+//! - [`delete_sell_option`](Pallet::delete_sell_option): withdraw the deposited collateral used for
+//!   selling an option.
 //!
-//! - [`buy_option`](Pallet::buy_option): pay the premium for minting the selected option token into the user's account.
+//! - [`buy_option`](Pallet::buy_option): pay the premium for minting the selected option token into
+//!   the user's account.
 //!
-//! - [`exercise_option`](Pallet::exercise_option): burn the option tokens from user's account and transfer buyer's profit into
+//! - [`exercise_option`](Pallet::exercise_option): burn the option tokens from user's account and
+//!   transfer buyer's profit into
 //! buyer's account.
 //|
-//! - [`withdraw_collateral`](Pallet::withdraw_collateral): withdraw seller's deposited collateral and its part of the premium.
+//! - [`withdraw_collateral`](Pallet::withdraw_collateral): withdraw seller's deposited collateral
+//!   and its part of the premium.
 //!
 //! ### Runtime Storage Objects
 //! - [`AssetToVault`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its vault.
-//! - [`OptionIdToOption`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its option information.
-//! - [`OptionHashToOptionId`]: maps a [`H256`] to its optionId. The hash is obtained from option's attributes.
-//! - [`Sellers`]: maps an OptionId [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) and an [`AccountId`](Config::AccountId) to
+//! - [`OptionIdToOption`]: maps a [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its
+//!   option information.
+//! - [`OptionHashToOptionId`]: maps a [`H256`] to its optionId. The hash is obtained from option's
+//!   attributes.
+//! - [`Sellers`]: maps an OptionId [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) and an
+//!   [`AccountId`](Config::AccountId) to
 //! its position as a seller.
-//! - [`Scheduler`]: maps a [`Moment`](Config::Moment) to an OptionId [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) identifying the timestamp
+//! - [`Scheduler`]: maps a [`Moment`](Config::Moment) to an OptionId
+//!   [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) identifying the timestamp
 //! of the next phase of the epoch for the option.
 //!
 //! ### Example
@@ -151,9 +171,10 @@ pub mod pallet {
 	};
 
 	use frame_system::{ensure_signed, pallet_prelude::*};
+	use sp_arithmetic::Rounding;
 	use sp_core::H256;
 	use sp_runtime::{
-		helpers_128bit::multiply_by_rational,
+		helpers_128bit::multiply_by_rational_with_rounding,
 		traits::{
 			AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, BlakeTwo256, CheckedAdd,
 			CheckedDiv, CheckedMul, CheckedSub, Convert, One, Saturating, Zero,
@@ -236,12 +257,12 @@ pub mod pallet {
 			VaultId = VaultIdOf<Self>,
 		>;
 
-		type OptionsPricing: OptionsPricing<
-			AssetId = AssetIdOf<Self>,
-			Balance = BalanceOf<Self>,
-			Moment = MomentOf<Self>,
-			OptionId = OptionIdOf<Self>
-		>;
+		// type OptionsPricing: OptionsPricing<
+		// 	AssetId = AssetIdOf<Self>,
+		// 	Balance = BalanceOf<Self>,
+		// 	Moment = MomentOf<Self>,
+		// 	OptionId = OptionIdOf<Self>,
+		// >;
 	}
 
 	// ----------------------------------------------------------------------------------------------------
@@ -258,30 +279,34 @@ pub mod pallet {
 	pub type VaultIdOf<T> = <T as Config>::VaultId;
 	pub type VaultOf<T> = <T as Config>::Vault;
 	pub type VaultConfigOf<T> = VaultConfig<AccountIdOf<T>, AssetIdOf<T>>;
-	pub type OptionsPricingOf<T> = <T as Config>::OptionsPricing;
+	// pub type OptionsPricingOf<T> = <T as Config>::OptionsPricing;
 
 	// ----------------------------------------------------------------------------------------------------
 	//		Storage
 	// ----------------------------------------------------------------------------------------------------
-	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [`VaultId`](Config::VaultId).
+	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding
+	/// [`VaultId`](Config::VaultId).
 	#[pallet::storage]
 	#[pallet::getter(fn asset_id_to_vault_id)]
 	pub type AssetToVault<T: Config> = StorageMap<_, Blake2_128Concat, AssetIdOf<T>, VaultIdOf<T>>;
 
-	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding [`OptionToken`](OptionToken) struct.
+	/// Maps [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the corresponding
+	/// [`OptionToken`](OptionToken) struct.
 	#[pallet::storage]
 	#[pallet::getter(fn option_id_to_option)]
 	pub type OptionIdToOption<T: Config> =
 		StorageMap<_, Blake2_128Concat, OptionIdOf<T>, OptionToken<T>>;
 
-	/// Maps option's hash [`H256`](H256) with the option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId).
-	/// Used to quickly check if option exists and for all the other searching use cases.
+	/// Maps option's hash [`H256`](H256) with the option id
+	/// [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId). Used to quickly check if option exists
+	/// and for all the other searching use cases.
 	#[pallet::storage]
 	#[pallet::getter(fn options_hash)]
 	pub type OptionHashToOptionId<T: Config> = StorageMap<_, Blake2_128Concat, H256, OptionIdOf<T>>;
 
-	/// Maps [`AccountId`](Config::AccountId) and option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId)
-	/// to the user's [`SellerPosition`](SellerPosition).
+	/// Maps [`AccountId`](Config::AccountId) and option id
+	/// [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to the user's
+	/// [`SellerPosition`](SellerPosition).
 	#[pallet::storage]
 	#[pallet::getter(fn sellers)]
 	pub type Sellers<T: Config> = StorageDoubleMap<
@@ -293,8 +318,9 @@ pub mod pallet {
 		SellerPosition<T>,
 	>;
 
-	/// Maps a timestamp [`Moment`](Config::Moment) and option id [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId)
-	/// to its currently active window type [`WindowType`](WindowType). Scheduler is a timestamp-ordered list.
+	/// Maps a timestamp [`Moment`](Config::Moment) and option id
+	/// [`MayBeAssetId`](DefiComposableConfig::MayBeAssetId) to its currently active window type
+	/// [`WindowType`](WindowType). Scheduler is a timestamp-ordered list.
 	#[pallet::storage]
 	pub(crate) type Scheduler<T: Config> =
 		StorageDoubleMap<_, Identity, Swapped<MomentOf<T>>, Identity, OptionIdOf<T>, Status>;
@@ -305,16 +331,19 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Emitted after a successful call to the [`create_asset_vault`](Pallet::create_asset_vault) extrinsic.
+		/// Emitted after a successful call to the
+		/// [`create_asset_vault`](Pallet::create_asset_vault) extrinsic.
 		CreatedAssetVault { vault_id: VaultIdOf<T>, asset_id: AssetIdOf<T> },
 
-		/// Emitted after a successful call to the [`create_option`](Pallet::create_option) extrinsic.
+		/// Emitted after a successful call to the [`create_option`](Pallet::create_option)
+		/// extrinsic.
 		CreatedOption { option_id: OptionIdOf<T>, option_config: OptionConfigOf<T> },
 
 		/// Emitted after a successful call to the [`sell_option`](Pallet::sell_option) extrinsic.
 		SellOption { user: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
 
-		/// Emitted after a successful call to the [`delete_sell_option`](Pallet::delete_sell_option) extrinsic.
+		/// Emitted after a successful call to the
+		/// [`delete_sell_option`](Pallet::delete_sell_option) extrinsic.
 		DeleteSellOption {
 			user: AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
@@ -324,17 +353,20 @@ pub mod pallet {
 		/// Emitted after a successful call to the [`buy_option`](Pallet::buy_option) extrinsic.
 		BuyOption { user: AccountIdOf<T>, option_amount: BalanceOf<T>, option_id: OptionIdOf<T> },
 
-		/// Emitted after a successful call to the [`settle_option`](Pallet::settle_option) function.
+		/// Emitted after a successful call to the [`settle_option`](Pallet::settle_option)
+		/// function.
 		SettleOption { option_id: OptionIdOf<T> },
 
-		/// Emitted after a successful call to the [`exercise_option`](Pallet::exercise_option) extrinsic.
+		/// Emitted after a successful call to the [`exercise_option`](Pallet::exercise_option)
+		/// extrinsic.
 		ExerciseOption {
 			user: AccountIdOf<T>,
 			option_amount: BalanceOf<T>,
 			option_id: OptionIdOf<T>,
 		},
 
-		/// Emitted after a successful call to the [`withdraw_collateral`](Pallet::withdraw_collateral) extrinsic.
+		/// Emitted after a successful call to the
+		/// [`withdraw_collateral`](Pallet::withdraw_collateral) extrinsic.
 		WithdrawCollateral { user: AccountIdOf<T>, option_id: OptionIdOf<T> },
 
 		/// Emitted when the deposit phase for the reported option starts.
@@ -381,8 +413,8 @@ pub mod pallet {
 		/// has an invalid value.
 		OptionAttributesAreInvalid,
 
-		/// Raised when trying to sell an option, but the user does not own enough collateral to complete
-		/// the operation.
+		/// Raised when trying to sell an option, but the user does not own enough collateral to
+		/// complete the operation.
 		UserHasNotEnoughFundsToDeposit,
 
 		/// Raised when trying to sell an option, but deposits into vaults are disabled.
@@ -395,11 +427,12 @@ pub mod pallet {
 		/// the user had never sold the indicated option before or has not collateral to withdraw.
 		UserDoesNotHaveSellerPosition,
 
-		/// Raised when trying to delete the sale of an option, but the user is trying to withdraw more
-		/// collateral than provided.
+		/// Raised when trying to delete the sale of an option, but the user is trying to withdraw
+		/// more collateral than provided.
 		UserDoesNotHaveEnoughCollateralDeposited,
 
-		/// Raised when trying to delete the sale of an option, but withdrawals from vaults are disabled.
+		/// Raised when trying to delete the sale of an option, but withdrawals from vaults are
+		/// disabled.
 		VaultWithdrawNotAllowed,
 
 		/// Raised when trying to buy an option, but there are not enough options for sale.
@@ -408,7 +441,8 @@ pub mod pallet {
 		/// Raised when trying to exercise options, but the amount is greater than what user owns.
 		UserHasNotEnoughOptionTokens,
 
-		/// Raised when trying to get the price for a specific asset, but the asset is not found in the Oracle.
+		/// Raised when trying to get the price for a specific asset, but the asset is not found in
+		/// the Oracle.
 		AssetPriceNotFound,
 
 		/// Raised when trying to sell an option, but it is not deposit phase for that option.
@@ -439,7 +473,7 @@ pub mod pallet {
 				let moment = moment_swapped.into_value();
 
 				if now < moment {
-					break;
+					break
 				}
 
 				<Scheduler<T>>::remove(moment_swapped, &option_id);
@@ -475,12 +509,15 @@ pub mod pallet {
 		/// - [`Event::CreatedAssetVault`]
 		///
 		/// ## State Changes
-		/// - Updates the [`AssetToVault`] storage mapping the asset id with the new created vault id.
+		/// - Updates the [`AssetToVault`] storage mapping the asset id with the new created vault
+		///   id.
 		///
 		/// ## Errors
-		/// - [`AssetIsNotSupported`](Error::AssetIsNotSupported): raised when trying to create a new vault,
+		/// - [`AssetIsNotSupported`](Error::AssetIsNotSupported): raised when trying to create a
+		///   new vault,
 		///  but the asset is not supported by the Oracle.
-		/// - [`AssetVaultAlreadyExists`](Error::AssetVaultAlreadyExists): raised when trying to create a new vault,
+		/// - [`AssetVaultAlreadyExists`](Error::AssetVaultAlreadyExists): raised when trying to
+		///   create a new vault,
 		/// but it already exists.
 		///
 		/// # Examples
@@ -499,7 +536,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Create a new option and save the option's id, option's hash and option's epoch details on storage.
+		/// Create a new option and save the option's id, option's hash and option's epoch details
+		/// on storage.
 		///
 		/// # Overview
 		/// ## Parameters
@@ -516,16 +554,22 @@ pub mod pallet {
 		/// - [`Event::CreatedOption`]
 		///
 		/// ## State Changes
-		/// - Updates the [`OptionIdToOption`] storage mapping the option id with the created option.
-		/// - Updates the [`OptionHashToOptionId`] storage mapping the option hash with the generated option id.
-		/// - Updates the [`Scheduler`] storage inserting the timestamps when the option should change phases.
+		/// - Updates the [`OptionIdToOption`] storage mapping the option id with the created
+		///   option.
+		/// - Updates the [`OptionHashToOptionId`] storage mapping the option hash with the
+		///   generated option id.
+		/// - Updates the [`Scheduler`] storage inserting the timestamps when the option should
+		///   change phases.
 		///
 		/// ## Errors
-		/// - [`OptionAlreadyExists`](Error::OptionAlreadyExists): raised when trying to create a new option,
+		/// - [`OptionAlreadyExists`](Error::OptionAlreadyExists): raised when trying to create a
+		///   new option,
 		/// but it already exists.
-		/// - [`OptionAssetVaultsDoNotExist`](Error::OptionAssetVaultsDoNotExist): raised when trying to create a new option,
+		/// - [`OptionAssetVaultsDoNotExist`](Error::OptionAssetVaultsDoNotExist): raised when
+		///   trying to create a new option,
 		/// but at least one between base asset and quote asset vaults do not exist.
-		/// - [`OptionAttributesAreInvalid`](Error::OptionAttributesAreInvalid): raised when trying to create a new option,
+		/// - [`OptionAttributesAreInvalid`](Error::OptionAttributesAreInvalid): raised when trying
+		///   to create a new option,
 		/// but at least one of the option's attributes has an invalid value.
 		///
 		/// # Examples
@@ -562,22 +606,30 @@ pub mod pallet {
 		/// - [`Event::SellOption`]
 		///
 		/// ## State Changes
-		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with his position.
-		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to sell to the total amount
+		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with
+		///   his position.
+		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to sell to the
+		///   total amount
 		/// already for sale.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to
+		///   retrieve the vault
 		/// associated to an asset, but it does not exist.
-		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
+		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an
+		///   option,
 		/// but it is not deposit phase for that option.
-		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to sell an option,
+		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when
+		///   trying to sell an option,
 		/// but the user does not own enough collateral to complete the operation.
-		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
+		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell
+		///   an option,
 		/// but deposits into vaults are disabled.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to sell an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying
+		///   to sell an option,
 		/// but the option amount is zero.
 		///
 		/// # Examples
@@ -615,24 +667,33 @@ pub mod pallet {
 		/// - [`Event::DeleteSellOption`]
 		///
 		/// ## State Changes
-		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with his position.
-		/// - Updates the [`OptionIdToOption`] storage subtracting the amount of option to delete the sale of from the total amount
+		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with
+		///   his position.
+		/// - Updates the [`OptionIdToOption`] storage subtracting the amount of option to delete
+		///   the sale of from the total amount
 		/// already for sale.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to
+		///   retrieve the vault
 		/// associated to an asset, but it does not exist.
-		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
+		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an
+		///   option,
 		/// but it is not deposit phase for that option.
-		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to delete the sale of an option,
+		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when
+		///   trying to delete the sale of an option,
 		/// but the user had never sold the indicated option.
 		/// - [`UserDoesNotHaveEnoughCollateralDeposited`](Error::UserDoesNotHaveEnoughCollateralDeposited): raised when trying
-		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
-		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
+		/// to delete the sale of an option, but the user is trying to withdraw more collateral than
+		/// provided.
+		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to
+		///   delete the sale of an option,
 		/// but withdrawals from vaults are disabled.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to delete the sale of an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying
+		///   to delete the sale of an option,
 		/// but the option amount is zero.
 		///
 		/// # Examples
@@ -669,19 +730,25 @@ pub mod pallet {
 		/// - [`Event::BuyOption`]
 		///
 		/// ## State Changes
-		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to buy to the total amount
+		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to buy to the
+		///   total amount
 		/// already bought.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`NotIntoPurchaseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
+		/// - [`NotIntoPurchaseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an
+		///   option,
 		/// but it is not purchase phase for that option.
-		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to buy an option,
+		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when
+		///   trying to buy an option,
 		/// but the user does not own enough funds to complete the operation paying the premium.
-		/// - [`NotEnoughOptionsForSale`](Error::NotEnoughOptionsForSale): raised when trying to buy an option,
+		/// - [`NotEnoughOptionsForSale`](Error::NotEnoughOptionsForSale): raised when trying to buy
+		///   an option,
 		/// but there are not enough option for sale to complete the purchase.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying
+		///   to buy an option,
 		/// but the option amount is zero.
 		///
 		/// # Examples
@@ -720,13 +787,17 @@ pub mod pallet {
 		/// ## State Changes
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to exercise an option,
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to
+		///   exercise an option,
 		/// but it is not exercise phase for that option.
-		/// - [`UserHasNotEnoughOptionTokens`](Error::UserHasNotEnoughOptionTokens): raised when trying to exercise options,
+		/// - [`UserHasNotEnoughOptionTokens`](Error::UserHasNotEnoughOptionTokens): raised when
+		///   trying to exercise options,
 		/// but the amount is greater than what user owns.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to exercise an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying
+		///   to exercise an option,
 		/// but the option amount is zero.
 		///
 		/// # Examples
@@ -764,13 +835,17 @@ pub mod pallet {
 		/// - Delete from [`Sellers`] storage the seller's position related to the option.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to withdraw collateral,
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to
+		///   withdraw collateral,
 		/// but it is not exercise phase for that option.
-		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to withdraw collateral,
+		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when
+		///   trying to withdraw collateral,
 		/// but the seller has not a seller position.
-		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to withdraw collateral,
+		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to
+		///   withdraw collateral,
 		/// but withdrawals from vaults are disabled.
 		///
 		/// # Examples
@@ -815,12 +890,15 @@ pub mod pallet {
 		/// - [`Event::CreatedAssetVault`]
 		///
 		/// ## State Changes
-		/// - Updates the [`AssetToVault`] storage mapping the asset id with the new created vault id.
+		/// - Updates the [`AssetToVault`] storage mapping the asset id with the new created vault
+		///   id.
 		///
 		/// ## Errors
-		/// - [`AssetIsNotSupported`](Error::AssetIsNotSupported): raised when trying to create a new vault,
+		/// - [`AssetIsNotSupported`](Error::AssetIsNotSupported): raised when trying to create a
+		///   new vault,
 		///  but the asset is not supported by the Oracle.
-		/// - [`AssetVaultAlreadyExists`](Error::AssetVaultAlreadyExists): raised when trying to create a new vault,
+		/// - [`AssetVaultAlreadyExists`](Error::AssetVaultAlreadyExists): raised when trying to
+		///   create a new vault,
 		/// but it already exists.
 		///
 		/// # Weight: O(TBD)
@@ -838,7 +916,8 @@ pub mod pallet {
 			}
 		}
 
-		/// Create a new option and save the option's id, option's hash and option's epoch on storage.
+		/// Create a new option and save the option's id, option's hash and option's epoch on
+		/// storage.
 		///
 		/// # Overview
 		/// ## Parameters
@@ -853,16 +932,22 @@ pub mod pallet {
 		/// - [`Event::CreatedOption`]
 		///
 		/// ## State Changes
-		/// - Updates the [`OptionIdToOption`] storage mapping the option id with the created option.
-		/// - Updates the [`OptionHashToOptionId`] storage mapping the option hash with the generated option id.
-		/// - Updates the [`Scheduler`] storage inserting the timestamps when the option should change phases.
+		/// - Updates the [`OptionIdToOption`] storage mapping the option id with the created
+		///   option.
+		/// - Updates the [`OptionHashToOptionId`] storage mapping the option hash with the
+		///   generated option id.
+		/// - Updates the [`Scheduler`] storage inserting the timestamps when the option should
+		///   change phases.
 		///
 		/// ## Errors
-		/// - [`OptionAlreadyExists`](Error::OptionAlreadyExists): raised when trying to create a new option,
+		/// - [`OptionAlreadyExists`](Error::OptionAlreadyExists): raised when trying to create a
+		///   new option,
 		/// but it already exists.
-		/// - [`OptionAssetVaultsDoNotExist`](Error::OptionAssetVaultsDoNotExist): raised when trying to create a new option,
+		/// - [`OptionAssetVaultsDoNotExist`](Error::OptionAssetVaultsDoNotExist): raised when
+		///   trying to create a new option,
 		/// but at least one between base asset and quote asset vaults do not exist.
-		/// - [`OptionAttributesAreInvalid`](Error::OptionAttributesAreInvalid): raised when trying to create a new option,
+		/// - [`OptionAttributesAreInvalid`](Error::OptionAttributesAreInvalid): raised when trying
+		///   to create a new option,
 		/// but at least one of the option's attributes has an invalid value.
 		///
 		/// # Weight: O(TBD)
@@ -874,12 +959,10 @@ pub mod pallet {
 				Ok(validated_option_config) => Self::do_create_option(validated_option_config),
 				Err(error) => match error {
 					"ValidateOptionDoesNotExist" => Err(Error::<T>::OptionAlreadyExists.into()),
-					"ValidateOptionAssetVaultsExist" => {
-						Err(Error::<T>::OptionAssetVaultsDoNotExist.into())
-					},
-					"ValidateOptionAttributes" => {
-						Err(Error::<T>::OptionAttributesAreInvalid.into())
-					},
+					"ValidateOptionAssetVaultsExist" =>
+						Err(Error::<T>::OptionAssetVaultsDoNotExist.into()),
+					"ValidateOptionAttributes" =>
+						Err(Error::<T>::OptionAttributesAreInvalid.into()),
 					_ => Err(Error::<T>::UnexpectedError.into()),
 				},
 			}
@@ -902,22 +985,30 @@ pub mod pallet {
 		/// - [`Event::SellOption`]
 		///
 		/// ## State Changes
-		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with his position.
-		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to sell to the total amount
+		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with
+		///   his position.
+		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to sell to the
+		///   total amount
 		/// already for sale.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to
+		///   retrieve the vault
 		/// associated to an asset, but it does not exist.
-		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
+		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an
+		///   option,
 		/// but it is not deposit phase for that option.
-		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to sell an option,
+		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when
+		///   trying to sell an option,
 		/// but the user does not own enough collateral to complete the operation.
-		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell an option,
+		/// - [`VaultDepositNotAllowed`](Error::VaultDepositNotAllowed): raised when trying to sell
+		///   an option,
 		/// but deposits into vaults are disabled.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to sell an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying
+		///   to sell an option,
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
@@ -951,24 +1042,33 @@ pub mod pallet {
 		/// - [`Event::DeleteSellOption`]
 		///
 		/// ## State Changes
-		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with his position.
-		/// - Updates the [`OptionIdToOption`] storage subtracting the amount of option to delete the sale of from the total amount
+		/// - Updates the [`Sellers`] storage mapping the option id and the user's account id with
+		///   his position.
+		/// - Updates the [`OptionIdToOption`] storage subtracting the amount of option to delete
+		///   the sale of from the total amount
 		/// already for sale.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to retrieve the vault
+		/// - [`AssetVaultDoesNotExists`](Error::AssetVaultDoesNotExists): raised when trying to
+		///   retrieve the vault
 		/// associated to an asset, but it does not exist.
-		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an option,
+		/// - [`NotIntoDepositWindow`](Error::NotIntoDepositWindow): raised when trying to sell an
+		///   option,
 		/// but it is not deposit phase for that option.
-		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to delete the sale of an option,
+		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when
+		///   trying to delete the sale of an option,
 		/// but the user had never sold the indicated option.
 		/// - [`UserDoesNotHaveEnoughCollateralDeposited`](Error::UserDoesNotHaveEnoughCollateralDeposited): raised when trying
-		/// to delete the sale of an option, but the user is trying to withdraw more collateral than provided.
-		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to delete the sale of an option,
+		/// to delete the sale of an option, but the user is trying to withdraw more collateral than
+		/// provided.
+		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to
+		///   delete the sale of an option,
 		/// but withdrawals from vaults are disabled.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to delete the sale of an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying
+		///   to delete the sale of an option,
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
@@ -1003,19 +1103,25 @@ pub mod pallet {
 		/// - [`Event::BuyOption`]
 		///
 		/// ## State Changes
-		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to buy to the total amount
+		/// - Updates the [`OptionIdToOption`] storage adding the amount of option to buy to the
+		///   total amount
 		/// already bought.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`NotIntoPurchaseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an option,
+		/// - [`NotIntoPurchaseWindow`](Error::NotIntoPurchaseWindow): raised when trying to buy an
+		///   option,
 		/// but it is not purchase phase for that option.
-		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when trying to buy an option,
+		/// - [`UserHasNotEnoughFundsToDeposit`](Error::UserHasNotEnoughFundsToDeposit): raised when
+		///   trying to buy an option,
 		/// but the user does not own enough funds to complete the operation paying the premium.
-		/// - [`NotEnoughOptionsForSale`](Error::NotEnoughOptionsForSale): raised when trying to buy an option,
+		/// - [`NotEnoughOptionsForSale`](Error::NotEnoughOptionsForSale): raised when trying to buy
+		///   an option,
 		/// but there are not enough option for sale to complete the purchase.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to buy an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying
+		///   to buy an option,
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
@@ -1050,13 +1156,17 @@ pub mod pallet {
 		/// ## State Changes
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to exercise an option,
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to
+		///   exercise an option,
 		/// but it is not exercise phase for that option.
-		/// - [`UserHasNotEnoughOptionTokens`](Error::UserHasNotEnoughOptionTokens): raised when trying to exercise options,
+		/// - [`UserHasNotEnoughOptionTokens`](Error::UserHasNotEnoughOptionTokens): raised when
+		///   trying to exercise options,
 		/// but the amount is greater than what user owns.
-		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying to exercise an option,
+		/// - [`CannotPassZeroOptionAmount`](Error::CannotPassZeroOptionAmount): raised when trying
+		///   to exercise an option,
 		/// but the option amount is zero.
 		///
 		/// # Weight: O(TBD)
@@ -1090,13 +1200,17 @@ pub mod pallet {
 		/// - Delete from [`Sellers`] storage the seller's position related to the option.
 		///
 		/// ## Errors
-		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve the option corresponding
+		/// - [`OptionDoesNotExists`](Error::OptionDoesNotExists): raised when trying to retrieve
+		///   the option corresponding
 		/// to the given option id, but it does not exist.
-		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to withdraw collateral,
+		/// - [`NotIntoExerciseWindow`](Error::NotIntoExerciseWindow): raised when trying to
+		///   withdraw collateral,
 		/// but it is not exercise phase for that option.
-		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when trying to withdraw collateral,
+		/// - [`UserDoesNotHaveSellerPosition`](Error::UserDoesNotHaveSellerPosition): raised when
+		///   trying to withdraw collateral,
 		/// but the seller has not a seller position.
-		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to withdraw collateral,
+		/// - [`VaultWithdrawNotAllowed`](Error::VaultWithdrawNotAllowed): raised when trying to
+		///   withdraw collateral,
 		/// but withdrawals from vaults are disabled.
 		///
 		/// # Weight: O(TBD)
@@ -1214,9 +1328,11 @@ pub mod pallet {
 
 			// Different behaviors based on Call or Put option
 			let (asset_id, asset_amount) = match option.option_type {
-				// For CALL options it should be `base_asset_amount_per_option` * `quote_asset_strike_price`
+				// For CALL options it should be `base_asset_amount_per_option` *
+				// `quote_asset_strike_price`
 				OptionType::Call => (option.base_asset_id, option.quote_asset_strike_price),
-				// For PUT options it should be `quote_asset_amount_per_option` * `base_asset_strike_price`
+				// For PUT options it should be `quote_asset_amount_per_option` *
+				// `base_asset_strike_price`
 				OptionType::Put => (option.quote_asset_id, option.base_asset_strike_price),
 			};
 
@@ -1310,6 +1426,7 @@ pub mod pallet {
 				seller_position.shares_amount,
 				option_amount,
 				seller_position.option_amount,
+				Rounding::Down
 			)?;
 
 			let asset_amount = VaultOf::<T>::lp_share_value(&vault_id, shares_amount)?;
@@ -1318,9 +1435,9 @@ pub mod pallet {
 			// 1. Asset amount <= Max asset amount withdrawable by user
 			// 2. Option amount <= Max option amount withdrawable by user
 			ensure!(
-				asset_amount
-					<= VaultOf::<T>::lp_share_value(&vault_id, seller_position.shares_amount)?
-					&& option_amount <= seller_position.option_amount,
+				asset_amount <=
+					VaultOf::<T>::lp_share_value(&vault_id, seller_position.shares_amount)? &&
+					option_amount <= seller_position.option_amount,
 				Error::<T>::UserDoesNotHaveEnoughCollateralDeposited
 			);
 
@@ -1396,8 +1513,10 @@ pub mod pallet {
 				total_premium_paid: option.total_premium_paid,
 			};
 
-			let option_premium =
-				OptionsPricingOf::<T>::calculate_option_price(option_id, bs_params)?;
+			// let option_premium =
+			// 	OptionsPricingOf::<T>::calculate_option_price(option_id, bs_params)?;
+
+			let option_premium = Self::fake_option_price();
 
 			let option_premium =
 				option_premium.checked_mul(&option_amount).ok_or(ArithmeticError::Overflow)?;
@@ -1411,7 +1530,7 @@ pub mod pallet {
 
 			// Check if there are enough options for sale
 			if new_total_issuance_buyer > option.total_issuance_seller {
-				return Err(DispatchError::from(Error::<T>::NotEnoughOptionsForSale));
+				return Err(DispatchError::from(Error::<T>::NotEnoughOptionsForSale))
 			}
 
 			let new_total_premium_paid = option
@@ -1441,13 +1560,15 @@ pub mod pallet {
 		///
 		/// ## Requirements
 		/// 1. The option to settle should exist.
-		/// 2. The option to settle should be in exercise phase, which suppose expiration date is passed.
+		/// 2. The option to settle should be in exercise phase, which suppose expiration date is
+		/// passed.
 		///
 		/// ## Emits
 		/// - [`Event::SettleOption`]
 		///
 		/// ## State Changes
-		/// - For each option, updates the [`OptionIdToOption`] storage calculating the exercise amount for buyers and saving
+		/// - For each option, updates the [`OptionIdToOption`] storage calculating the exercise
+		///   amount for buyers and saving
 		/// the info to calculate the remaining collateral for sellers and their share of premium.
 		///
 		/// ## Errors
@@ -1574,11 +1695,13 @@ pub mod pallet {
 			// ------ Shares calculations for user ------
 			// shares_per_option = total_shares / total_option_bought
 			// option_bought_ratio = total_option_bought / total_option_for_sale
-			// user_shares_to_subtract = shares_per_option * option_bought_ratio * user_option_amount
+			// user_shares_to_subtract = shares_per_option * option_bought_ratio *
+			// user_option_amount
 			let shares_for_buyers = Self::convert_and_multiply_by_rational(
 				option.total_shares_amount,
 				seller_position.option_amount,
 				option.total_issuance_seller,
+				Rounding::Down
 			)?;
 
 			let user_shares_amount = seller_position
@@ -1616,6 +1739,7 @@ pub mod pallet {
 				option.total_premium_paid,
 				seller_position.option_amount,
 				option.total_issuance_seller,
+				Rounding::Down
 			)?;
 
 			// Get info to transfer premium to seller
@@ -1680,7 +1804,7 @@ pub mod pallet {
 
 				let unit = T::LocalAssets::unit::<BalanceOf<T>>(option.base_asset_id)?;
 
-				Self::convert_and_multiply_by_rational(diff, unit, base_asset_spot_price)?
+				Self::convert_and_multiply_by_rational(diff, unit, base_asset_spot_price, Rounding::NearestPrefDown)?
 			} else {
 				BalanceOf::<T>::zero()
 			};
@@ -1709,12 +1833,20 @@ pub mod pallet {
 			a: BalanceOf<T>,
 			b: BalanceOf<T>,
 			c: BalanceOf<T>,
+			r: Rounding,
 		) -> Result<BalanceOf<T>, DispatchError> {
+			if c == BalanceOf::<T>::zero() {
+				return Ok(BalanceOf::<T>::zero())
+			};
+
 			let a = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(a);
 			let b = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(b);
 			let c = <T::Convert as Convert<BalanceOf<T>, u128>>::convert(c);
 
-			let res = multiply_by_rational(a, b, c).map_err(|_| ArithmeticError::Overflow)?;
+			let res = match multiply_by_rational_with_rounding(a, b, c, r) {
+				Some(res) => res,
+				None => return Err(DispatchError::from(ArithmeticError::Overflow)),
+			};
 
 			let res = <T::Convert as Convert<u128, T::Balance>>::convert(res);
 			Ok(res)
@@ -1728,8 +1860,8 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::AssetPriceNotFound.into())
 		}
 
-		pub fn fake_option_price() -> Result<BalanceOf<T>, DispatchError> {
-			Ok((1000u128 * 10u128.pow(12)).into())
+		pub fn fake_option_price() -> BalanceOf<T> {
+			(1000u128 * 10u128.pow(12)).into()
 		}
 
 		fn schedule_option(epoch: Epoch<MomentOf<T>>, option_id: OptionIdOf<T>) {
@@ -1771,8 +1903,9 @@ pub mod pallet {
 			// Check if option is expired is redundant if we trust the Scheduler behavior
 
 			// TODO: Handle the result to address overflow errors or other types of errors.
-			// `do_settle_option` should never return an error, but if happens, it should be handled.
-			Self::do_settle_option(option_id, option).expect("TODO");
+			// `do_settle_option` should never return an error, but if happens, it should be
+			// handled.
+			Self::do_settle_option(option_id, option).expect("TODO ERROR ON SETTLE OPTION");
 
 			option.status = Status::Exercise;
 			Self::deposit_event(Event::OptionExerciseStart { option_id });

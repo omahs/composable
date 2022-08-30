@@ -24,7 +24,7 @@ impl<T: Config> Validate<VaultConfigOf<T>, ValidateVaultDoesNotExist<T>>
 {
 	fn validate(vault_config: VaultConfigOf<T>) -> Result<VaultConfigOf<T>, &'static str> {
 		if AssetToVault::<T>::contains_key(vault_config.asset_id) {
-			return Err("ValidateVaultDoesNotExist");
+			return Err("ValidateVaultDoesNotExist")
 		}
 
 		Ok(vault_config)
@@ -74,7 +74,7 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionDoesNotExist<T>>
 			input.exercise_type,
 		);
 		if OptionHashToOptionId::<T>::contains_key(hash) {
-			return Err("ValidateOptionDoesNotExist");
+			return Err("ValidateOptionDoesNotExist")
 		}
 
 		Ok(input)
@@ -94,10 +94,10 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAssetVaultsExist<T>>
 	for ValidateOptionAssetVaultsExist<T>
 {
 	fn validate(input: OptionConfigOf<T>) -> Result<OptionConfigOf<T>, &'static str> {
-		if !(AssetToVault::<T>::contains_key(input.base_asset_id)
-			&& AssetToVault::<T>::contains_key(input.quote_asset_id))
+		if !(AssetToVault::<T>::contains_key(input.base_asset_id) &&
+			AssetToVault::<T>::contains_key(input.quote_asset_id))
 		{
-			return Err("ValidateOptionAssetVaultsExist");
+			return Err("ValidateOptionAssetVaultsExist")
 		}
 
 		Ok(input)
@@ -117,25 +117,25 @@ impl<T: Config> Validate<OptionConfigOf<T>, ValidateOptionAttributes<T>>
 	for ValidateOptionAttributes<T>
 {
 	fn validate(input: OptionConfigOf<T>) -> Result<OptionConfigOf<T>, &'static str> {
-		if input.total_issuance_seller != BalanceOf::<T>::zero()
-			|| input.total_premium_paid != BalanceOf::<T>::zero()
-			|| input.exercise_amount != BalanceOf::<T>::zero()
-			|| input.base_asset_spot_price != BalanceOf::<T>::zero()
-			|| input.total_issuance_buyer != BalanceOf::<T>::zero()
-			|| input.total_shares_amount != BalanceOf::<T>::zero()
+		if input.total_issuance_seller != BalanceOf::<T>::zero() ||
+			input.total_premium_paid != BalanceOf::<T>::zero() ||
+			input.exercise_amount != BalanceOf::<T>::zero() ||
+			input.base_asset_spot_price != BalanceOf::<T>::zero() ||
+			input.total_issuance_buyer != BalanceOf::<T>::zero() ||
+			input.total_shares_amount != BalanceOf::<T>::zero()
 		{
-			return Err("ValidateOptionAttributes");
+			return Err("ValidateOptionAttributes")
 		}
 
 		if input.base_asset_id == input.quote_asset_id {
-			return Err("ValidateOptionAttributes");
+			return Err("ValidateOptionAttributes")
 		}
 
-		if input.epoch.deposit >= input.epoch.purchase
-			|| input.epoch.purchase >= input.epoch.exercise
-			|| input.epoch.exercise >= input.epoch.end
+		if input.epoch.deposit >= input.epoch.purchase ||
+			input.epoch.purchase >= input.epoch.exercise ||
+			input.epoch.exercise >= input.epoch.end
 		{
-			return Err("ValidateOptionAttributes");
+			return Err("ValidateOptionAttributes")
 		}
 
 		Ok(input)

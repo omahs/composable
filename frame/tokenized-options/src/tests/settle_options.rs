@@ -837,10 +837,10 @@ fn test_settle_options_error_overflow_with_value_accrual() {
 			// In this case, too much value accrual and too much price shift cause the
 			// function `call_option_collateral_amount` to not be able to calculate `asset_amount`
 			// correctly, returning 1*UNIT as an approximation. So `shares_amount` is calculated
-			// incorrectly and this cause the withdraw of more funds than needed (because of value accrual),
-			// which actually should belong to sellers since value accrued while collateral is deposited is theirs.
-			// Of course this should never be the case since the value accrual and the price shift should
-			// never be so high
+			// incorrectly and this cause the withdraw of more funds than needed (because of value
+			// accrual), which actually should belong to sellers since value accrued while
+			// collateral is deposited is theirs. Of course this should never be the case since the
+			// value accrual and the price shift should never be so high
 			let vault_id = AssetToVault::<MockRuntime>::get(option_config.base_asset_id).unwrap();
 			let vault_account = Vault::account_id(&vault_id);
 			assert_ok!(Assets::mint_into(

@@ -89,11 +89,11 @@ fn test_epoch_basic_example_totally_sold() {
 			// ---------------
 			//  FINAL CHECKS |
 			// ---------------
-			// For each option, (55k - 50k)/55k = 0.090909 BTC of collateral deposited by ALICE and BOB should be given
-			// to CHARLIE since all the options for sale have been bought.
-			// CHARLIE should end with 0.454545454545 BTC, ALICE with 1.818181818182 BTC and BOB with 2.727272727273 BTC
-			// CHARLIE USDC balance should go to 0 given that each option costs 1000 USDC.
-			// ALICE should receive her premium for selling 2 options, so 2000 USDC
+			// For each option, (55k - 50k)/55k = 0.090909 BTC of collateral deposited by ALICE and
+			// BOB should be given to CHARLIE since all the options for sale have been bought.
+			// CHARLIE should end with 0.454545454545 BTC, ALICE with 1.818181818182 BTC and BOB
+			// with 2.727272727273 BTC CHARLIE USDC balance should go to 0 given that each option
+			// costs 1000 USDC. ALICE should receive her premium for selling 2 options, so 2000 USDC
 			// BOB should receive his premium for selling 3 options, so 3000 USDC
 			// All protocol accounts and vaults should be empty at the end
 
@@ -180,14 +180,15 @@ fn test_epoch_basic_example_no_totally_sold() {
 			// ---------------
 			//  FINAL CHECKS |
 			// ---------------
-			// For each option bought, (100k - 90k)/100k = 0.1 BTC of collateral deposited by ALICE and BOB should be given to CHARLIE
-			// CHARLIE should end with 0.4 BTC
-			// Since there were 5 BTC for sale, but just 4 options have been bought, we consider the 4 BTC bought to be bought for 2/5 from
-			// ALICE collateral and for 3/5 from BOB collateral. So ALICE is actually selling 1.6BTC (so 1.6 options),
-			// while BOB is selling 2.4BTC (so 2.4 options). They will receive back 0.4BTC and 0.6BTC from collateral respectively.
-			// ALICE should end with 2 - 0.1*1.6 = 1,84BTC and BOB with 3 - 0.1*2.4 = 2,76BTC
-			// CHARLIE USDC balance should go to 0 given that each option costs 1000 USDC.
-			// ALICE should receive her premium for selling 1.6 options, so 1600 USDC
+			// For each option bought, (100k - 90k)/100k = 0.1 BTC of collateral deposited by ALICE
+			// and BOB should be given to CHARLIE CHARLIE should end with 0.4 BTC
+			// Since there were 5 BTC for sale, but just 4 options have been bought, we consider the
+			// 4 BTC bought to be bought for 2/5 from ALICE collateral and for 3/5 from BOB
+			// collateral. So ALICE is actually selling 1.6BTC (so 1.6 options), while BOB is
+			// selling 2.4BTC (so 2.4 options). They will receive back 0.4BTC and 0.6BTC from
+			// collateral respectively. ALICE should end with 2 - 0.1*1.6 = 1,84BTC and BOB with 3 -
+			// 0.1*2.4 = 2,76BTC CHARLIE USDC balance should go to 0 given that each option costs
+			// 1000 USDC. ALICE should receive her premium for selling 1.6 options, so 1600 USDC
 			// BOB should receive his premium for selling 2.4 options, so 2400 USDC
 			// All protocol accounts and vaults should be empty at the end
 

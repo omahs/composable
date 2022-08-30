@@ -47,8 +47,8 @@ pub fn withdraw_collateral_success_checks(option_id: AssetId, who: Public) {
 		Assets::balance(stablecoin_id, &protocol_account_stablecoin);
 
 	// Calculate user's shares and asset amount to receive
-	let shares_for_buyers = option.total_shares_amount * initial_user_position.option_amount
-		/ option.total_issuance_seller;
+	let shares_for_buyers = option.total_shares_amount * initial_user_position.option_amount /
+		option.total_issuance_seller;
 	let user_shares_amount = initial_user_position.shares_amount - shares_for_buyers;
 	let lp_token_issuance =
 		Assets::balance(Vault::lp_asset_id(&vault_id).unwrap(), &protocol_account);
@@ -56,8 +56,8 @@ pub fn withdraw_collateral_success_checks(option_id: AssetId, who: Public) {
 	let asset_amount = Vault::lp_share_value(&vault_id, user_shares_amount).unwrap();
 
 	// Calculate user premium amount to receive
-	let user_premium_amount = option.total_premium_paid * initial_user_position.option_amount
-		/ option.total_issuance_seller;
+	let user_premium_amount = option.total_premium_paid * initial_user_position.option_amount /
+		option.total_issuance_seller;
 
 	// Call extrinsic and check event
 	assert_ok!(TokenizedOptions::withdraw_collateral(Origin::signed(who), option_id));
@@ -907,7 +907,8 @@ fn test_withdraw_collateral_dust_issue() {
 			// Go to exercise window (option has expired so settlement can start)
 			// Before settlement, simulate a gain or loss for the vault
 			let vault_id = AssetToVault::<MockRuntime>::get(BTC).unwrap();
-			// assert_ok!(Assets::mint_into(Origin::root(), BTC, Vault::account_id(&vault_id), 1101113u128 * UNIT));
+			// assert_ok!(Assets::mint_into(Origin::root(), BTC, Vault::account_id(&vault_id),
+			// 1101113u128 * UNIT));
 			assert_ok!(Assets::burn_from(
 				Origin::root(),
 				BTC,
@@ -919,14 +920,15 @@ fn test_withdraw_collateral_dust_issue() {
 
 			for i in 1..user_number {
 				if i == user_number - 1 {
-					// Get last user position to compare how many shares is going to lose for accumulated dust
+					// Get last user position to compare how many shares is going to lose for
+					// accumulated dust
 					let initial_user_position =
 						Sellers::<MockRuntime>::try_get(option_id, account_id_from_u64(i)).unwrap();
 					let option = OptionIdToOption::<MockRuntime>::try_get(option_id).unwrap();
 
-					let shares_for_buyers = option.total_shares_amount
-						* initial_user_position.option_amount
-						/ option.total_issuance_seller;
+					let shares_for_buyers = option.total_shares_amount *
+						initial_user_position.option_amount /
+						option.total_issuance_seller;
 
 					let user_shares = initial_user_position.shares_amount - shares_for_buyers;
 

@@ -85,7 +85,7 @@ pub mod pallet {
 	use frame_system::{ensure_signed, pallet_prelude::*};
 	use sp_core::H256;
 	use sp_runtime::{
-		helpers_128bit::multiply_by_rational,
+		helpers_128bit::multiply_by_rational_with_rounding,
 		traits::{
 			AccountIdConversion, AtLeast32Bit, AtLeast32BitUnsigned, BlakeTwo256, CheckedAdd,
 			CheckedDiv, CheckedMul, CheckedSub, Convert, One, Saturating, Zero,

@@ -1,8 +1,7 @@
 //! Benchmarks for TokenizedOptions Pallet
 // #![cfg(feature = "runtime-benchmarks")]
 
-use crate::*;
-use crate::{self as pallet_tokenized_options, types::*, Pallet as TokenizedOptions};
+use crate::{self as pallet_tokenized_options, types::*, Pallet as TokenizedOptions, *};
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use composable_traits::{
@@ -14,8 +13,7 @@ use frame_support::traits::{
 	fungibles::{Inspect, InspectHold, Mutate, MutateHold, Transfer},
 	EnsureOrigin, Hooks,
 };
-use frame_system::pallet_prelude::*;
-use frame_system::{EventRecord, Pallet as System, RawOrigin};
+use frame_system::{pallet_prelude::*, EventRecord, Pallet as System, RawOrigin};
 use sp_runtime::Perquintill;
 use sp_std::collections::btree_map::BTreeMap;
 

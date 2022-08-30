@@ -14,6 +14,7 @@ use composable_traits::vault::CapabilityVault;
 use composable_traits::vault::Vault as VaultTrait;
 
 use frame_support::{assert_noop, traits::fungibles::Inspect};
+use sp_arithmetic::Rounding;
 use sp_core::sr25519::Public;
 use sp_runtime::ArithmeticError;
 
@@ -45,6 +46,7 @@ pub fn delete_sell_option_success_checks(option_id: AssetId, option_amount: Bala
 		initial_user_position.shares_amount,
 		option_amount,
 		initial_user_position.option_amount,
+		Rounding::Down
 	)
 	.unwrap();
 
@@ -503,12 +505,10 @@ fn test_delete_sell_option_error_withdrawals_not_allowed() {
 			assert_ok!(TokenizedOptions::sell_option(Origin::signed(BOB), 5u128, option_id));
 
 			let vault_id = match option_config.option_type {
-				OptionType::Call => {
-					TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap()
-				},
-				OptionType::Put => {
-					TokenizedOptions::asset_id_to_vault_id(option_config.quote_asset_id).unwrap()
-				},
+				OptionType::Call =>
+					TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap(),
+				OptionType::Put =>
+					TokenizedOptions::asset_id_to_vault_id(option_config.quote_asset_id).unwrap(),
 			};
 
 			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id));
@@ -550,12 +550,10 @@ fn test_delete_sell_option_error_withdrawals_not_allowed_update_position() {
 			assert_ok!(TokenizedOptions::delete_sell_option(Origin::signed(BOB), 2u128, option_id));
 
 			let vault_id = match option_config.option_type {
-				OptionType::Call => {
-					TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap()
-				},
-				OptionType::Put => {
-					TokenizedOptions::asset_id_to_vault_id(option_config.quote_asset_id).unwrap()
-				},
+				OptionType::Call =>
+					TokenizedOptions::asset_id_to_vault_id(option_config.base_asset_id).unwrap(),
+				OptionType::Put =>
+					TokenizedOptions::asset_id_to_vault_id(option_config.quote_asset_id).unwrap(),
 			};
 
 			assert_ok!(<Vault as CapabilityVault>::stop_withdrawals(&vault_id));
