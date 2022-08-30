@@ -15,7 +15,12 @@ use composable_traits::{
 	time::{DurationSeconds, ONE_HOUR},
 	vamm::Vamm as VammTrait,
 };
-use frame_support::{assert_noop, assert_ok, pallet_prelude::Hooks, traits::fungibles::Transfer};
+use frame_support::{
+	assert_noop, assert_ok,
+	error::BadOrigin,
+	pallet_prelude::Hooks,
+	traits::{fungibles::Transfer, UnixTime},
+};
 use pallet_vamm::VammStateOf;
 use proptest::prelude::*;
 use sp_runtime::{traits::Zero, FixedPointNumber, Percent};
@@ -931,8 +936,6 @@ mod liquidate {
 // -------------------------------------------------------------------------------------------------
 
 mod close_market {
-	use frame_support::{error::BadOrigin, traits::UnixTime};
-
 	use super::*;
 
 	#[test]
