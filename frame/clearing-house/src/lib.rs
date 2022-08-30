@@ -540,6 +540,8 @@ pub mod pallet {
 		MaxPositionsExceeded,
 		/// Attempted to create a new market but the minimum trade size is negative.
 		NegativeMinimumTradeSize,
+		/// Tried to deposit zero amount of collateral to a trader's margin account.
+		NoCollateralDeposited,
 		/// An operation required the asset id of a valid collateral type but none were registered.
 		NoCollateralTypeSet,
 		/// Attempted to create a new market but the underlying asset is not supported by the
@@ -1086,6 +1088,7 @@ pub mod pallet {
 				Self::get_collateral_asset_id()? == asset_id,
 				Error::<T>::UnsupportedCollateralType
 			);
+			ensure!(!amount.is_zero(), Error::<T>::NoCollateralDeposited);
 
 			// Assuming stablecoin collateral and all markets quoted in dollars
 			let pallet_acc = Self::get_collateral_account();

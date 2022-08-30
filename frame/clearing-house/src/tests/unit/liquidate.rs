@@ -19,7 +19,7 @@ use crate::{
 
 use composable_traits::clearing_house::ClearingHouse;
 use frame_support::{assert_err, assert_noop, assert_ok};
-use sp_runtime::FixedI128;
+use sp_runtime::{traits::Zero, FixedI128};
 
 // -------------------------------------------------------------------------------------------------
 //                                            Helpers
@@ -488,7 +488,7 @@ fn negative_accounts_imply_no_liquidation_fees() {
 		..Default::default()
 	};
 
-	let margins = vec![(ALICE, as_balance(100)), (BOB, 0)];
+	let margins = vec![(ALICE, as_balance(100))];
 	traders_in_one_market_context(config, margins, |market_id| {
 		// 100% of liquidated amount goes to fees
 		set_full_liquidation_penalty(1.into());
@@ -519,7 +519,7 @@ fn negative_accounts_imply_no_liquidation_fees() {
 		// Alice's entire collateral is seized to pay her PnL
 		assert_eq!(TestPallet::get_collateral(&ALICE).unwrap(), 0);
 		// Bob doesn't get any fees since there's no collateral left
-		let bob_collateral = TestPallet::get_collateral(&BOB).unwrap();
+		let bob_collateral = TestPallet::get_collateral(&BOB).unwrap_or_else(Zero::zero);
 		assert_eq!(bob_collateral, 0);
 		// Insurance Fund balance gets nothing for the same reason above
 		let insurance_fund = get_insurance_acc_balance();
