@@ -18,6 +18,11 @@ let
     "--wasmtime-instantiation-strategy=recreate-instance-copy-on-write"
   ];
 
+    #   "--rpc-cors=all"
+    # "--wasmtime-instantiation-strategy=recreate-instance-copy-on-write"
+    # "--"
+    # "--execution=wasm"
+
   default-node-names = [ "alice" "bob" "charlie" "dave" "eve" "ferdie" ];
 in rec {
   mk-node = { port, wsPort, nodeKey, flags, basePath }: {
