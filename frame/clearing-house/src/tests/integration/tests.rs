@@ -950,19 +950,24 @@ mod close_market {
 				assert_ok!(TestPallet::create_market(Origin::signed(ALICE), config));
 
 				let market_id = Zero::zero();
+				let now = <Timestamp as UnixTime>::now().as_secs();
 				assert_noop!(
 					TestPallet::close_market(
 						Origin::signed(BOB),
 						market_id,
-						<Timestamp as UnixTime>::now().as_secs() + 10
+						now + 10
 					),
 					BadOrigin
 				);
 				assert_ok!(TestPallet::close_market(
 					Origin::root(),
 					market_id,
-					<Timestamp as UnixTime>::now().as_secs() + 10
+					now + 10
 				));
+
+				let market = get_market(&market_id);
+				let vamm = get_vamm(&market.vamm_id);
+				assert_eq!(vamm.closed, Some(now + 10));
 			})
 	}
 }
