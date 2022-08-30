@@ -939,7 +939,7 @@ mod close_market {
 	use super::*;
 
 	#[test]
-	fn should_allow_root_to_close_market() {
+	fn should_close_market_and_vamm_under_normal_conditions() {
 		ExtBuilder { native_balances: vec![(ALICE, UNIT), (BOB, UNIT)], ..Default::default() }
 			.build()
 			.execute_with(|| {

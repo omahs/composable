@@ -253,6 +253,7 @@ pub mod pallet {
 		/// Virtual Automated Market Maker pallet implementation.
 		type Vamm: Vamm<
 			Balance = Self::Balance,
+			Moment = DurationSeconds,
 			SwapConfig = SwapConfig<Self::VammId, Self::Balance>,
 			VammConfig = Self::VammConfig,
 			VammId = Self::VammId,
@@ -1495,10 +1496,13 @@ pub mod pallet {
 			when: Self::Timestamp,
 		) -> Result<(), DispatchError> {
 			let mut market = Self::try_get_market(&market_id)?;
+
+			T::Vamm::close(market.vamm_id, when)?;
+
 			let now = T::UnixTime::now().as_secs();
 			ensure!(when > now, Error::<T>::CloseTimeMustBeAfterCurrentTime);
-
 			market.closed_ts = Some(when);
+
 			Markets::<T>::insert(&market_id, market);
 			Self::deposit_event(Event::<T>::CloseMarket { market_id, when });
 			Ok(())
