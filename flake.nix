@@ -76,6 +76,10 @@
           script = writeShellApplication {
             name = "run-devnet-${chain-spec}";
             text = ''
+              # ISSUE: for some reason it does not cleans tmp and leads to block not produced
+              export RUST_BACKTRACE=full
+        	    export SKIP_WASM_BUILD=1
+	            export RUST_LOG=trace,parity-db=warn,trie=warn,runtime=trace,substrate-relay=trace,bridge=trace,xcmp=trace,xcm=trace
               rm -rf /tmp/polkadot-launch
               ${polkadot-launch}/bin/polkadot-launch ${config} --verbose
             '';
