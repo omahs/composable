@@ -22,7 +22,7 @@ in {
         "--rpc-external"
         "--ws-external"
         "--rpc-methods=Unsafe"
-        "--log=xcm=trace"
+        "--log=xcm=trace,runtime=trace,substrate-relay=trace,bridge=trace,xcmp=trace"
       ];      
     };
     parachains = [

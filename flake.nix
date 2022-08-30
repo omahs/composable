@@ -813,6 +813,12 @@
               type = "app";
               program = "${packages.polkadot-node}/bin/polkadot";
             };
+
+            junod = {
+              type = "app";
+              program = "${packages.junod}/bin/junod";
+            };
+            
             # TODO: move list of chains out of here and do fold
             benchmarks-once-composable = flake-utils.lib.mkApp {
               drv = run-with-benchmarks "composable-dev";
