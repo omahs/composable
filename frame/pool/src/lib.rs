@@ -178,17 +178,17 @@ pub mod pallet {
 	// ----------------------------------------------------------------------------------------------------
 	//                                       Imports and Dependencies
 	// ----------------------------------------------------------------------------------------------------
-	use crate::traits::CurrencyFactory;
 	use core::ops::AddAssign;
 
 	use codec::{Codec, FullCodec};
 	use composable_traits::{
 		currency::RangeId,
-		pool::{
-			Assets, Bound, ConstantMeanMarket, FixedBalance, PoolConfig, PoolInfo, Reserve,
-			WeightsVec,
-		},
 		vault::{Deposit as Duration, Vault, VaultConfig},
+        currency::CurrencyFactory,
+        pool::{
+            Assets, Bound, ConstantMeanMarket, FixedBalance, PoolConfig, PoolInfo, Reserve,
+            WeightsVec,
+        },
 	};
 
 	use frame_support::{

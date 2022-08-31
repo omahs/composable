@@ -24,16 +24,15 @@ sp-std = { default-features = false,  git = "https://github.com/paritytech/subst
 
 fixed = "1.9.0"
 hydra-dx-math = { default-features = false, git = "https://github.com/galacticcouncil/HydraDX-math" }
-approx = "0.5.1"
 
-composable-traits = { version = "0.0.1", path = "../composable-traits", default-features = false }
-vault = { version = "0.0.1", package = "pallet-vault", path = "../vault", default-features = false, optional = true }
+composable-traits = { git = "https://github.com/ComposableFi/composable", default-features = false, branch = "ensemble" }
 
 num-traits = { version = "0.2.14", default-features = false }
 num-integer = { version = "0.1", default-features = false }
 scale-info = { version = "2.1.1", default-features = false, features = [
   "derive",
 ] }
+
 
 # dependendices only for tests
 [dev-dependencies]
@@ -55,8 +54,7 @@ std = [
     "sp-core/std",
     "sp-std/std",
     "sp-arithmetic/std",
-	"composable-traits/std",
-    "vault/std",
+    "composable-traits/std",
     "scale-info/std",
 ]
 
