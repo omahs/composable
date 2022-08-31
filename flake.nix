@@ -627,6 +627,10 @@
             subxt =
               pkgs.callPackage ./code/utils/composable-subxt/subxt.nix { };
 
+            xcvm-contract-asset-registry = mk-xcvm-contract "xcvm-asset-registry";
+            xcvm-contract-router = mk-xcvm-contract "xcvm-router";
+            xcvm-contract-interpreter = mk-xcvm-contract "xcvm-interpreter";
+
             subsquid-processor = let
               processor = pkgs.buildNpmPackage {
                 extraNodeModulesArgs = {
