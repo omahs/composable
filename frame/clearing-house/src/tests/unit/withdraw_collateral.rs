@@ -2,7 +2,7 @@ use crate::{
 	mock::{
 		assets::USDC,
 		unit::{
-			accounts::{ALICE, BOB},
+			accounts::{ALICE, BOB, AccountId},
 			runtime::{
 				Assets as AssetsPallet, Balance, ExtBuilder, Origin, Runtime,
 				System as SystemPallet, TestPallet, Vamm as VammPallet,
@@ -21,7 +21,7 @@ use crate::{
 use composable_traits::clearing_house::ClearingHouse;
 use frame_support::{
 	assert_noop, assert_ok,
-	traits::fungibles::{Inspect, Unbalanced},
+	traits::fungibles::{Inspect, Unbalanced, Mutate},
 };
 use proptest::prelude::*;
 
@@ -125,8 +125,58 @@ fn can_withdraw_realized_profits() {
 	});
 }
 
-// TODO(0xangelo): the Insurance Fund should cover losses incurred by traders with realized bad debt
-// when a trader in profit withdraws.
+#[test]
+fn should_cover_bad_debt_via_insurance_fund() {
+	let config = MarketConfig::default();
+	let collateral = as_balance(100);
+	let margins = vec![(ALICE, collateral), (BOB, collateral)];
+
+	traders_in_one_market_context(config, margins, |market_id| {
+		// Make sure no funding is incurred
+		set_oracle_twap(&market_id, 10.into());
+		VammPallet::set_twap(Some(10.into()));
+
+		let initial_insurance_balance = as_balance(1_000);
+		<AssetsPallet as Mutate<AccountId>>::mint_into(
+			USDC, &TestPallet::get_insurance_account(), initial_insurance_balance
+		);
+
+		VammPallet::set_price(Some(10.into()));
+		let base = as_balance(10);
+		assert_ok!(TestPallet::open_position(
+			Origin::signed(ALICE),
+			market_id,
+			Long,
+			collateral,
+			base,
+		));
+		assert_ok!(TestPallet::open_position(
+			Origin::signed(BOB),
+			market_id,
+			Short,
+			collateral,
+			base,
+		));
+
+		// Price moves so that Alice is in profit and BOB has bad debt
+		VammPallet::set_price(Some(21.into()));
+		assert_ok!(TestPallet::close_position(Origin::signed(BOB), market_id));
+		assert_ok!(TestPallet::close_position(Origin::signed(ALICE), market_id));
+
+		assert_eq!(get_collateral(BOB), 0);
+		assert_eq!(get_collateral(ALICE), collateral * 2 + collateral / 10);
+
+		// Alice withdraws her realized profits
+		assert_ok!(TestPallet::withdraw_collateral(
+			Origin::signed(ALICE),
+			collateral * 2 + collateral / 10
+		));
+		assert_eq!(
+			AssetsPallet::balance(USDC, &TestPallet::get_insurance_account()),
+			initial_insurance_balance - collateral / 10
+		);
+	});
+}
 
 #[test]
 fn can_withdraw_unrealized_funding_payments_by_settling_them() {
