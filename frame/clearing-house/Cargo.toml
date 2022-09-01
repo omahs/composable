@@ -25,7 +25,6 @@ codec = { default-features = false, features = [
 ], package = "parity-scale-codec", version = "3.1" }
 composable-maths = { version = "0.0.1", path = "../composable-maths", default-features = false }
 composable-traits = { version = "0.0.1", path = "../composable-traits", default-features = false }
-log = { version = "0.4.14", default-features = false }
 num-integer = "0.1.44"
 num-traits = { version = "0.2.14", default-features = false }
 scale-info = { version = "2.1", default-features = false, features = [
@@ -64,7 +63,6 @@ std = [
   "sp-core/std",
   "sp-std/std",
   "codec/std",
-  "log/std",
   "scale-info/std",
   "serde/std",
 ]
