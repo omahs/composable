@@ -1183,6 +1183,8 @@
                 frontend = frontend-static-persistent;
               });
 
+            junod = pkgs.callPackage ./xcvm/cosmos/junod.nix { };
+            gex = pkgs.callPackage ./xcvm/cosmos/gex.nix { };
             default = packages.composable-node;
           };
 
