@@ -28,7 +28,11 @@ pub fn instantiate(
     _info: MessageInfo,
     _msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+<<<<<<< HEAD
     Ok(Response::default())
+=======
+	Ok(Response::default().add_event(Event::new("xcvm.registry.instantiated")))
+>>>>>>> 5eeb0cdffb (ugly rustcosmos)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
