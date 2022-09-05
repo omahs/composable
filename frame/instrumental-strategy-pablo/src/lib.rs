@@ -345,7 +345,7 @@ pub mod pallet {
 			let pool_id = pool_id_and_state.pool_id;
 			match T::Vault::available_funds(vault_id, &Self::account_id())? {
 				FundsAvailability::Withdrawable(balance) => {
-					Self::withdraw(vault_account, pool_id, balance)?;
+					Self::withdraw(vault_account, pool_id, asset_id, balance)?;
 				},
 				FundsAvailability::Depositable(balance) => {
 					Self::deposit(vault_account, pool_id, balance)?;
@@ -362,13 +362,19 @@ pub mod pallet {
 		fn withdraw(
 			vault_account: T::AccountId,
 			pool_id: T::PoolId,
+			asset_id: T::AssetId,
 			balance: T::Balance,
 		) -> DispatchResult {
+			let amount_quote = T::Pablo::get_exchange_value(pool_id, asset_id, balance)?;
+			dbg!(amount_quote);
+			let div = balance / amount_quote;
+			dbg!(div);
 			let lp_token_amount = T::Pablo::amount_of_lp_token_for_added_liquidity(
 				pool_id,
 				balance,
 				T::Balance::zero(),
 			)?;
+			dbg!(lp_token_amount);
 			T::Pablo::add_liquidity(
 				&vault_account,
 				pool_id,

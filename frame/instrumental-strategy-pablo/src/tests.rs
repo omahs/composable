@@ -104,72 +104,48 @@ mod rebalance {
 
 	#[test]
 	fn funds_availability_withdrawable() {
-		let base_asset = CurrencyId::LAYR;
-		let quote_asset = CurrencyId::CROWD_LOAN;
+		let asset = CurrencyId::LAYR;
 		let amount = 100 * CurrencyId::unit::<Balance>();
 
 		ExtBuilder::default()
-			.initialize_balance(ADMIN, base_asset, amount)
-			.initialize_balance(ADMIN, quote_asset, amount)
+			.initialize_balance(ADMIN, asset, amount)
 			.build()
 			.execute_with(|| {
 				System::set_block_number(1);
 
-				let base_vault_id = create_vault(base_asset, Perquintill::from_percent(10));
-				let base_vault_account = Vault::account_id(&base_vault_id);
+				let vault_id = create_vault(asset, Perquintill::from_percent(10));
+				let vault_account = Vault::account_id(&vault_id);
 
-				let quote_vault_id = create_vault(quote_asset, Perquintill::from_percent(10));
-				let quote_vault_account = Vault::account_id(&quote_vault_id);
-
-				let pool_id = create_pool(base_asset, None, quote_asset, None, None, None);
+				let pool_id = create_pool(asset, None, None, None, None, None);
 				pallet::AdminAccountIds::<MockRuntime>::insert(ADMIN, AccessRights::Full);
 				assert_ok!(PabloStrategy::set_pool_id_for_asset(
 					Origin::signed(ADMIN),
-					base_asset,
+					asset,
 					pool_id
 				));
 
 				assert_ok!(<PabloStrategy as InstrumentalProtocolStrategy>::associate_vault(
-					&base_vault_id
+					&vault_id
 				));
-				// assert_ok!(<PabloStrategy as InstrumentalProtocolStrategy>::associate_vault(
-				// 	&quote_vault_id
-				// ));
 
-				dbg!(Assets::balance(base_asset, &base_vault_account));
-				// dbg!(Assets::balance(quote_asset, &quote_vault_account));
+				dbg!(Assets::balance(asset, &vault_account));
 
 				dbg!(<Vault as StrategicVault>::available_funds(
-					&base_vault_id,
+					&vault_id,
 					&PabloStrategy::account_id(),
-				));
-				// dbg!(<Vault as StrategicVault>::available_funds(
-				// 	&quote_vault_id,
-				// 	&PabloStrategy::account_id(),
-				// ));
-				assert_ok!(Instrumental::add_liquidity(
-					Origin::signed(ADMIN),
-					base_asset,
-					90 * CurrencyId::unit::<Balance>()
 				));
 				assert_ok!(Instrumental::add_liquidity(
 					Origin::signed(ADMIN),
-					quote_asset,
+					asset,
 					90 * CurrencyId::unit::<Balance>()
 				));
 
-				dbg!(Assets::balance(base_asset, &base_vault_account));
-				dbg!(Assets::balance(quote_asset, &quote_vault_account));
+				dbg!(Assets::balance(asset, &vault_account));
 
-				// dbg!(Tokens::balance(asset, &ADMIN));
 				dbg!(<Vault as StrategicVault>::available_funds(
-					&base_vault_id,
+					&vault_id,
 					&PabloStrategy::account_id(),
 				));
-				// dbg!(<Vault as StrategicVault>::available_funds(
-				// 	&quote_vault_id,
-				// 	&PabloStrategy::account_id(),
-				// ));
 				// Tokens::mint_into(asset, &ADMIN, 100 * CurrencyId::unit::<Balance>());
 				// Vault::deposit(
 				// 	Origin::signed(ADMIN),
@@ -184,18 +160,13 @@ mod rebalance {
 
 				assert_ok!(PabloStrategy::rebalance());
 				System::assert_last_event(Event::PabloStrategy(pallet::Event::RebalancedVault {
-					vault_id: base_vault_id,
+					vault_id,
 				}));
 
-				// dbg!(Tokens::balance(asset, &ADMIN));
 				dbg!(<Vault as StrategicVault>::available_funds(
-					&base_vault_id,
+					&vault_id,
 					&PabloStrategy::account_id()
 				));
-				// dbg!(<Vault as StrategicVault>::available_funds(
-				// 	&quote_vault_id,
-				// 	&PabloStrategy::account_id()
-				// ));
 			})
 	}
 
