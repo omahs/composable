@@ -6,7 +6,7 @@ use primitives::currency::{CurrencyId, ValidateCurrencyId};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{ConvertInto, IdentityLookup, ConvertInto},
+	traits::{ConvertInto, IdentityLookup},
 	Permill,
 };
 

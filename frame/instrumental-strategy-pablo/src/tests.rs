@@ -1,8 +1,14 @@
-use composable_traits::instrumental::InstrumentalProtocolStrategy;
-use frame_support::assert_ok;
+use composable_traits::{instrumental::InstrumentalProtocolStrategy, vault::Vault as VaultTrait};
+use frame_support::{
+	assert_ok,
+	traits::fungibles::{Inspect, Mutate},
+};
 use primitives::currency::CurrencyId;
 use sp_core::H256;
-use sp_runtime::traits::{BlakeTwo256, Hash};
+use sp_runtime::{
+	traits::{BlakeTwo256, Hash},
+	Percent, Permill, Perquintill,
+};
 use sp_std::collections::btree_set::BTreeSet;
 
 use crate::{
@@ -10,8 +16,8 @@ use crate::{
 		account_id::{ADMIN, ALICE, BOB},
 		helpers::{assert_has_event, create_pool, create_vault, make_proposal, set_admin_members},
 		runtime::{
-			Balance, Call, Event, ExtBuilder, MockRuntime, PabloStrategy, System, VaultId,
-			MAX_ASSOCIATED_VAULTS,
+			Balance, Call, Event, ExtBuilder, MockRuntime, PabloStrategy, System, Tokens, Vault,
+			VaultId, MAX_ASSOCIATED_VAULTS,
 		},
 	},
 	pallet,
@@ -181,6 +187,60 @@ mod set_pool_id_for_asset {
 				pool_id,
 			});
 			make_proposal(proposal, ALICE, 2, 0, Some(&[ALICE]));
+		});
+	}
+}
+
+// -------------------------------------------------------------------------------------------------
+//                                             Transferring funds
+// -------------------------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod transferring_funds {
+	use super::*;
+
+	#[test]
+	fn transferring_funds_success() {
+		ExtBuilder::default().build().execute_with(|| {
+			System::set_block_number(1);
+			let base_asset = CurrencyId::LAYR;
+			let quote_asset = CurrencyId::CROWD_LOAN;
+			let amount = 1_000_000_000 * CurrencyId::unit::<Balance>();
+
+			// Create Vault (LAYR)
+			let vault_id = create_vault(base_asset, Perquintill::from_percent(50));
+			let pool_id = create_pool(base_asset, amount, quote_asset, amount, None, None);
+			set_admin_members(vec![ALICE], 5);
+			let associate_vault_proposal =
+				Call::PabloStrategy(crate::Call::associate_vault { vault_id });
+			make_proposal(associate_vault_proposal, ALICE, 1, 0, None);
+			let vault_account = Vault::account_id(&vault_id);
+			assert_ok!(Tokens::mint_into(base_asset, &vault_account, 1_000_000));
+			// set pool_id for asset
+			let set_pool_id_for_asset_proposal =
+				Call::PabloStrategy(crate::Call::set_pool_id_for_asset {
+					asset_id: base_asset,
+					pool_id,
+				});
+			make_proposal(set_pool_id_for_asset_proposal, ALICE, 1, 0, None);
+			// liquidity rebalance
+			let liquidity_rebalance_proposal =
+				Call::PabloStrategy(crate::Call::liquidity_rebalance {});
+			make_proposal(liquidity_rebalance_proposal, ALICE, 1, 0, None);
+			// tranferring funds
+			let new_quote_asset = CurrencyId::USDT;
+			let new_pool_id = create_pool(base_asset, amount, new_quote_asset, amount, None, None);
+			let percentage_of_funds = Percent::from_percent(10);
+			let transferring_funds_proposal =
+				Call::PabloStrategy(crate::Call::transferring_funds {
+					vault_id,
+					asset_id: base_asset,
+					new_pool_id,
+					percentage_of_funds,
+				});
+			make_proposal(transferring_funds_proposal, ALICE, 1, 0, None);
+			let proposal = Call::PabloStrategy(crate::Call::liquidity_rebalance {});
+			assert_eq!(PabloStrategy::pools(base_asset).unwrap().pool_id, new_pool_id);
 		});
 	}
 }

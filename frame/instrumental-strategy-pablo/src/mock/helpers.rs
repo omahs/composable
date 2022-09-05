@@ -63,14 +63,14 @@ where
 	let pool_id = Pablo::do_create_pool(config);
 	assert_ok!(pool_id);
 	let pool_id = pool_id.unwrap();
-	assert_ok!(<Pablo as Amm>::add_liquidity(
-		&ALICE,
-		pool_id,
-		base_amount,
-		quote_amount,
-		0_u128,
-		true
-	));
+	// assert_ok!(<Pablo as Amm>::add_liquidity(
+	// 	&ALICE,
+	// 	pool_id,
+	// 	base_amount,
+	// 	quote_amount,
+	// 	0_u128,
+	// 	true
+	// ));
 	assert_ok!(<Pablo as Amm>::add_liquidity(
 		&BOB,
 		pool_id,
