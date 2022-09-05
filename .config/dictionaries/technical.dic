@@ -1,4 +1,101 @@
-# abcdef
+# crates
+thiserror
+structopt
+cmark
+schemars
+jsonrpsee
+chrono
+iavl
+xtokens
+statemine
+inprocess
+subxt
+codegen
+sproof
+npos
+tendermint
+prost
+smallvec
+multihash
+ripemd
+wasmtime
+offences
+phragmen
+wasmi
+peerset
+sysinfo
+termcolor
+getrandom
+proptest
+tungstenite
+crev # cargo-crev
+RUSTSEC # RUSTSEC-XXXX-XXXX is id of RustSec Advisory Database
+xorshift # rand_xorshift
+
+# npm
+typeorm
+typegen
+apexcharts
+0xsequence
+localstorage
+hotjar
+zustand
+nextjs
+svgr
+contentful
+urql
+millify
+reduxjs
+notistack
+composabletests
+bignumber
+bufferutil
+mochawesome
+
+
+# substrate types
+perthing
+perthousand
+permill
+perbill
+perquintill
+on_unbalanceds
+unlookup
+hasher
+
+# binance-rs types
+AggrTrades
+
+# cosmwasm types
+Pointable
+submessage
+rlib 
+
+# various rust methods and types
+peekable
+oneshot
+bitvec
+bitfield
+powf
+airdropper
+minvested
+powd
+
+# BN method (javascript)
+addn
+
+
+# various keywords
+ifeq
+endwhile
+endef
+nocapture
+plantuml
+startuml
+enduml
+skinparam
+oneof
+
 # adoc
 # binance-rs types
 # BN method (javascript)
