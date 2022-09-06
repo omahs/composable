@@ -1,4 +1,19 @@
 //! Benchmarks for TokenizedOptions Pallet
+
+// set -e
+// cargo +nightly build --release -p wasm-optimizer
+// cargo +nightly build --release -p composable-runtime-wasm --target wasm32-unknown-unknown --features=runtime-benchmarks
+// cargo +nightly build --release -p picasso-runtime-wasm --target wasm32-unknown-unknown --features=runtime-benchmarks
+// cargo +nightly build --release -p dali-runtime-wasm --target wasm32-unknown-unknown --features=runtime-benchmarks
+// ./target/release/wasm-optimizer --input ./target/wasm32-unknown-unknown/release/dali_runtime.wasm --output ./target/wasm32-unknown-unknown/release/dali_runtime.optimized.wasm
+// ./target/release/wasm-optimizer --input ./target/wasm32-unknown-unknown/release/picasso_runtime.wasm --output ./target/wasm32-unknown-unknown/release/picasso_runtime.optimized.wasm
+// ./target/release/wasm-optimizer --input ./target/wasm32-unknown-unknown/release/composable_runtime.wasm --output ./target/wasm32-unknown-unknown/release/composable_runtime.optimized.wasm
+// export DALI_RUNTIME=$(realpath ./target/wasm32-unknown-unknown/release/dali_runtime.optimized.wasm)
+// export PICASSO_RUNTIME=$(realpath ./target/wasm32-unknown-unknown/release/picasso_runtime.optimized.wasm)
+// export COMPOSABLE_RUNTIME=$(realpath ./target/wasm32-unknown-unknown/release/composable_runtime.optimized.wasm)
+// cargo build --release --package composable --features=runtime-benchmarks --features=builtin-wasm
+// ./target/release/composable benchmark pallet --chain=dali-dev --execution=wasm --wasm-execution=compiled --wasm-instantiation-strategy=legacy-instance-reuse --pallet=tokenized_options --extrinsic=* --steps=50 --repeat=20 --output=runtime/dali/src/weights --log error
+
 // #![cfg(feature = "runtime-benchmarks")]
 
 use crate::{self as pallet_tokenized_options, types::*, Pallet as TokenizedOptions, *};
@@ -24,6 +39,7 @@ const UNIT: u128 = 10u128.pow(12);
 const A: u128 = 2;
 const B: u128 = 2000;
 const C: u128 = 131;
+const MINIMUM_PERIOD: u32 = 6000;
 
 fn encode_decode<D: Decode, E: Encode>(value: E) -> D {
 	let asset_id = value.encode();
@@ -58,12 +74,10 @@ fn set_oracle_price<T: Config + pallet_oracle::Config>(asset_id: T::MayBeAssetId
 fn initial_setup<T: Config + pallet_timestamp::Config>() {
 	System::<T>::set_block_number(0u32.into());
 	System::<T>::on_initialize(System::<T>::block_number());
-	<pallet_timestamp::Pallet<T>>::on_initialize(System::<T>::block_number());
 	TokenizedOptions::<T>::on_initialize(System::<T>::block_number());
-	<pallet_timestamp::Pallet<T>>::set(OriginFor::<T>::from(RawOrigin::None), 0u32.into()).unwrap();
-	<pallet_timestamp::Pallet<T>>::on_finalize(System::<T>::block_number());
+	<pallet_timestamp::Pallet<T>>::set_timestamp(0u32.into());
 	System::<T>::on_finalize(System::<T>::block_number());
-	produce_block::<T>(1_u32.into(), 1000_u32.into());
+	produce_block::<T>(1_u32.into(), MINIMUM_PERIOD.into());
 }
 
 fn produce_block<T: Config + pallet_timestamp::Config>(
@@ -71,15 +85,13 @@ fn produce_block<T: Config + pallet_timestamp::Config>(
 	time: <T as pallet_timestamp::Config>::Moment,
 ) {
 	if System::<T>::block_number() > 0u32.into() {
-		<pallet_timestamp::Pallet<T>>::on_finalize(System::<T>::block_number());
 		System::<T>::on_finalize(System::<T>::block_number());
 	}
 
 	System::<T>::set_block_number(n);
 	System::<T>::on_initialize(System::<T>::block_number());
 	TokenizedOptions::<T>::on_initialize(System::<T>::block_number());
-	// <pallet_timestamp::Pallet<T>>::set_timestamp(time);
-	<pallet_timestamp::Pallet<T>>::set(OriginFor::<T>::from(RawOrigin::None), time).unwrap();
+	<pallet_timestamp::Pallet<T>>::set_timestamp(time);
 }
 
 fn vault_benchmarking_setup<T: Config + pallet_oracle::Config>(
@@ -108,7 +120,7 @@ fn valid_option_config<T: Config>() -> OptionConfigOf<T> {
 		quote_asset_strike_price: UNIT.into(),
 		option_type: OptionType::Call,
 		exercise_type: ExerciseType::European,
-		expiring_date: recode_unwrap_u128(6000u64),
+		expiring_date: recode_unwrap_u128(30000u64),
 		// Use this when https://github.com/paritytech/substrate/pull/10128 is merged
 		// epoch: Epoch {
 		// 	deposit: recode_unwrap_u128(0u64),
@@ -118,9 +130,9 @@ fn valid_option_config<T: Config>() -> OptionConfigOf<T> {
 		// },
 		epoch: Epoch {
 			deposit: recode_unwrap_u128(0u64),
-			purchase: recode_unwrap_u128(2000u64),
-			exercise: recode_unwrap_u128(5000u64),
-			end: recode_unwrap_u128(9000u64),
+			purchase: recode_unwrap_u128(12000u64),
+			exercise: recode_unwrap_u128(30000u64),
+			end: recode_unwrap_u128(48000u64),
 		},
 		status: Status::NotStarted,
 		base_asset_amount_per_option: UNIT.into(),
@@ -151,7 +163,7 @@ fn default_option_benchmarking_setup<T: Config + pallet_timestamp::Config>() -> 
 		option_config.exercise_type,
 	);
 
-	produce_block::<T>(2u32.into(), (2u32 * 1000).into());
+	produce_block::<T>(2u32.into(), (2u32 * MINIMUM_PERIOD).into());
 
 	OptionHashToOptionId::<T>::get(option_hash).unwrap()
 }
@@ -208,12 +220,12 @@ benchmarks! {
 			quote_asset_strike_price: UNIT.into(),
 			option_type: OptionType::Call,
 			exercise_type: ExerciseType::European,
-			expiring_date: recode_unwrap_u128(6000u64),
+			expiring_date: recode_unwrap_u128(36000u64),
 			epoch: Epoch {
 				deposit: recode_unwrap_u128(0u64),
-				purchase: recode_unwrap_u128(3000u64),
-				exercise: recode_unwrap_u128(6000u64),
-				end: recode_unwrap_u128(9000u64)
+				purchase: recode_unwrap_u128(18000u64),
+				exercise: recode_unwrap_u128(36000u64),
+				end: recode_unwrap_u128(54000u64)
 			},
 			status: Status::NotStarted,
 			base_asset_amount_per_option: UNIT.into(),
@@ -233,7 +245,7 @@ benchmarks! {
 	}
 	verify {
 		assert_last_event::<T>(Event::CreatedOption {
-			// First 1..01 and 1..02 are for vaults lp_tokens
+			// ...01 and ...02 are for vaults lp_tokens
 			option_id: recode_unwrap_u128(100000000003u128),
 			option_config,
 		}.into())
@@ -310,7 +322,7 @@ benchmarks! {
 		let option_id = default_option_benchmarking_setup::<T>();
 		let option_amount: BalanceOf<T> = 1u128.into();
 		TokenizedOptions::<T>::sell_option(seller_origin, option_amount, option_id).unwrap();
-		produce_block::<T>(3u32.into(), (3u32 * 1000).into());
+		produce_block::<T>(3u32.into(), (3u32 * MINIMUM_PERIOD).into());
 	}: {
 		TokenizedOptions::<T>::buy_option(
 			buyer_origin,
@@ -344,16 +356,16 @@ benchmarks! {
 		let option_amount: BalanceOf<T> = 1u128.into();
 
 		TokenizedOptions::<T>::sell_option(seller_origin, option_amount, option_id).unwrap();
-		produce_block::<T>(3u32.into(), (3u32 * 1000).into());
+		produce_block::<T>(3u32.into(), (3u32 * MINIMUM_PERIOD).into());
 
 		TokenizedOptions::<T>::buy_option(buyer_origin.clone(), option_amount, option_id).unwrap();
 
 		// Set timestamp to 5000 (exercise phase can start)
 		// This can be deleted when https://github.com/paritytech/substrate/pull/10128 is merged
-		produce_block::<T>(5u32.into(), (5u32 * 1000).into());
+		produce_block::<T>(5u32.into(), (5u32 * MINIMUM_PERIOD).into());
 
 		// During this block's on_initialize, the option passes to exercise phase
-		produce_block::<T>(6u32.into(), (6u32 * 1000).into());
+		produce_block::<T>(6u32.into(), (6u32 * MINIMUM_PERIOD).into());
 	}: {
 		TokenizedOptions::<T>::exercise_option(
 			buyer_origin,
@@ -387,16 +399,16 @@ benchmarks! {
 		let option_amount: BalanceOf<T> = 1u128.into();
 
 		TokenizedOptions::<T>::sell_option(seller_origin.clone(), option_amount, option_id).unwrap();
-		produce_block::<T>(3u32.into(), (3u32 * 1000).into());
+		produce_block::<T>(3u32.into(), (3u32 * MINIMUM_PERIOD).into());
 
 		TokenizedOptions::<T>::buy_option(buyer_origin.clone(), option_amount, option_id).unwrap();
 
 		// Set timestamp to 5000 (exercise phase can start)
 		// This can be deleted when https://github.com/paritytech/substrate/pull/10128 is merged
-		produce_block::<T>(5u32.into(), (5u32 * 1000).into());
+		produce_block::<T>(5u32.into(), (5u32 * MINIMUM_PERIOD).into());
 
 		// During this block's on_initialize, the option passes to exercise phase
-		produce_block::<T>(6u32.into(), (6u32 * 1000).into());
+		produce_block::<T>(6u32.into(), (6u32 * MINIMUM_PERIOD).into());
 
 		// Not needed, but why not
 		TokenizedOptions::<T>::exercise_option(buyer_origin, option_amount, option_id).unwrap();
