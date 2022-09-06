@@ -46,7 +46,7 @@ pub fn delete_sell_option_success_checks(option_id: AssetId, option_amount: Bala
 		initial_user_position.shares_amount,
 		option_amount,
 		initial_user_position.option_amount,
-		Rounding::Down
+		Rounding::Down,
 	)
 	.unwrap();
 

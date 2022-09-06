@@ -1426,7 +1426,7 @@ pub mod pallet {
 				seller_position.shares_amount,
 				option_amount,
 				seller_position.option_amount,
-				Rounding::Down
+				Rounding::Down,
 			)?;
 
 			let asset_amount = VaultOf::<T>::lp_share_value(&vault_id, shares_amount)?;
@@ -1701,7 +1701,7 @@ pub mod pallet {
 				option.total_shares_amount,
 				seller_position.option_amount,
 				option.total_issuance_seller,
-				Rounding::Down
+				Rounding::Down,
 			)?;
 
 			let user_shares_amount = seller_position
@@ -1739,7 +1739,7 @@ pub mod pallet {
 				option.total_premium_paid,
 				seller_position.option_amount,
 				option.total_issuance_seller,
-				Rounding::Down
+				Rounding::Down,
 			)?;
 
 			// Get info to transfer premium to seller
@@ -1804,7 +1804,12 @@ pub mod pallet {
 
 				let unit = T::LocalAssets::unit::<BalanceOf<T>>(option.base_asset_id)?;
 
-				Self::convert_and_multiply_by_rational(diff, unit, base_asset_spot_price, Rounding::NearestPrefDown)?
+				Self::convert_and_multiply_by_rational(
+					diff,
+					unit,
+					base_asset_spot_price,
+					Rounding::NearestPrefDown,
+				)?
 			} else {
 				BalanceOf::<T>::zero()
 			};
