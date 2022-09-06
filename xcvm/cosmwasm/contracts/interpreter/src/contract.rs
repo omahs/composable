@@ -1,3 +1,8 @@
+use crate::{
+	error::ContractError,
+	msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, XCVMProgram},
+	state::{Config, CONFIG},
+};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -8,15 +13,25 @@ use cosmwasm_std::{
 	to_binary, CosmosMsg, DepsMut, Env, MessageInfo, QueryRequest, Response, StdError, WasmQuery,
 >>>>>>> 6f03544a0f (feat(cosmwasm): router contract)
 };
+<<<<<<< HEAD
 use serde::{Deserialize, Serialize};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, XCVMProgram};
 use crate::state::{Config, CONFIG};
+=======
+use cw2::set_contract_version;
+>>>>>>> 3f48b289ea (feat(cosmwasm): support migrate on pallet and contracts)
 use cw20::{BalanceResponse, Cw20Contract, Cw20ExecuteMsg, Cw20QueryMsg};
+use cw_utils::ensure_from_older_version;
 use num::Zero;
+use serde::Serialize;
 use xcvm_asset_registry::msg::{GetAssetContractResponse, QueryMsg as AssetRegistryQueryMsg};
 use xcvm_core::{Funds, Instruction, NetworkId};
+
+// version info for migration info
+const CONTRACT_NAME: &str = "composable:xcvm-interpreter";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -26,6 +41,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, StdError> {
 <<<<<<< HEAD
+<<<<<<< HEAD
     let registry_address = deps.api.addr_validate(&msg.registry_address)?;
 
     let config = Config { registry_address };
@@ -34,6 +50,10 @@ pub fn instantiate(
 
     Ok(Response::default())
 =======
+=======
+	set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+>>>>>>> 3f48b289ea (feat(cosmwasm): support migrate on pallet and contracts)
 	let registry_address = deps.api.addr_validate(&msg.registry_address)?;
 	let config = Config { registry_address };
 	CONFIG.save(deps.storage, &config)?;
@@ -52,6 +72,12 @@ pub fn execute(
     match msg {
         ExecuteMsg::Execute { program } => interpret_program(deps, env, info, program),
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+	let _ = ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+	Ok(Response::default())
 }
 
 pub fn interpret_program(

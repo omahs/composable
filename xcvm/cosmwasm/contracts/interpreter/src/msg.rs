@@ -10,13 +10,19 @@ pub type UserId = Vec<u8>;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-	pub registry_address: String,
-	pub network_id: NetworkId,
-	pub user_id: UserId,
+    pub registry_address: String,
+    pub network_id: NetworkId,
+    pub user_id: UserId,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-	Execute { program: XCVMProgram },
+    Execute { program: XCVMProgram },
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum QueryMsg {}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MigrateMsg {}
