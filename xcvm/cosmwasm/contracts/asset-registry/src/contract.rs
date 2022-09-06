@@ -12,17 +12,29 @@ use crate::state::{XcvmAssetId, ASSETS};
 =======
 use crate::{
 	error::ContractError,
-	msg::{ExecuteMsg, GetAssetContractResponse, InstantiateMsg, QueryMsg},
+	msg::{ExecuteMsg, GetAssetContractResponse, InstantiateMsg, MigrateMsg, QueryMsg},
 	state::{XcvmAssetId, ASSETS},
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
+<<<<<<< HEAD
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+=======
+use cosmwasm_std::{
+	to_binary, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response, StdResult,
+};
+use cw2::set_contract_version;
+use cw_utils::ensure_from_older_version;
+>>>>>>> c04a21b884 (feat(cosmwasm): add `migrate` endpoint to contracts)
 use std::collections::BTreeMap;
 >>>>>>> 6f03544a0f (feat(cosmwasm): router contract)
 
+const CONTRACT_NAME: &str = "composable:xcvm-asset-registry";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
+<<<<<<< HEAD
     _deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
@@ -31,6 +43,14 @@ pub fn instantiate(
 <<<<<<< HEAD
     Ok(Response::default())
 =======
+=======
+	deps: DepsMut,
+	_env: Env,
+	_info: MessageInfo,
+	_msg: InstantiateMsg,
+) -> Result<Response, ContractError> {
+	set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+>>>>>>> c04a21b884 (feat(cosmwasm): add `migrate` endpoint to contracts)
 	Ok(Response::default().add_event(Event::new("xcvm.registry.instantiated")))
 >>>>>>> 5eeb0cdffb (ugly rustcosmos)
 }
@@ -45,6 +65,12 @@ pub fn execute(
     match msg {
         ExecuteMsg::SetAssets(asset) => handle_set_assets(deps, asset),
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+	let _ = ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+	Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -78,8 +104,105 @@ pub fn query_asset_contract(
     deps: Deps,
     token_id: XcvmAssetId,
 ) -> StdResult<GetAssetContractResponse> {
+<<<<<<< HEAD
     let contract_addr = ASSETS.load(deps.storage, token_id)?;
     Ok(GetAssetContractResponse {
         addr: contract_addr,
     })
+=======
+	let contract_addr = ASSETS.load(deps.storage, token_id)?;
+	Ok(GetAssetContractResponse { addr: contract_addr })
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use cosmwasm_std::{
+		from_binary,
+		testing::{mock_dependencies, mock_env, mock_info},
+		Addr, Order, Storage,
+	};
+
+	#[test]
+	fn proper_instantiation() {
+		let mut deps = mock_dependencies();
+
+		let msg = InstantiateMsg {};
+		let info = mock_info("sender", &vec![]);
+
+		let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+		assert_eq!(0, res.messages.len());
+	}
+
+	#[test]
+	fn set_assets() {
+		let mut deps = mock_dependencies();
+
+		let msg = InstantiateMsg {};
+		let info = mock_info("sender", &vec![]);
+
+		let _ = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+		let mut assets = BTreeMap::new();
+		assets.insert("1".into(), "addr1".into());
+		assets.insert("2".into(), "addr2".into());
+
+		let res =
+			execute(deps.as_mut(), mock_env(), info.clone(), ExecuteMsg::SetAssets(assets.clone()))
+				.unwrap();
+		assert_eq!(res.attributes.len(), 0);
+
+		assert_eq!(ASSETS.load(&deps.storage, 1).unwrap(), Addr::unchecked("addr1"));
+		assert_eq!(ASSETS.load(&deps.storage, 2).unwrap(), Addr::unchecked("addr2"));
+
+		let mut assets = BTreeMap::new();
+		assets.insert("3".into(), "addr3".into());
+		assets.insert("4".into(), "addr4".into());
+
+		let _ = execute(deps.as_mut(), mock_env(), info, ExecuteMsg::SetAssets(assets.clone()))
+			.unwrap();
+
+		// Make sure that set removes the previous elements
+		assert!(ASSETS.load(&deps.storage, 1).is_err());
+		assert!(ASSETS.load(&deps.storage, 2).is_err());
+		assert_eq!(ASSETS.load(&deps.storage, 3).unwrap(), Addr::unchecked("addr3"));
+		assert_eq!(ASSETS.load(&deps.storage, 4).unwrap(), Addr::unchecked("addr4"));
+
+		// Finally make sure that there are two elements in the assets storage
+		assert_eq!(
+			ASSETS
+				.keys(&deps.storage, None, None, Order::Ascending)
+				.collect::<Vec<_>>()
+				.len(),
+			2
+		);
+	}
+
+	#[test]
+	fn query_assets() {
+		let mut deps = mock_dependencies();
+
+		let msg = InstantiateMsg {};
+		let info = mock_info("sender", &vec![]);
+
+		let _ = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+		let mut assets = BTreeMap::new();
+		assets.insert("1".into(), "addr1".into());
+
+		let _ =
+			execute(deps.as_mut(), mock_env(), info.clone(), ExecuteMsg::SetAssets(assets.clone()))
+				.unwrap();
+
+		let res: GetAssetContractResponse =
+			from_binary(&query(deps.as_ref(), mock_env(), QueryMsg::GetAssetContract(1)).unwrap())
+				.unwrap();
+
+		// Query should return the corresponding address
+		assert_eq!(res, GetAssetContractResponse { addr: Addr::unchecked("addr1") });
+
+		// This should fail since there the asset doesn't exist
+		assert!(query(deps.as_ref(), mock_env(), QueryMsg::GetAssetContract(2)).is_err());
+	}
+>>>>>>> c04a21b884 (feat(cosmwasm): add `migrate` endpoint to contracts)
 }
