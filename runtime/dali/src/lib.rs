@@ -1396,7 +1396,6 @@ mod benches {
 	// TODO: Broken
 		// [pallet_ibc, Ibc]
 		// [ibc_transfer, Transfer]
-		// [tokenized_options, TokenizedOptions]
 	);
 }
 
