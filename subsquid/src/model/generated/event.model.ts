@@ -17,8 +17,8 @@ export class Event {
    * ID of account that executed the extrinsic
    */
   @Index_()
-  @Column_("text", {nullable: false})
-  accountId!: string
+  @Column_("text", {nullable: true})
+  accountId!: string | undefined | null
 
   /**
    * Type of transaction

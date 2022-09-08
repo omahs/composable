@@ -83,7 +83,7 @@ describe("Bonded finance Tests", () => {
 
     const bondOffer = getNewBondOffer(ctx, event);
 
-    assertBondedFinanceBondOffer(bondOffer, undefined, "1", 0n, BOB);
+    assertBondedFinanceBondOffer(bondOffer, undefined, "1", 0n, BOB, false);
   });
 
   it("updates bond offer", async () => {

@@ -91,21 +91,22 @@ export function getNewVestingSchedule(
 export async function processVestingScheduleAddedEvent(
   ctx: EventHandlerContext
 ): Promise<void> {
+  console.log("Process VestingScheduleAdded");
   const event = new VestingVestingScheduleAddedEvent(ctx);
 
   const vestingSchedule = getNewVestingSchedule(ctx, event);
-
-  await ctx.store.save(vestingSchedule);
-
-  const { scheduleAmount, asset } = getVestingScheduleAddedEvent(event);
-
-  await storeHistoricalLockedValue(ctx, scheduleAmount, asset.toString());
 
   await saveAccountAndEvent(
     ctx,
     EventType.VESTING_SCHEDULES_VESTING_SCHEDULE_ADDED,
     [vestingSchedule.from, vestingSchedule.to]
   );
+
+  await ctx.store.save(vestingSchedule);
+
+  const { scheduleAmount, asset } = getVestingScheduleAddedEvent(event);
+
+  await storeHistoricalLockedValue(ctx, scheduleAmount, asset.toString());
 }
 
 interface VestingScheduleClaimedEvent {
@@ -151,10 +152,17 @@ export function updatedClaimedAmount(
 export async function processVestingClaimedEvent(
   ctx: EventHandlerContext
 ): Promise<void> {
+  console.log("Process Claimed");
   const event = new VestingClaimedEvent(ctx);
 
   const { who, claimedAmountPerSchedule } =
     getVestingScheduleClaimedEvent(event);
+
+  await saveAccountAndEvent(
+    ctx,
+    EventType.VESTING_SCHEDULES_CLAIMED,
+    encodeAccount(who)
+  );
 
   for (let i = 0; i < claimedAmountPerSchedule.length; i += 1) {
     const [id, amount] = claimedAmountPerSchedule[i];
@@ -181,10 +189,4 @@ export async function processVestingClaimedEvent(
 
     await storeHistoricalLockedValue(ctx, -amount, schedule.assetId);
   }
-
-  await saveAccountAndEvent(
-    ctx,
-    EventType.VESTING_SCHEDULES_CLAIMED,
-    encodeAccount(who)
-  );
 }

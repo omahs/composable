@@ -66,15 +66,11 @@ export type EntityConstructor<T> = {
  *
  * @returns string | undefined
  */
-export async function trySaveAccount(
+export async function getOrCreateAccount(
   ctx: EventHandlerContext,
   accountId?: string
 ): Promise<Account | undefined> {
-  let accId = accountId || ctx.extrinsic?.signer;
-
-  if (process.env.npm_lifecycle_event === "test") {
-    accId = BOB;
-  }
+  const accId = accountId || ctx.extrinsic?.signer;
 
   if (!accId) {
     // no-op
@@ -102,18 +98,16 @@ export async function trySaveAccount(
  *
  * Returns the stored event id.
  * @param ctx
- * @param accountId
  * @param eventType
  */
 export async function saveEvent(
   ctx: EventHandlerContext,
-  accountId: string,
   eventType: EventType
 ): Promise<Event> {
   // Create event
   const event = new Event({
     id: ctx.event.id,
-    accountId,
+    accountId: ctx.event.extrinsic?.signer,
     eventType,
     blockNumber: BigInt(ctx.block.height),
     timestamp: BigInt(ctx.block.timestamp),
@@ -166,11 +160,7 @@ export async function saveAccountAndEvent(
   const accountIds: (string | undefined)[] =
     typeof accountId === "string" ? [accountId] : accountId || [];
 
-  if (!accountIds?.[0]) {
-    return Promise.reject("Missing account id");
-  }
-
-  const event = await saveEvent(ctx, accountIds[0], eventType);
+  const event = await saveEvent(ctx, eventType);
 
   const accounts: Account[] = [];
 
@@ -180,15 +170,11 @@ export async function saveAccountAndEvent(
       // no-op
       return Promise.reject("Missing account id");
     }
-    const account = await trySaveAccount(ctx, id);
+    const account = await getOrCreateAccount(ctx, id);
     if (account) {
       accounts.push(account);
       await saveActivity(ctx, event, id);
     }
-  }
-
-  if (!accounts.length) {
-    return Promise.reject("No accounts were saved");
   }
 
   return Promise.resolve({ accounts, event });
@@ -271,57 +257,57 @@ export async function getLastLockedValue(
       `
   );
 
-  let lastAmount = 0n;
-
-  if (lastLockedValue?.[0]) {
-    lastAmount = BigInt(lastLockedValue[0].amount);
-  }
-
-  return Promise.resolve(lastAmount);
+  return BigInt(lastLockedValue?.[0]?.amount || 0);
 }
 
 export async function mockData(ctx: EventHandlerContext) {
-  const stakingPosition1 = createStakingPosition(
-    "1",
-    "1",
-    BOB,
-    10n,
-    10n,
-    new Event({ id: "event-2" }),
-    BigInt(new Date().valueOf())
-  );
-  const stakingPosition2 = createStakingPosition(
-    "2",
-    "1",
-    BOB,
-    15n,
-    10n,
-    new Event({ id: "event-2" }),
-    BigInt(new Date().valueOf())
-  );
-  const stakingPosition3 = createStakingPosition(
-    "3",
-    "2",
-    BOB,
-    50n,
-    100n,
-    new Event({ id: "event-2" }),
-    BigInt(new Date().valueOf())
-  );
-
-  await ctx.store.save(stakingPosition1);
-  await ctx.store.save(stakingPosition2);
-  await ctx.store.save(stakingPosition3);
-
-  for (let i = 0; i < 3; i += 1) {
-    const lastLockedValue = await getLastLockedValue(ctx);
-    const historicalLockedValue = new HistoricalLockedValue({
-      id: randomUUID(),
-      event: new Event({ id: "1" }),
-      amount: lastLockedValue + 10n,
-      currency: Currency.USD,
-      timestamp: BigInt(new Date(ctx.block.timestamp).valueOf()),
-    });
-    await ctx.store.save(historicalLockedValue);
-  }
+  // const stakingPosition1 = createStakingPosition(
+  //   "1",
+  //   "1",
+  //   BOB,
+  //   10n,
+  //   10n,
+  //   new Event({ id: "event-2" }),
+  //   BigInt(new Date().valueOf())
+  // );
+  // const stakingPosition2 = createStakingPosition(
+  //   "2",
+  //   "1",
+  //   BOB,
+  //   15n,
+  //   10n,
+  //   new Event({ id: "event-2" }),
+  //   BigInt(new Date().valueOf())
+  // );
+  // const stakingPosition3 = createStakingPosition(
+  //   "3",
+  //   "2",
+  //   BOB,
+  //   50n,
+  //   100n,
+  //   new Event({ id: "event-2" }),
+  //   BigInt(new Date().valueOf())
+  // );
+  // await ctx.store.save(stakingPosition1);
+  // await ctx.store.save(stakingPosition2);
+  // await ctx.store.save(stakingPosition3);
+  // for (let i = 0; i < 3; i += 1) {
+  //   const event: Event = new Event({
+  //     id: `event-${i}`,
+  //     eventType: EventType.BALANCES_TRANSFER,
+  //     timestamp: BigInt(ctx.block.timestamp),
+  //     blockNumber: BigInt(ctx.block.height),
+  //   });
+  //   await ctx.store.save(event);
+  //   const lastLockedValue = await getLastLockedValue(ctx);
+  //   console.log(lastLockedValue);
+  //   const historicalLockedValue = new HistoricalLockedValue({
+  //     id: randomUUID(),
+  //     event,
+  //     amount: lastLockedValue + 10n,
+  //     currency: Currency.USD,
+  //     timestamp: BigInt(new Date(ctx.block.timestamp).valueOf()),
+  //   });
+  //   await ctx.store.save(historicalLockedValue);
+  // }
 }

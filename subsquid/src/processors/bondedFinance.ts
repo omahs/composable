@@ -74,6 +74,7 @@ export function getNewBondOffer(
     offerId: offerId.toString(),
     totalPurchased: BigInt(0),
     beneficiary: encodeAccount(beneficiary),
+    cancelled: false,
   });
 }
 
@@ -88,9 +89,11 @@ export function getNewBondOffer(
 export async function processNewOfferEvent(
   ctx: EventHandlerContext
 ): Promise<void> {
+  console.log("Process NewOffer");
+  // TODO: check why not triggered
   const event = new BondedFinanceNewOfferEvent(ctx);
 
-  const newOffer = getNewOfferEvent(event);
+  const newOffer = getNewBondOffer(ctx, event);
 
   await ctx.store.save(newOffer);
 
@@ -119,6 +122,7 @@ export function updateBondOffer(
 export async function processNewBondEvent(
   ctx: EventHandlerContext
 ): Promise<void> {
+  console.log("Process NewBond");
   const event = new BondedFinanceNewBondEvent(ctx);
   const { offerId } = getNewBondEvent(event);
 
@@ -156,6 +160,7 @@ export function cancelBondOffer(stored: BondedFinanceBondOffer): void {
 export async function processOfferCancelledEvent(
   ctx: EventHandlerContext
 ): Promise<void> {
+  console.log("Process OfferCancelled");
   const event = new BondedFinanceOfferCancelledEvent(ctx);
   const { offerId } = getOfferCancelledEvent(event);
 

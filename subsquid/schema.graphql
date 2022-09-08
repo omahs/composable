@@ -188,7 +188,7 @@ enum EventType {
 type Event @entity {
   id: ID!
   "ID of account that executed the extrinsic"
-  accountId: String! @index
+  accountId: String @index
   "Type of transaction"
   eventType: EventType!
   "Block in which transaction was registered"
