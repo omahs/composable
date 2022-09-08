@@ -60,11 +60,15 @@ pub trait WeightInfo {
 	fn query_info() -> Weight;
 	fn query_continuation() -> Weight;
 	fn query_raw() -> Weight;
+	fn migrate() -> Weight;
 }
 
 /// Weights for cosmwasm using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+	fn migrate() -> Weight {
+		10_000 as Weight
+	}
 	// Storage: Cosmwasm CodeHashToId (r:1 w:1)
 	// Storage: System Account (r:1 w:1)
 	// Storage: Cosmwasm CurrentCodeId (r:1 w:1)
@@ -540,5 +544,9 @@ impl WeightInfo for () {
 		(235_123_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+	}
+
+	fn migrate() -> Weight {
+		10_000 as Weight
 	}
 }
