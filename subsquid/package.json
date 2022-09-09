@@ -14,9 +14,9 @@
     "lint": "npm run lint:prod -- --fix",
     "lint:prod": "eslint . --ext .ts --ignore-path .gitignore --max-warnings 0",
     "test": "ts-mocha -p tsconfig-test.json src/test/**/*.test.ts",
-    "typegen": "npm run generate:meta && npm run generate:defs",
-    "generate:defs": "ts-node node_modules/.bin/polkadot-types-from-defs --package ./src/interfaces --input ./src/interfaces --endpoint ws://127.0.0.1:9988",
-    "generate:meta": "ts-node node_modules/.bin/polkadot-types-from-chain --package ./src/interfaces --endpoint ws://127.0.0.1:9988 --output ./src/interfaces"
+    "typegen": "npm run generate:meta && npm run generate:defs && echo > src/interfaces/index.ts",
+    "generate:meta": "ts-node --skip-project node_modules/.bin/polkadot-types-from-chain --package subsquid/interfaces --endpoint ws://127.0.0.1:9988 --output ./src/interfaces",
+    "generate:defs": "ts-node --skip-project node_modules/.bin/polkadot-types-from-defs --package subsquid/interfaces --input ./src/interfaces --endpoint ws://127.0.0.1:9988"
   },
   "dependencies": {
     "@polkadot/api": "^9.3.3",

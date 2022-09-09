@@ -194,11 +194,13 @@ export async function storeHistoricalLockedValue(
 
   const oraclePrice = await api.query.oracle.prices(assetId);
 
+  // @ts-ignore
   if (!oraclePrice?.price) {
     // no-op.
     return;
   }
 
+  // @ts-ignore
   const assetPrice = BigInt(oraclePrice.price.toString());
 
   const lastLockedValue = await getLastLockedValue(ctx);
