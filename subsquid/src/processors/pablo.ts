@@ -108,9 +108,7 @@ export async function processPoolCreatedEvent(
     pool.calculatedTimestamp = timestamp;
     pool.blockNumber = BigInt(ctx.block.height);
 
-    let tx = await ctx.store.get(Event, {
-      where: { eventId: ctx.event.id },
-    });
+    let tx = await ctx.store.get(Event, ctx.event.id);
     if (tx != undefined) {
       console.log("qwe");
       console.error("Unexpected event in db", tx);
@@ -248,9 +246,7 @@ export async function processLiquidityAddedEvent(
     quoteAsset.calculatedTimestamp = timestamp;
     quoteAsset.blockNumber = BigInt(ctx.block.height);
 
-    let tx = await ctx.store.get(Event, {
-      where: { eventId: ctx.event.id },
-    });
+    let tx = await ctx.store.get(Event, ctx.event.id);
     if (tx != undefined) {
       throw new Error("Unexpected event in db");
     }
@@ -360,9 +356,7 @@ export async function processLiquidityRemovedEvent(
     quoteAsset.calculatedTimestamp = timestamp;
     quoteAsset.blockNumber = BigInt(ctx.block.height);
 
-    let tx = await ctx.store.get(Event, {
-      where: { eventId: ctx.event.id },
-    });
+    let tx = await ctx.store.get(Event, ctx.event.id);
     if (tx != undefined) {
       throw new Error("Unexpected event in db");
     }
@@ -525,9 +519,7 @@ export async function processSwappedEvent(
     quoteAsset.calculatedTimestamp = timestamp;
     quoteAsset.blockNumber = BigInt(ctx.block.height);
 
-    let tx = await ctx.store.get(Event, {
-      where: { eventId: ctx.event.id },
-    });
+    let tx = await ctx.store.get(Event, ctx.event.id);
     if (tx != undefined) {
       throw new Error("Unexpected event in db");
     }
@@ -615,9 +607,7 @@ export async function processPoolDeletedEvent(
     quoteAsset.calculatedTimestamp = timestamp;
     quoteAsset.blockNumber = BigInt(ctx.block.height);
 
-    let tx = await ctx.store.get(Event, {
-      where: { eventId: ctx.event.id },
-    });
+    let tx = await ctx.store.get(Event, ctx.event.id);
     if (tx != undefined) {
       throw new Error("Unexpected event in db");
     }

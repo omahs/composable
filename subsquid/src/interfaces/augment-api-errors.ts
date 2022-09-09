@@ -540,7 +540,7 @@ declare module '@polkadot/api-base/types/errors' {
        **/
       EncodingError: AugmentedError<ApiType>;
       /**
-       * Invalid message for extirnsic
+       * Invalid message for extrinsic
        **/
       InvalidMessageType: AugmentedError<ApiType>;
       /**
@@ -1017,6 +1017,7 @@ declare module '@polkadot/api-base/types/errors' {
       NoLpTokenForLbp: AugmentedError<ApiType>;
       NotEnoughLiquidity: AugmentedError<ApiType>;
       NotEnoughLpToken: AugmentedError<ApiType>;
+      NoXTokenForLbp: AugmentedError<ApiType>;
       PairMismatch: AugmentedError<ApiType>;
       PoolNotFound: AugmentedError<ApiType>;
       StakingPoolConfigError: AugmentedError<ApiType>;

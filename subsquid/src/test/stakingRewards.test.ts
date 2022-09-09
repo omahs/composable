@@ -1,14 +1,15 @@
-import { EventHandlerContext, Store } from "@subsquid/substrate-processor";
-import { Event, EventType, StakingPosition, StakingSource } from "../src/model";
+import { EventHandlerContext } from "@subsquid/substrate-processor";
+import { Store } from "@subsquid/typeorm-store";
 import { mock } from "ts-mockito";
-import { BOB, createCtx } from "../src/utils";
 import { expect } from "chai";
+import { Event, EventType, StakingPosition, StakingSource } from "../model";
+import { BOB, createCtx } from "../utils";
 import {
   createRewardPool,
   createStakingPosition,
   extendStakingPosition,
   splitStakingPosition,
-} from "../src/processors/stakingRewards";
+} from "../processors/stakingRewards";
 
 /**
  * Check if StakingPosition has expected values.
@@ -55,14 +56,14 @@ const createMockEvent = (eventId: string, eventType: EventType) =>
 
 describe("Staking rewards", () => {
   let storeMock: Store;
-  let ctx: EventHandlerContext;
+  let ctx: EventHandlerContext<Store>;
 
   beforeEach(() => {
     storeMock = mock<Store>();
     ctx = createCtx(storeMock, 1);
   });
 
-  it("Should create RewardPool", async () => {
+  it("Should create RewardPool", () => {
     const rewardPool = createRewardPool("event-id", 1n, 2n);
 
     expect(rewardPool.eventId).to.equal("event-id");
@@ -70,7 +71,7 @@ describe("Staking rewards", () => {
     expect(rewardPool.assetId).to.equal("2");
   });
 
-  it("Should create StakingPosition", async () => {
+  it("Should create StakingPosition", () => {
     const position = createStakingPosition(
       "2",
       "3",
@@ -93,7 +94,7 @@ describe("Staking rewards", () => {
     );
   });
 
-  it("Should split StakingPosition", async () => {
+  it("Should split StakingPosition", () => {
     const position = createStakingPosition(
       "2",
       "3",
@@ -133,7 +134,7 @@ describe("Staking rewards", () => {
     );
   });
 
-  it("Should extend StakingPosition", async () => {
+  it("Should extend StakingPosition", () => {
     const position = createStakingPosition(
       "2",
       "3",

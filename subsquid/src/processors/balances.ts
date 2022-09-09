@@ -1,11 +1,12 @@
 import { EventHandlerContext } from "@subsquid/substrate-processor";
+import { Store } from "@subsquid/typeorm-store";
 import {
   BalancesDepositEvent,
   BalancesTransferEvent,
   BalancesWithdrawEvent,
 } from "../types/events";
 import { encodeAccount } from "../utils";
-import { mockData, saveAccountAndEvent } from "../dbHelper";
+import { saveAccountAndEvent } from "../dbHelper";
 import { EventType } from "../model";
 
 interface TransferEvent {
@@ -25,17 +26,17 @@ interface WithdrawEvent {
 }
 
 function getTransferEvent(event: BalancesTransferEvent): TransferEvent {
-  const { from, to, amount } = event.asV2401 ?? event.asLatest;
+  const { from, to, amount } = event.asV2401;
   return { from, to, amount };
 }
 
 function getWithdrawEvent(event: BalancesWithdrawEvent): DepositEvent {
-  const { who, amount } = event.asV2401 ?? event.asLatest;
+  const { who, amount } = event.asV2401;
   return { who, amount };
 }
 
 function getDepositEvent(event: BalancesDepositEvent): WithdrawEvent {
-  const { who, amount } = event.asV2401 ?? event.asLatest;
+  const { who, amount } = event.asV2401;
   return { who, amount };
 }
 
@@ -48,7 +49,7 @@ function getDepositEvent(event: BalancesDepositEvent): WithdrawEvent {
  * @param ctx
  */
 export async function processTransferEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Process transfer");
   const event = new BalancesTransferEvent(ctx);
@@ -70,7 +71,7 @@ export async function processTransferEvent(
  * @param ctx
  */
 export async function processWithdrawEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Process withdraw");
   const evt = new BalancesWithdrawEvent(ctx);
@@ -88,7 +89,7 @@ export async function processWithdrawEvent(
  * @param ctx
  */
 export async function processDepositEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Process deposit");
   const evt = new BalancesDepositEvent(ctx);

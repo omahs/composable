@@ -1,4 +1,5 @@
 import { EventHandlerContext } from "@subsquid/substrate-processor";
+import { Store } from "@subsquid/typeorm-store";
 import { randomUUID } from "crypto";
 import {
   VestingSchedule as VestingScheduleType,
@@ -22,22 +23,20 @@ interface VestingScheduleAddedEvent {
 }
 
 /**
- * Extracts information about a VestingScheduleAdded event
+ * Extract information about a VestingScheduleAdded event.
  * @param event
  */
 function getVestingScheduleAddedEvent(
   event: VestingVestingScheduleAddedEvent
 ): VestingScheduleAddedEvent {
-  return event.asV2401 ?? event.asLatest;
+  return event.asV2401;
 }
 
 /**
- * Creates Schedule
+ * Create Schedule.
  * @param vestingSchedule
  */
-export function createVestingSchedule(
-  vestingSchedule: VestingScheduleType
-): Schedule {
+export function createSchedule(vestingSchedule: VestingScheduleType): Schedule {
   const vestingWindow = new ScheduleWindow();
   vestingWindow.start = BigInt(vestingSchedule.window.start);
   vestingWindow.period = BigInt(vestingSchedule.window.period);
@@ -58,8 +57,8 @@ export function createVestingSchedule(
  * @param ctx
  * @param event
  */
-export function getNewVestingSchedule(
-  ctx: EventHandlerContext,
+export function createVestingSchedule(
+  ctx: EventHandlerContext<Store>,
   event: VestingVestingScheduleAddedEvent
 ): VestingSchedule {
   const { from, to, asset, schedule, scheduleAmount } =
@@ -75,7 +74,7 @@ export function getNewVestingSchedule(
     eventId: ctx.event.id,
     to: toAccount,
     assetId: asset.toString(),
-    schedule: createVestingSchedule(schedule),
+    schedule: createSchedule(schedule),
     totalAmount: scheduleAmount,
     fullyClaimed: false,
   });
@@ -89,12 +88,12 @@ export function getNewVestingSchedule(
  * @param ctx
  */
 export async function processVestingScheduleAddedEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Process VestingScheduleAdded");
   const event = new VestingVestingScheduleAddedEvent(ctx);
 
-  const vestingSchedule = getNewVestingSchedule(ctx, event);
+  const vestingSchedule = createVestingSchedule(ctx, event);
 
   await saveAccountAndEvent(
     ctx,
@@ -124,7 +123,7 @@ interface VestingScheduleClaimedEvent {
 function getVestingScheduleClaimedEvent(
   event: VestingClaimedEvent
 ): VestingScheduleClaimedEvent {
-  return event.asV2401 ?? event.asLatest;
+  return event.asV2401;
 }
 
 /**
@@ -150,7 +149,7 @@ export function updatedClaimedAmount(
  * @param ctx
  */
 export async function processVestingClaimedEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Process Claimed");
   const event = new VestingClaimedEvent(ctx);
@@ -169,11 +168,7 @@ export async function processVestingClaimedEvent(
 
     const schedule: VestingSchedule | undefined = await ctx.store.get(
       VestingSchedule,
-      {
-        where: {
-          id,
-        },
-      }
+      id.toString()
     );
 
     if (!schedule) {

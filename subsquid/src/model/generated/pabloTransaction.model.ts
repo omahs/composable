@@ -18,7 +18,7 @@ export class PabloTransaction {
   event!: Event
 
   @Index_()
-  @ManyToOne_(() => PabloPool, {nullable: false})
+  @ManyToOne_(() => PabloPool, {nullable: true})
   pool!: PabloPool
 
   @Column_("text", {nullable: false})

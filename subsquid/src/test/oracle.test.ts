@@ -1,9 +1,10 @@
-import { EventHandlerContext, Store } from "@subsquid/substrate-processor";
-import { Asset, Currency, HistoricalAssetPrice } from "../src/model";
+import { EventHandlerContext } from "@subsquid/substrate-processor";
+import { Store } from "@subsquid/typeorm-store";
 import { mock } from "ts-mockito";
-import { createCtx } from "../src/utils";
 import { expect } from "chai";
-import { getHistoricalAssetPrice, updateAsset } from "../src/processors/oracle";
+import { Asset, Currency, HistoricalAssetPrice } from "../model";
+import { createCtx } from "../utils";
+import { getHistoricalAssetPrice, updateAsset } from "../processors/oracle";
 
 /**
  * Check if Asset has expected values.
@@ -27,7 +28,7 @@ function assertHistoricalAssetPrice(
   historicalAssetPrice: HistoricalAssetPrice,
   assetId: string,
   price: bigint,
-  currency: Currency,
+  currency: Currency
 ) {
   expect(historicalAssetPrice.asset.id).to.equal(assetId);
   expect(historicalAssetPrice.price).to.equal(price);
@@ -36,14 +37,14 @@ function assertHistoricalAssetPrice(
 
 describe("Oracle price changed", () => {
   let storeMock: Store;
-  let ctx: EventHandlerContext;
+  let ctx: EventHandlerContext<Store>;
 
   beforeEach(() => {
     storeMock = mock<Store>();
     ctx = createCtx(storeMock, 1);
   });
 
-  it("Should update asset", async () => {
+  it("Should update asset", () => {
     const asset: Asset = {
       id: "1",
       eventId: "event-id",
@@ -56,7 +57,7 @@ describe("Oracle price changed", () => {
     assertAsset(asset, "1", 10n);
   });
 
-  it("Should create HistoricalAssetPrice", async () => {
+  it("Should create HistoricalAssetPrice", () => {
     const asset: Asset = {
       id: "1",
       eventId: "event-id",

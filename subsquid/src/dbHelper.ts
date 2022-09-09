@@ -12,8 +12,6 @@ import {
   RewardPool,
   EventType,
 } from "./model";
-import { BOB } from "./utils";
-import { createStakingPosition } from "./processors/stakingRewards";
 
 export async function get<T extends { id: string }>(
   store: Store,
@@ -66,10 +64,11 @@ export type EntityConstructor<T> = {
  * @returns string | undefined
  */
 export async function getOrCreateAccount(
-  ctx: EventHandlerContext,
+  ctx: EventHandlerContext<Store>,
   accountId?: string
 ): Promise<Account | undefined> {
-  const accId = accountId || ctx.extrinsic?.signer;
+  console.log("extrinsic:", ctx.event.extrinsic);
+  const accId = accountId || ctx.event.extrinsic?.signature?.address;
 
   if (!accId) {
     // no-op
@@ -100,13 +99,13 @@ export async function getOrCreateAccount(
  * @param eventType
  */
 export async function saveEvent(
-  ctx: EventHandlerContext,
+  ctx: EventHandlerContext<Store>,
   eventType: EventType
 ): Promise<Event> {
   // Create event
   const event = new Event({
     id: ctx.event.id,
-    accountId: ctx.event.extrinsic?.signer,
+    accountId: ctx.event.extrinsic?.signature?.address,
     eventType,
     blockNumber: BigInt(ctx.block.height),
     timestamp: BigInt(ctx.block.timestamp),
@@ -125,7 +124,7 @@ export async function saveEvent(
  * @param accountId
  */
 export async function saveActivity(
-  ctx: EventHandlerContext,
+  ctx: EventHandlerContext<Store>,
   event: Event,
   accountId: string
 ): Promise<string> {
@@ -152,7 +151,7 @@ export async function saveActivity(
  * @param accountId
  */
 export async function saveAccountAndEvent(
-  ctx: EventHandlerContext,
+  ctx: EventHandlerContext<Store>,
   eventType: EventType,
   accountId?: string | string[]
 ): Promise<{ accounts: Account[]; event: Event }> {
@@ -186,7 +185,7 @@ export async function saveAccountAndEvent(
  * @param assetId
  */
 export async function storeHistoricalLockedValue(
-  ctx: EventHandlerContext,
+  ctx: EventHandlerContext<Store>,
   amountLocked: bigint,
   assetId: string
 ): Promise<void> {
@@ -227,7 +226,7 @@ export async function storeHistoricalLockedValue(
  * @param poolId
  */
 export async function getAssetIdFromRewardPoolId(
-  ctx: EventHandlerContext,
+  ctx: EventHandlerContext<Store>,
   poolId: bigint
 ): Promise<string> {
   const rewardPool = await ctx.store.get(RewardPool, {
@@ -245,68 +244,11 @@ export async function getAssetIdFromRewardPoolId(
  * Get latest locked value
  */
 export async function getLastLockedValue(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<bigint> {
-  const lastLockedValue: { amount: bigint }[] = await ctx.store.query(
-    `
-      SELECT amount
-      FROM historical_locked_value
-      ORDER BY timestamp DESC
-      LIMIT 1
-      `
-  );
+  const lastLockedValue = await ctx.store.get(HistoricalLockedValue, {
+    order: { timestamp: "DESC" },
+  });
 
-  return BigInt(lastLockedValue?.[0]?.amount || 0);
-}
-
-export async function mockData(ctx: EventHandlerContext) {
-  // const stakingPosition1 = createStakingPosition(
-  //   "1",
-  //   "1",
-  //   BOB,
-  //   10n,
-  //   10n,
-  //   new Event({ id: "event-2" }),
-  //   BigInt(new Date().valueOf())
-  // );
-  // const stakingPosition2 = createStakingPosition(
-  //   "2",
-  //   "1",
-  //   BOB,
-  //   15n,
-  //   10n,
-  //   new Event({ id: "event-2" }),
-  //   BigInt(new Date().valueOf())
-  // );
-  // const stakingPosition3 = createStakingPosition(
-  //   "3",
-  //   "2",
-  //   BOB,
-  //   50n,
-  //   100n,
-  //   new Event({ id: "event-2" }),
-  //   BigInt(new Date().valueOf())
-  // );
-  // await ctx.store.save(stakingPosition1);
-  // await ctx.store.save(stakingPosition2);
-  // await ctx.store.save(stakingPosition3);
-  // for (let i = 0; i < 3; i += 1) {
-  //   const event: Event = new Event({
-  //     id: `event-${i}`,
-  //     eventType: EventType.BALANCES_TRANSFER,
-  //     timestamp: BigInt(ctx.block.timestamp),
-  //     blockNumber: BigInt(ctx.block.height),
-  //   });
-  //   await ctx.store.save(event);
-  //   const lastLockedValue = await getLastLockedValue(ctx);
-  //   console.log(lastLockedValue);
-  //   const historicalLockedValue = new HistoricalLockedValue({
-  //     id: randomUUID(),
-  //     event,
-  //     amount: lastLockedValue + 10n,
-  //     currency: Currency.USD,
-  //     timestamp: BigInt(new Date(ctx.block.timestamp).valueOf()),
-  //   });
-  //   await ctx.store.save(historicalLockedValue);
-  // }
+  return BigInt(lastLockedValue?.amount || 0);
 }

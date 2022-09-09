@@ -27,7 +27,7 @@ export class PabloPool {
   @Column_("text", {nullable: false})
   owner!: string
 
-  @Column_("integer", {nullable: false})
+  @Column_("int4", {nullable: false})
   transactionCount!: number
 
   @Column_("text", {nullable: false})

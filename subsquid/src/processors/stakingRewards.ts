@@ -1,4 +1,5 @@
 import { EventHandlerContext } from "@subsquid/substrate-processor";
+import { Store } from "@subsquid/typeorm-store";
 import { randomUUID } from "crypto";
 import {
   StakingRewardsRewardPoolCreatedEvent,
@@ -54,32 +55,32 @@ interface SplitPositionEvent {
 function getRewardPoolCreatedEvent(
   event: StakingRewardsRewardPoolCreatedEvent
 ): RewardPoolCreatedEvent {
-  const { poolId, owner, endBlock, assetId } = event.asV2401 ?? event.asLatest;
+  const { poolId, owner, endBlock, assetId } = event.asV2401;
   return { poolId, owner, endBlock, assetId };
 }
 
 function getStakedEvent(event: StakingRewardsStakedEvent): StakedEvent {
   const { poolId, owner, amount, durationPreset, positionId, keepAlive } =
-    event.asV2401 ?? event.asLatest;
+    event.asV2401;
   return { poolId, owner, amount, durationPreset, positionId, keepAlive };
 }
 
 function getUnstakedEvent(event: StakingRewardsUnstakedEvent): UnstakedEvent {
-  const { positionId, owner } = event.asV2401 ?? event.asLatest;
+  const { positionId, owner } = event.asV2401;
   return { positionId, owner };
 }
 
 function getStakeAmountExtendedEvent(
   event: StakingRewardsStakeAmountExtendedEvent
 ): StakeAmountExtendedEvent {
-  const { positionId, amount } = event.asV2401 ?? event.asLatest;
+  const { positionId, amount } = event.asV2401;
   return { positionId, amount };
 }
 
 function getSplitPositionEvent(
   event: StakingRewardsSplitPositionEvent
 ): SplitPositionEvent {
-  const { positions } = event.asV2401 ?? event.asLatest;
+  const { positions } = event.asV2401;
   return { positions };
 }
 
@@ -182,7 +183,7 @@ export function splitStakingPosition(
  * @param ctx
  */
 export async function processRewardPoolCreatedEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Start processing `reward pool created`");
   const evt = new StakingRewardsRewardPoolCreatedEvent(ctx);
@@ -209,7 +210,7 @@ export async function processRewardPoolCreatedEvent(
  * @param ctx
  */
 export async function processStakedEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Start processing `staked`");
   const evt = new StakingRewardsStakedEvent(ctx);
@@ -247,7 +248,7 @@ export async function processStakedEvent(
  * @param ctx
  */
 export async function processStakeAmountExtendedEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Start processing `StakeAmountExtended`");
   const evt = new StakingRewardsStakeAmountExtendedEvent(ctx);
@@ -284,7 +285,7 @@ export async function processStakeAmountExtendedEvent(
  * @param ctx
  */
 export async function processUnstakedEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   // TODO: when does this run?
   console.log("Start processing `Unstaked`");
@@ -315,7 +316,7 @@ export async function processUnstakedEvent(
  * @param ctx
  */
 export async function processSplitPositionEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Start processing `SplitPosition`");
   const evt = new StakingRewardsSplitPositionEvent(ctx);

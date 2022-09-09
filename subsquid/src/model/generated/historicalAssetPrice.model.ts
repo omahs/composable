@@ -23,7 +23,7 @@ export class HistoricalAssetPrice {
    * ID of the asset
    */
   @Index_()
-  @ManyToOne_(() => Asset, {nullable: false})
+  @ManyToOne_(() => Asset, {nullable: true})
   asset!: Asset
 
   @Column_("numeric", {transformer: marshal.bigintTransformer, nullable: false})

@@ -26,8 +26,8 @@ export function createCtx(
   ctx.store = instance(storeMock);
   ctx.block = blockMock;
   ctx.event = event;
-  if (ctx.extrinsic) {
-    ctx.extrinsic.signer = BOB;
+  if (ctx.event.extrinsic?.signature?.address) {
+    ctx.event.extrinsic.signature.address = BOB;
   }
 
   return ctx;

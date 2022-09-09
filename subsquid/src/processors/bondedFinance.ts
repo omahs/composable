@@ -1,4 +1,5 @@
 import { EventHandlerContext } from "@subsquid/substrate-processor";
+import { Store } from "@subsquid/typeorm-store";
 import { randomUUID } from "crypto";
 import {
   BondedFinanceNewBondEvent,
@@ -30,7 +31,7 @@ interface OfferCancelledEvent {
 export function getNewOfferEvent(
   event: BondedFinanceNewOfferEvent
 ): NewOfferEvent {
-  const { offerId, beneficiary } = event.asV2401 ?? event.asLatest;
+  const { offerId, beneficiary } = event.asV2401;
 
   return { offerId, beneficiary };
 }
@@ -42,7 +43,7 @@ export function getNewOfferEvent(
 export function getNewBondEvent(
   event: BondedFinanceNewBondEvent
 ): NewBondEvent {
-  const { offerId, nbOfBonds } = event.asV2401 ?? event.asLatest;
+  const { offerId, nbOfBonds } = event.asV2401;
   return { offerId, nbOfBonds };
 }
 
@@ -53,7 +54,7 @@ export function getNewBondEvent(
 export function getOfferCancelledEvent(
   event: BondedFinanceOfferCancelledEvent
 ): OfferCancelledEvent {
-  const { offerId } = event.asV2401 ?? event.asLatest;
+  const { offerId } = event.asV2401;
   return { offerId };
 }
 
@@ -63,7 +64,7 @@ export function getOfferCancelledEvent(
  * @param event
  */
 export function getNewBondOffer(
-  ctx: EventHandlerContext,
+  ctx: EventHandlerContext<Store>,
   event: BondedFinanceNewOfferEvent
 ): BondedFinanceBondOffer {
   const { offerId, beneficiary } = getNewOfferEvent(event);
@@ -87,7 +88,7 @@ export function getNewBondOffer(
  * @param ctx
  */
 export async function processNewOfferEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Process NewOffer");
   // TODO: check why not triggered
@@ -120,7 +121,7 @@ export function updateBondOffer(
  * @param ctx
  */
 export async function processNewBondEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Process NewBond");
   const event = new BondedFinanceNewBondEvent(ctx);
@@ -158,7 +159,7 @@ export function cancelBondOffer(stored: BondedFinanceBondOffer): void {
  * @param ctx
  */
 export async function processOfferCancelledEvent(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Process OfferCancelled");
   const event = new BondedFinanceOfferCancelledEvent(ctx);

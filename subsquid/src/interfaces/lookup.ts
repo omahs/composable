@@ -1584,7 +1584,7 @@ export default {
       OrderRemoved: {
         orderId: 'u128',
       },
-      CofigurationAdded: {
+      ConfigurationAdded: {
         configurationId: 'u128',
         configuration: 'ComposableTraitsTimeTimeReleaseFunction'
       }
@@ -1924,7 +1924,32 @@ export default {
     }
   },
   /**
-   * Lookup164: pallet_staking_rewards::pallet::Event<T>
+   * Lookup164: pallet_fnft::pallet::Event<T>
+   **/
+  PalletFnftEvent: {
+    _enum: {
+      FinancialNftCollectionCreated: {
+        collectionId: 'u128',
+        who: 'AccountId32',
+        admin: 'AccountId32',
+      },
+      FinancialNftCreated: {
+        collectionId: 'u128',
+        instanceId: 'u64',
+      },
+      FinancialNftBurned: {
+        collectionId: 'u128',
+        instanceId: 'u64',
+      },
+      FinancialNftTransferred: {
+        collectionId: 'u128',
+        instanceId: 'u64',
+        to: 'AccountId32'
+      }
+    }
+  },
+  /**
+   * Lookup165: pallet_staking_rewards::pallet::Event<T>
    **/
   PalletStakingRewardsEvent: {
     _enum: {
@@ -1959,7 +1984,7 @@ export default {
       },
       RewardTransferred: {
         from: 'AccountId32',
-        pool: 'u128',
+        poolId: 'u128',
         rewardCurrency: 'u128',
         rewardIncrement: 'u128',
       },
@@ -1983,30 +2008,10 @@ export default {
     }
   },
   /**
-   * Lookup165: pallet_staking_rewards::pallet::RewardAccumulationHookError
+   * Lookup166: pallet_staking_rewards::pallet::RewardAccumulationHookError
    **/
   PalletStakingRewardsRewardAccumulationHookError: {
     _enum: ['BackToTheFuture', 'RewardsPotEmpty']
-  },
-  /**
-   * Lookup166: pallet_fnft::pallet::Event<T>
-   **/
-  PalletFnftEvent: {
-    _enum: {
-      FinancialNftCreated: {
-        collectionId: 'u128',
-        instanceId: 'u64',
-      },
-      FinancialNftBurned: {
-        collectionId: 'u128',
-        instanceId: 'u64',
-      },
-      FinancialNftTransferred: {
-        collectionId: 'u128',
-        instanceId: 'u64',
-        to: 'AccountId32'
-      }
-    }
   },
   /**
    * Lookup167: pallet_call_filter::pallet::Event<T>
@@ -4200,7 +4205,7 @@ export default {
   PalletLiquidationsCall: {
     _enum: {
       add_liquidation_strategy: {
-        configuraiton: 'PalletLiquidationsLiquidationStrategyConfiguration',
+        configuration: 'PalletLiquidationsLiquidationStrategyConfiguration',
       },
       sell: {
         order: 'ComposableTraitsDefiSellCurrencyId',
@@ -4523,7 +4528,9 @@ export default {
         assetId: 'u128',
         endBlock: 'u32',
         rewardConfigs: 'BTreeMap<u128, ComposableTraitsStakingRewardConfig>',
-        lock: 'ComposableTraitsStakingLockLockConfig'
+        lock: 'ComposableTraitsStakingLockLockConfig',
+        shareAssetId: 'u128',
+        financialNftAssetId: 'u128'
       }
     }
   },
@@ -5521,7 +5528,7 @@ export default {
    * Lookup645: pallet_pablo::pallet::Error<T>
    **/
   PalletPabloError: {
-    _enum: ['PoolNotFound', 'NotEnoughLiquidity', 'NotEnoughLpToken', 'PairMismatch', 'MustBeOwner', 'InvalidSaleState', 'InvalidAmount', 'InvalidAsset', 'CannotRespectMinimumRequested', 'AssetAmountMustBePositiveNumber', 'InvalidPair', 'InvalidFees', 'AmpFactorMustBeGreaterThanZero', 'MissingAmount', 'MissingMinExpectedAmount', 'MoreThanTwoAssetsNotYetSupported', 'NoLpTokenForLbp', 'WeightsMustBeNonZero', 'WeightsMustSumToOne', 'StakingPoolConfigError']
+    _enum: ['PoolNotFound', 'NotEnoughLiquidity', 'NotEnoughLpToken', 'PairMismatch', 'MustBeOwner', 'InvalidSaleState', 'InvalidAmount', 'InvalidAsset', 'CannotRespectMinimumRequested', 'AssetAmountMustBePositiveNumber', 'InvalidPair', 'InvalidFees', 'AmpFactorMustBeGreaterThanZero', 'MissingAmount', 'MissingMinExpectedAmount', 'MoreThanTwoAssetsNotYetSupported', 'NoLpTokenForLbp', 'NoXTokenForLbp', 'WeightsMustBeNonZero', 'WeightsMustSumToOne', 'StakingPoolConfigError']
   },
   /**
    * Lookup647: composable_traits::dex::DexRoute<PoolId, dali_runtime::MaxHopsCount>
@@ -5542,7 +5549,13 @@ export default {
     _enum: ['MaxHopsExceeded', 'NoRouteFound', 'UnexpectedNodeFoundWhileValidation', 'CanNotRespectMinAmountRequested', 'UnsupportedOperation', 'LoopSuspectedInRouteUpdate']
   },
   /**
-   * Lookup650: composable_traits::staking::RewardPool<sp_core::crypto::AccountId32, primitives::currency::CurrencyId, Balance, BlockNumber, sp_runtime::bounded::bounded_btree_map::BoundedBTreeMap<K, sp_arithmetic::per_things::Perbill, S>, sp_runtime::bounded::bounded_btree_map::BoundedBTreeMap<primitives::currency::CurrencyId, composable_traits::staking::Reward<primitives::currency::CurrencyId, Balance>, S>>
+   * Lookup658: pallet_fnft::pallet::Error<T>
+   **/
+  PalletFnftError: {
+    _enum: ['CollectionAlreadyExists', 'InstanceAlreadyExists', 'CollectionNotFound', 'InstanceNotFound', 'MustBeOwner']
+  },
+  /**
+   * Lookup659: composable_traits::staking::RewardPool<sp_core::crypto::AccountId32, primitives::currency::CurrencyId, Balance, BlockNumber, sp_runtime::bounded::bounded_btree_map::BoundedBTreeMap<K, sp_arithmetic::per_things::Perbill, S>, sp_runtime::bounded::bounded_btree_map::BoundedBTreeMap<primitives::currency::CurrencyId, composable_traits::staking::Reward<primitives::currency::CurrencyId, Balance>, S>>
    **/
   ComposableTraitsStakingRewardPool: {
     owner: 'AccountId32',
@@ -5551,10 +5564,12 @@ export default {
     totalShares: 'u128',
     claimedShares: 'u128',
     endBlock: 'u32',
-    lock: 'ComposableTraitsStakingLockLockConfig'
+    lock: 'ComposableTraitsStakingLockLockConfig',
+    shareAssetId: 'u128',
+    financialNftAssetId: 'u128'
   },
   /**
-   * Lookup652: composable_traits::staking::Reward<primitives::currency::CurrencyId, Balance>
+   * Lookup661: composable_traits::staking::Reward<primitives::currency::CurrencyId, Balance>
    **/
   ComposableTraitsStakingReward: {
     assetId: 'u128',
@@ -5566,7 +5581,7 @@ export default {
     lastUpdatedTimestamp: 'u64'
   },
   /**
-   * Lookup656: composable_traits::staking::Stake<sp_core::crypto::AccountId32, RewardPoolId, Balance, sp_runtime::bounded::bounded_btree_map::BoundedBTreeMap<primitives::currency::CurrencyId, V, S>>
+   * Lookup665: composable_traits::staking::Stake<sp_core::crypto::AccountId32, primitives::currency::CurrencyId, Balance, sp_runtime::bounded::bounded_btree_map::BoundedBTreeMap<primitives::currency::CurrencyId, V, S>>
    **/
   ComposableTraitsStakingStake: {
     owner: 'AccountId32',
@@ -5577,7 +5592,7 @@ export default {
     lock: 'ComposableTraitsStakingLock'
   },
   /**
-   * Lookup659: composable_traits::staking::lock::Lock
+   * Lookup668: composable_traits::staking::lock::Lock
    **/
   ComposableTraitsStakingLock: {
     startedAt: 'u64',
@@ -5585,95 +5600,90 @@ export default {
     unlockPenalty: 'Perbill'
   },
   /**
-   * Lookup661: pallet_staking_rewards::pallet::Error<T>
+   * Lookup669: pallet_staking_rewards::pallet::Error<T>
    **/
   PalletStakingRewardsError: {
     _enum: ['RewardConfigProblem', 'RewardsPoolAlreadyExists', 'NoDurationPresetsConfigured', 'TooManyRewardAssetTypes', 'EndBlockMustBeInTheFuture', 'UnimplementedRewardPoolConfiguration', 'RewardsPoolNotFound', 'ReductionConfigProblem', 'NotEnoughAssets', 'StakeNotFound', 'MaxRewardLimitReached', 'OnlyPoolOwnerCanAddNewReward', 'OnlyStakeOwnerCanUnstake', 'RewardAssetNotFound', 'BackToTheFuture', 'RewardsPotEmpty']
   },
   /**
-   * Lookup670: pallet_fnft::pallet::Error<T>
-   **/
-  PalletFnftError: {
-    _enum: ['CollectionAlreadyExists', 'InstanceAlreadyExists', 'CollectionNotFound', 'InstanceNotFound', 'MustBeOwner']
-  },
-  /**
-   * Lookup671: pallet_call_filter::pallet::Error<T>
+   * Lookup670: pallet_call_filter::pallet::Error<T>
    **/
   PalletCallFilterError: {
     _enum: ['CannotDisable', 'InvalidString']
   },
   /**
-   * Lookup672: pallet_ibc_ping::pallet::Error<T>
+   * Lookup671: pallet_ibc_ping::pallet::Error<T>
    **/
   PalletIbcPingError: {
     _enum: ['InvalidParams', 'ChannelInitError', 'PacketSendError']
   },
   /**
-   * Lookup673: ibc_transfer::pallet::Error<T>
+   * Lookup672: ibc_transfer::pallet::Error<T>
    **/
   IbcTransferError: {
     _enum: ['TransferFailed', 'Utf8Error', 'InvalidAssetId', 'InvalidIbcDenom', 'InvalidAmount', 'InvalidTimestamp', 'FailedToGetRevisionNumber', 'InvalidParams', 'ChannelInitError']
   },
   /**
-   * Lookup675: pallet_ibc::IbcConsensusState
+   * Lookup674: pallet_ibc::IbcConsensusState
    **/
   PalletIbcIbcConsensusState: {
     timestamp: 'u64',
     commitmentRoot: 'Bytes'
   },
   /**
-   * Lookup679: pallet_ibc::pallet::Error<T>
+   * Lookup678: pallet_ibc::pallet::Error<T>
    **/
   PalletIbcError: {
     _enum: ['ProcessingError', 'DecodingError', 'EncodingError', 'ProofGenerationError', 'ConsensusStateNotFound', 'ChannelNotFound', 'ClientStateNotFound', 'ConnectionNotFound', 'PacketCommitmentNotFound', 'PacketReceiptNotFound', 'PacketAcknowledgmentNotFound', 'SendPacketError', 'Other', 'InvalidRoute', 'InvalidMessageType']
   },
   /**
-   * Lookup681: pallet_cosmwasm::types::CodeInfo<sp_core::crypto::AccountId32>
+   * Lookup680: pallet_cosmwasm::types::CodeInfo<sp_core::crypto::AccountId32, primitive_types::H256>
    **/
   PalletCosmwasmCodeInfo: {
     creator: 'AccountId32',
+    pristineCodeHash: 'H256',
     instrumentationVersion: 'u16',
     refcount: 'u32'
   },
   /**
-   * Lookup682: pallet_cosmwasm::pallet::Error<T>
+   * Lookup681: pallet_cosmwasm::pallet::Error<T>
    **/
   PalletCosmwasmError: {
     _enum: ['Instrumentation', 'VmCreation', 'ContractTrapped', 'ContractHasNoInfo', 'CodeDecoding', 'CodeValidation', 'CodeEncoding', 'CodeInstrumentation', 'InstrumentedCodeIsTooBig', 'CodeAlreadyExists', 'CodeNotFound', 'ContractAlreadyExists', 'ContractNotFound', 'TransferFailed', 'ChargeGas', 'RefundGas', 'LabelTooBig', 'UnknownDenom', 'StackOverflow', 'NotEnoughFundsForUpload', 'ContractNonceOverflow', 'NonceOverflow', 'RefcountOverflow', 'VMDepthOverflow', 'SignatureVerificationError', 'IteratorIdOverflow', 'IteratorNotFound']
   },
   /**
-   * Lookup685: frame_system::extensions::check_non_zero_sender::CheckNonZeroSender<T>
+   * Lookup684: frame_system::extensions::check_non_zero_sender::CheckNonZeroSender<T>
    **/
   FrameSystemExtensionsCheckNonZeroSender: 'Null',
   /**
-   * Lookup686: frame_system::extensions::check_spec_version::CheckSpecVersion<T>
+   * Lookup685: frame_system::extensions::check_spec_version::CheckSpecVersion<T>
    **/
   FrameSystemExtensionsCheckSpecVersion: 'Null',
   /**
-   * Lookup687: frame_system::extensions::check_tx_version::CheckTxVersion<T>
+   * Lookup686: frame_system::extensions::check_tx_version::CheckTxVersion<T>
    **/
   FrameSystemExtensionsCheckTxVersion: 'Null',
   /**
-   * Lookup688: frame_system::extensions::check_genesis::CheckGenesis<T>
+   * Lookup687: frame_system::extensions::check_genesis::CheckGenesis<T>
    **/
   FrameSystemExtensionsCheckGenesis: 'Null',
   /**
-   * Lookup691: frame_system::extensions::check_nonce::CheckNonce<T>
+   * Lookup690: frame_system::extensions::check_nonce::CheckNonce<T>
    **/
   FrameSystemExtensionsCheckNonce: 'Compact<u32>',
   /**
-   * Lookup692: frame_system::extensions::check_weight::CheckWeight<T>
+   * Lookup691: frame_system::extensions::check_weight::CheckWeight<T>
    **/
   FrameSystemExtensionsCheckWeight: 'Null',
   /**
-   * Lookup693: pallet_asset_tx_payment::ChargeAssetTxPayment<T>
+   * Lookup692: pallet_asset_tx_payment::ChargeAssetTxPayment<T>
    **/
   PalletAssetTxPaymentChargeAssetTxPayment: {
     tip: 'Compact<u128>',
     assetId: 'Option<u128>'
   },
   /**
-   * Lookup695: dali_runtime::Runtime
+   * Lookup694: dali_runtime::Runtime
    **/
   DaliRuntimeRuntime: 'Null'
 };

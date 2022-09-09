@@ -116,7 +116,7 @@ declare module '@polkadot/api-base/types/consts' {
        **/
       contractStorageByteReadPrice: u32 & AugmentedConst<ApiType>;
       /**
-       * Price of writting a byte in the storage.
+       * Price of writing a byte in the storage.
        **/
       contractStorageByteWritePrice: u32 & AugmentedConst<ApiType>;
       /**
@@ -267,7 +267,7 @@ declare module '@polkadot/api-base/types/consts' {
     dutchAuction: {
       palletId: FrameSupportPalletId & AugmentedConst<ApiType>;
       /**
-       * ED taken to create position. Part of if returned when position is liqudated.
+       * ED taken to create position. Part of if returned when position is liquidated.
        **/
       positionExistentialDeposit: u128 & AugmentedConst<ApiType>;
       /**
@@ -448,12 +448,28 @@ declare module '@polkadot/api-base/types/consts' {
       lbpMinSaleDuration: u32 & AugmentedConst<ApiType>;
       msPerBlock: u32 & AugmentedConst<ApiType>;
       palletId: FrameSupportPalletId & AugmentedConst<ApiType>;
+      /**
+       * AssetId of the PBLO asset
+       **/
       pbloAssetId: u128 & AugmentedConst<ApiType>;
+      pbloStakeFinancialNftCollectionId: u128 & AugmentedConst<ApiType>;
+      /**
+       * AssetId of the PICA asset
+       **/
       picaAssetId: u128 & AugmentedConst<ApiType>;
+      picaStakeFinancialNftCollectionId: u128 & AugmentedConst<ApiType>;
       /**
        * The interval between TWAP computations.
        **/
       twapInterval: u64 & AugmentedConst<ApiType>;
+      /**
+       * AssetId of the xToken variant of PBLO asset
+       **/
+      xPbloAssetId: u128 & AugmentedConst<ApiType>;
+      /**
+       * AssetId of the xToken variant of PICA asset
+       **/
+      xPicaAssetId: u128 & AugmentedConst<ApiType>;
       /**
        * Generic const
        **/
@@ -529,11 +545,15 @@ declare module '@polkadot/api-base/types/consts' {
       maxStakingDurationPresets: u32 & AugmentedConst<ApiType>;
       palletId: FrameSupportPalletId & AugmentedConst<ApiType>;
       pbloAssetId: u128 & AugmentedConst<ApiType>;
+      pbloStakeFinancialNftCollectionId: u128 & AugmentedConst<ApiType>;
       picaAssetId: u128 & AugmentedConst<ApiType>;
+      picaStakeFinancialNftCollectionId: u128 & AugmentedConst<ApiType>;
       /**
        * the size of batch to take each time trying to release rewards
        **/
       releaseRewardsPoolsBatchSize: u8 & AugmentedConst<ApiType>;
+      xPbloAssetId: u128 & AugmentedConst<ApiType>;
+      xPicaAssetId: u128 & AugmentedConst<ApiType>;
       /**
        * Generic const
        **/

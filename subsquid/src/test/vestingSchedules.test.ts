@@ -1,27 +1,28 @@
-import { EventHandlerContext, Store } from "@subsquid/substrate-processor";
-import { Schedule, ScheduleWindow, VestingSchedule } from "../src/model";
+import { EventHandlerContext } from "@subsquid/substrate-processor";
+import { Store } from "@subsquid/typeorm-store";
 import { anything, instance, mock, when } from "ts-mockito";
+import { expect } from "chai";
+import { Schedule, ScheduleWindow, VestingSchedule } from "../model";
 import {
   BOB,
   CHARLIE,
   createAccount,
   createCtx,
   encodeAccount,
-} from "../src/utils";
+} from "../utils";
 import {
+  createSchedule,
   createVestingSchedule,
-  getNewVestingSchedule,
   updatedClaimedAmount,
-} from "../src/processors/vestingSchedule";
+} from "../processors/vestingSchedule";
 import {
   VestingSchedule as VestingScheduleType,
   VestingScheduleIdSet,
-} from "../src/types/v2401";
+} from "../types/v2401";
 import {
   VestingClaimedEvent,
   VestingVestingScheduleAddedEvent,
-} from "../src/types/events";
-import { expect } from "chai";
+} from "../types/events";
 
 const MOCK_ADDRESS_FROM = createAccount();
 const MOCK_ADDRESS_TO = createAccount();
@@ -142,8 +143,8 @@ function createVestingScheduleAddedEvent(
   schedule: VestingScheduleType,
   scheduleAmount: bigint
 ) {
-  let eventMock = mock(VestingVestingScheduleAddedEvent);
-  let evt = {
+  const eventMock = mock(VestingVestingScheduleAddedEvent);
+  const evt = {
     from,
     to,
     asset: BigInt(assetId),
@@ -154,9 +155,8 @@ function createVestingScheduleAddedEvent(
   };
 
   when(eventMock.asV2401).thenReturn(evt);
-  when(eventMock.asLatest).thenReturn(evt);
 
-  let event = instance(eventMock);
+  const event = instance(eventMock);
 
   return { event };
 }
@@ -168,8 +168,8 @@ function createVestingScheduleClaimedEvent(
   lockedAmount: bigint,
   claimedAmountPerSchedule: [bigint, bigint][]
 ) {
-  let eventMock = mock(VestingClaimedEvent);
-  let evt = {
+  const eventMock = mock(VestingClaimedEvent);
+  const evt = {
     who,
     asset,
     vestingScheduleIds,
@@ -178,16 +178,15 @@ function createVestingScheduleClaimedEvent(
   };
 
   when(eventMock.asV2401).thenReturn(evt);
-  when(eventMock.asLatest).thenReturn(evt);
 
-  let event = instance(eventMock);
+  const event = instance(eventMock);
 
   return { event };
 }
 
 describe("Vesting schedule added", () => {
   let storeMock: Store;
-  let ctx: EventHandlerContext;
+  let ctx: EventHandlerContext<Store>;
   let vestingSchedulesStored: VestingSchedule[];
 
   beforeEach(() => {
@@ -210,7 +209,7 @@ describe("Vesting schedule added", () => {
     );
   });
 
-  it("Should add block number based vesting schedule events", async () => {
+  it("Should add block number based vesting schedule events", () => {
     const { event } = createVestingScheduleAddedEvent(
       MOCK_ADDRESS_FROM,
       MOCK_ADDRESS_TO,
@@ -219,7 +218,7 @@ describe("Vesting schedule added", () => {
       100n
     );
 
-    const vestingSchedule = getNewVestingSchedule(ctx, event);
+    const vestingSchedule = createVestingSchedule(ctx, event);
 
     assertVestingSchedule(
       vestingSchedule,
@@ -235,7 +234,7 @@ describe("Vesting schedule added", () => {
     );
   });
 
-  it("Should add moment based vesting schedule events", async () => {
+  it("Should add moment based vesting schedule events", () => {
     const { event } = createVestingScheduleAddedEvent(
       MOCK_ADDRESS_FROM,
       MOCK_ADDRESS_TO,
@@ -244,7 +243,7 @@ describe("Vesting schedule added", () => {
       100n
     );
 
-    const vestingSchedule = getNewVestingSchedule(ctx, event);
+    const vestingSchedule = createVestingSchedule(ctx, event);
 
     assertVestingSchedule(
       vestingSchedule,
@@ -260,7 +259,7 @@ describe("Vesting schedule added", () => {
     );
   });
 
-  it("Should update all claimed schedules", async () => {
+  it("Should update all claimed schedules", () => {
     const { event } = createVestingScheduleClaimedEvent(
       MOCK_ADDRESS_FROM,
       5n,
@@ -272,7 +271,7 @@ describe("Vesting schedule added", () => {
       ]
     );
 
-    const { claimedAmountPerSchedule } = event.asLatest;
+    const { claimedAmountPerSchedule } = event.asV2401;
 
     for (let i = 0; i < claimedAmountPerSchedule.length; i += 1) {
       const [id, amount] = claimedAmountPerSchedule[i];
@@ -309,7 +308,7 @@ describe("Vesting schedule added", () => {
     }
   });
 
-  it("Should fully claim schedule", async () => {
+  it("Should fully claim schedule", () => {
     const { event } = createVestingScheduleClaimedEvent(
       MOCK_ADDRESS_FROM,
       5n,
@@ -318,7 +317,7 @@ describe("Vesting schedule added", () => {
       [[3n, 100n]]
     );
 
-    const { claimedAmountPerSchedule } = event.asLatest;
+    const { claimedAmountPerSchedule } = event.asV2401;
     const [id, amount] = claimedAmountPerSchedule[0];
 
     const vestingSchedule = createMockVestingSchedule(id, "1");

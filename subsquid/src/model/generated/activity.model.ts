@@ -15,7 +15,7 @@ export class Activity {
    * ID of the event associated with this activity
    */
   @Index_()
-  @ManyToOne_(() => Event, {nullable: false})
+  @ManyToOne_(() => Event, {nullable: true})
   event!: Event
 
   /**

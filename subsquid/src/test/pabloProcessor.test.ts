@@ -8,26 +8,26 @@ import {
   verify,
   when,
 } from "ts-mockito";
-import { PabloPool, PabloPoolAsset, Event, EventType } from "../src/model";
+import { Store } from "@subsquid/typeorm-store";
+import { randomUUID } from "crypto";
+import Big from "big.js";
+import { PabloPool, PabloPoolAsset, Event, EventType } from "../model";
 import {
   processLiquidityAddedEvent,
   processLiquidityRemovedEvent,
   processPoolCreatedEvent,
   processPoolDeletedEvent,
   processSwappedEvent,
-} from "../src/processors/pablo";
+} from "../processors/pablo";
 import {
   PabloLiquidityAddedEvent,
   PabloLiquidityRemovedEvent,
   PabloPoolCreatedEvent,
   PabloPoolDeletedEvent,
   PabloSwappedEvent,
-} from "../src/types/events";
-import { randomUUID } from "crypto";
-import Big from "big.js";
-import { Fee } from "../src/types/v2401";
-import { createAccount, createCtx, encodeAccount } from "../src/utils";
-import { Store } from "@subsquid/typeorm-store";
+} from "../types/events";
+import { Fee } from "../types/v2401";
+import { createAccount, createCtx, encodeAccount } from "../utils";
 
 const UNIT = 1_000_000_000_000;
 
@@ -104,7 +104,6 @@ function createPoolCreatedEvent() {
     poolId: BigInt(1),
   };
   when(eventMock.asV2401).thenReturn(evt);
-  when(eventMock.asLatest).thenReturn(evt);
   let event = instance(eventMock);
   return { owner, event };
 }
@@ -120,7 +119,6 @@ function createLiquidityAddedEvent() {
     mintedLp: BigInt(200),
   };
   when(eventMock.asV2401).thenReturn(evt);
-  when(eventMock.asLatest).thenReturn(evt);
   let event = instance(eventMock);
   return { who, event };
 }
@@ -136,7 +134,6 @@ function createLiquidityRemovedEvent() {
     totalIssuance: BigInt(10_000),
   };
   when(eventMock.asV2401).thenReturn(evt);
-  when(eventMock.asLatest).thenReturn(evt);
   let event = instance(eventMock);
   return { who, event };
 }
@@ -150,7 +147,6 @@ function createPoolDeletedEvent() {
     quoteAmount: BigInt(10_000 * UNIT),
   };
   when(eventMock.asV2401).thenReturn(evt);
-  when(eventMock.asLatest).thenReturn(evt);
   let event = instance(eventMock);
   return { who, event };
 }
@@ -180,7 +176,6 @@ function createSwappedEvent(
     },
   };
   when(eventMock.asV2401).thenReturn(evt);
-  when(eventMock.asLatest).thenReturn(evt);
   let event = instance(eventMock);
   return { who, event };
 }

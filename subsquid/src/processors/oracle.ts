@@ -1,4 +1,5 @@
 import { EventHandlerContext } from "@subsquid/substrate-processor";
+import { Store } from "@subsquid/typeorm-store";
 import { randomUUID } from "crypto";
 import { OraclePriceChangedEvent } from "../types/events";
 import { Asset, Currency, HistoricalAssetPrice } from "../model";
@@ -11,7 +12,7 @@ interface PriceChangedEvent {
 function getPriceChangedEvent(
   event: OraclePriceChangedEvent
 ): PriceChangedEvent {
-  const [assetId, price] = event.asV2401 ?? event.asLatest;
+  const [assetId, price] = event.asV2401;
   return { assetId, price };
 }
 
@@ -22,7 +23,7 @@ function getPriceChangedEvent(
  * @param price
  */
 export function updateAsset(
-  ctx: EventHandlerContext,
+  ctx: EventHandlerContext<Store>,
   asset: Asset,
   price: bigint
 ): void {
@@ -37,7 +38,7 @@ export function updateAsset(
  * @param price
  */
 export function getHistoricalAssetPrice(
-  ctx: EventHandlerContext,
+  ctx: EventHandlerContext<Store>,
   asset: Asset,
   price: bigint
 ): HistoricalAssetPrice {
@@ -58,7 +59,7 @@ export function getHistoricalAssetPrice(
  * @param ctx
  */
 export async function processOraclePriceChanged(
-  ctx: EventHandlerContext
+  ctx: EventHandlerContext<Store>
 ): Promise<void> {
   console.log("Process price change");
   const event = new OraclePriceChangedEvent(ctx);

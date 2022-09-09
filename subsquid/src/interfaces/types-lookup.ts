@@ -1763,12 +1763,12 @@ declare module '@polkadot/types/lookup' {
     readonly asOrderRemoved: {
       readonly orderId: u128;
     } & Struct;
-    readonly isCofigurationAdded: boolean;
-    readonly asCofigurationAdded: {
+    readonly isConfigurationAdded: boolean;
+    readonly asConfigurationAdded: {
       readonly configurationId: u128;
       readonly configuration: ComposableTraitsTimeTimeReleaseFunction;
     } & Struct;
-    readonly type: 'OrderAdded' | 'OrderTaken' | 'OrderRemoved' | 'CofigurationAdded';
+    readonly type: 'OrderAdded' | 'OrderTaken' | 'OrderRemoved' | 'ConfigurationAdded';
   }
 
   /** @name PalletDutchAuctionSellOrder (135) */
@@ -2112,7 +2112,34 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'RouteAdded' | 'RouteDeleted' | 'RouteUpdated';
   }
 
-  /** @name PalletStakingRewardsEvent (164) */
+  /** @name PalletFnftEvent (164) */
+  interface PalletFnftEvent extends Enum {
+    readonly isFinancialNftCollectionCreated: boolean;
+    readonly asFinancialNftCollectionCreated: {
+      readonly collectionId: u128;
+      readonly who: AccountId32;
+      readonly admin: AccountId32;
+    } & Struct;
+    readonly isFinancialNftCreated: boolean;
+    readonly asFinancialNftCreated: {
+      readonly collectionId: u128;
+      readonly instanceId: u64;
+    } & Struct;
+    readonly isFinancialNftBurned: boolean;
+    readonly asFinancialNftBurned: {
+      readonly collectionId: u128;
+      readonly instanceId: u64;
+    } & Struct;
+    readonly isFinancialNftTransferred: boolean;
+    readonly asFinancialNftTransferred: {
+      readonly collectionId: u128;
+      readonly instanceId: u64;
+      readonly to: AccountId32;
+    } & Struct;
+    readonly type: 'FinancialNftCollectionCreated' | 'FinancialNftCreated' | 'FinancialNftBurned' | 'FinancialNftTransferred';
+  }
+
+  /** @name PalletStakingRewardsEvent (165) */
   interface PalletStakingRewardsEvent extends Enum {
     readonly isRewardPoolCreated: boolean;
     readonly asRewardPoolCreated: {
@@ -2152,7 +2179,7 @@ declare module '@polkadot/types/lookup' {
     readonly isRewardTransferred: boolean;
     readonly asRewardTransferred: {
       readonly from: AccountId32;
-      readonly pool: u128;
+      readonly poolId: u128;
       readonly rewardCurrency: u128;
       readonly rewardIncrement: u128;
     } & Struct;
@@ -2180,32 +2207,11 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'RewardPoolCreated' | 'Staked' | 'Claimed' | 'StakeAmountExtended' | 'Unstaked' | 'SplitPosition' | 'RewardTransferred' | 'RewardAccumulationHookError' | 'MaxRewardsAccumulated' | 'RewardPoolUpdated' | 'RewardsPotIncreased';
   }
 
-  /** @name PalletStakingRewardsRewardAccumulationHookError (165) */
+  /** @name PalletStakingRewardsRewardAccumulationHookError (166) */
   interface PalletStakingRewardsRewardAccumulationHookError extends Enum {
     readonly isBackToTheFuture: boolean;
     readonly isRewardsPotEmpty: boolean;
     readonly type: 'BackToTheFuture' | 'RewardsPotEmpty';
-  }
-
-  /** @name PalletFnftEvent (166) */
-  interface PalletFnftEvent extends Enum {
-    readonly isFinancialNftCreated: boolean;
-    readonly asFinancialNftCreated: {
-      readonly collectionId: u128;
-      readonly instanceId: u64;
-    } & Struct;
-    readonly isFinancialNftBurned: boolean;
-    readonly asFinancialNftBurned: {
-      readonly collectionId: u128;
-      readonly instanceId: u64;
-    } & Struct;
-    readonly isFinancialNftTransferred: boolean;
-    readonly asFinancialNftTransferred: {
-      readonly collectionId: u128;
-      readonly instanceId: u64;
-      readonly to: AccountId32;
-    } & Struct;
-    readonly type: 'FinancialNftCreated' | 'FinancialNftBurned' | 'FinancialNftTransferred';
   }
 
   /** @name PalletCallFilterEvent (167) */
@@ -4451,7 +4457,7 @@ declare module '@polkadot/types/lookup' {
   interface PalletLiquidationsCall extends Enum {
     readonly isAddLiquidationStrategy: boolean;
     readonly asAddLiquidationStrategy: {
-      readonly configuraiton: PalletLiquidationsLiquidationStrategyConfiguration;
+      readonly configuration: PalletLiquidationsLiquidationStrategyConfiguration;
     } & Struct;
     readonly isSell: boolean;
     readonly asSell: {
@@ -4787,6 +4793,8 @@ declare module '@polkadot/types/lookup' {
       readonly endBlock: u32;
       readonly rewardConfigs: BTreeMap<u128, ComposableTraitsStakingRewardConfig>;
       readonly lock: ComposableTraitsStakingLockLockConfig;
+      readonly shareAssetId: u128;
+      readonly financialNftAssetId: u128;
     } & Struct;
     readonly type: 'RewardRateBasedIncentive';
   }
@@ -6062,10 +6070,11 @@ declare module '@polkadot/types/lookup' {
     readonly isMissingMinExpectedAmount: boolean;
     readonly isMoreThanTwoAssetsNotYetSupported: boolean;
     readonly isNoLpTokenForLbp: boolean;
+    readonly isNoXTokenForLbp: boolean;
     readonly isWeightsMustBeNonZero: boolean;
     readonly isWeightsMustSumToOne: boolean;
     readonly isStakingPoolConfigError: boolean;
-    readonly type: 'PoolNotFound' | 'NotEnoughLiquidity' | 'NotEnoughLpToken' | 'PairMismatch' | 'MustBeOwner' | 'InvalidSaleState' | 'InvalidAmount' | 'InvalidAsset' | 'CannotRespectMinimumRequested' | 'AssetAmountMustBePositiveNumber' | 'InvalidPair' | 'InvalidFees' | 'AmpFactorMustBeGreaterThanZero' | 'MissingAmount' | 'MissingMinExpectedAmount' | 'MoreThanTwoAssetsNotYetSupported' | 'NoLpTokenForLbp' | 'WeightsMustBeNonZero' | 'WeightsMustSumToOne' | 'StakingPoolConfigError';
+    readonly type: 'PoolNotFound' | 'NotEnoughLiquidity' | 'NotEnoughLpToken' | 'PairMismatch' | 'MustBeOwner' | 'InvalidSaleState' | 'InvalidAmount' | 'InvalidAsset' | 'CannotRespectMinimumRequested' | 'AssetAmountMustBePositiveNumber' | 'InvalidPair' | 'InvalidFees' | 'AmpFactorMustBeGreaterThanZero' | 'MissingAmount' | 'MissingMinExpectedAmount' | 'MoreThanTwoAssetsNotYetSupported' | 'NoLpTokenForLbp' | 'NoXTokenForLbp' | 'WeightsMustBeNonZero' | 'WeightsMustSumToOne' | 'StakingPoolConfigError';
   }
 
   /** @name ComposableTraitsDexDexRoute (647) */
@@ -6089,7 +6098,17 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'MaxHopsExceeded' | 'NoRouteFound' | 'UnexpectedNodeFoundWhileValidation' | 'CanNotRespectMinAmountRequested' | 'UnsupportedOperation' | 'LoopSuspectedInRouteUpdate';
   }
 
-  /** @name ComposableTraitsStakingRewardPool (650) */
+  /** @name PalletFnftError (658) */
+  interface PalletFnftError extends Enum {
+    readonly isCollectionAlreadyExists: boolean;
+    readonly isInstanceAlreadyExists: boolean;
+    readonly isCollectionNotFound: boolean;
+    readonly isInstanceNotFound: boolean;
+    readonly isMustBeOwner: boolean;
+    readonly type: 'CollectionAlreadyExists' | 'InstanceAlreadyExists' | 'CollectionNotFound' | 'InstanceNotFound' | 'MustBeOwner';
+  }
+
+  /** @name ComposableTraitsStakingRewardPool (659) */
   interface ComposableTraitsStakingRewardPool extends Struct {
     readonly owner: AccountId32;
     readonly assetId: u128;
@@ -6098,9 +6117,11 @@ declare module '@polkadot/types/lookup' {
     readonly claimedShares: u128;
     readonly endBlock: u32;
     readonly lock: ComposableTraitsStakingLockLockConfig;
+    readonly shareAssetId: u128;
+    readonly financialNftAssetId: u128;
   }
 
-  /** @name ComposableTraitsStakingReward (652) */
+  /** @name ComposableTraitsStakingReward (661) */
   interface ComposableTraitsStakingReward extends Struct {
     readonly assetId: u128;
     readonly totalRewards: u128;
@@ -6111,7 +6132,7 @@ declare module '@polkadot/types/lookup' {
     readonly lastUpdatedTimestamp: u64;
   }
 
-  /** @name ComposableTraitsStakingStake (656) */
+  /** @name ComposableTraitsStakingStake (665) */
   interface ComposableTraitsStakingStake extends Struct {
     readonly owner: AccountId32;
     readonly rewardPoolId: u128;
@@ -6121,14 +6142,14 @@ declare module '@polkadot/types/lookup' {
     readonly lock: ComposableTraitsStakingLock;
   }
 
-  /** @name ComposableTraitsStakingLock (659) */
+  /** @name ComposableTraitsStakingLock (668) */
   interface ComposableTraitsStakingLock extends Struct {
     readonly startedAt: u64;
     readonly duration: u64;
     readonly unlockPenalty: Perbill;
   }
 
-  /** @name PalletStakingRewardsError (661) */
+  /** @name PalletStakingRewardsError (669) */
   interface PalletStakingRewardsError extends Enum {
     readonly isRewardConfigProblem: boolean;
     readonly isRewardsPoolAlreadyExists: boolean;
@@ -6149,24 +6170,14 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'RewardConfigProblem' | 'RewardsPoolAlreadyExists' | 'NoDurationPresetsConfigured' | 'TooManyRewardAssetTypes' | 'EndBlockMustBeInTheFuture' | 'UnimplementedRewardPoolConfiguration' | 'RewardsPoolNotFound' | 'ReductionConfigProblem' | 'NotEnoughAssets' | 'StakeNotFound' | 'MaxRewardLimitReached' | 'OnlyPoolOwnerCanAddNewReward' | 'OnlyStakeOwnerCanUnstake' | 'RewardAssetNotFound' | 'BackToTheFuture' | 'RewardsPotEmpty';
   }
 
-  /** @name PalletFnftError (670) */
-  interface PalletFnftError extends Enum {
-    readonly isCollectionAlreadyExists: boolean;
-    readonly isInstanceAlreadyExists: boolean;
-    readonly isCollectionNotFound: boolean;
-    readonly isInstanceNotFound: boolean;
-    readonly isMustBeOwner: boolean;
-    readonly type: 'CollectionAlreadyExists' | 'InstanceAlreadyExists' | 'CollectionNotFound' | 'InstanceNotFound' | 'MustBeOwner';
-  }
-
-  /** @name PalletCallFilterError (671) */
+  /** @name PalletCallFilterError (670) */
   interface PalletCallFilterError extends Enum {
     readonly isCannotDisable: boolean;
     readonly isInvalidString: boolean;
     readonly type: 'CannotDisable' | 'InvalidString';
   }
 
-  /** @name PalletIbcPingError (672) */
+  /** @name PalletIbcPingError (671) */
   interface PalletIbcPingError extends Enum {
     readonly isInvalidParams: boolean;
     readonly isChannelInitError: boolean;
@@ -6174,7 +6185,7 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'InvalidParams' | 'ChannelInitError' | 'PacketSendError';
   }
 
-  /** @name IbcTransferError (673) */
+  /** @name IbcTransferError (672) */
   interface IbcTransferError extends Enum {
     readonly isTransferFailed: boolean;
     readonly isUtf8Error: boolean;
@@ -6188,13 +6199,13 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'TransferFailed' | 'Utf8Error' | 'InvalidAssetId' | 'InvalidIbcDenom' | 'InvalidAmount' | 'InvalidTimestamp' | 'FailedToGetRevisionNumber' | 'InvalidParams' | 'ChannelInitError';
   }
 
-  /** @name PalletIbcIbcConsensusState (675) */
+  /** @name PalletIbcIbcConsensusState (674) */
   interface PalletIbcIbcConsensusState extends Struct {
     readonly timestamp: u64;
     readonly commitmentRoot: Bytes;
   }
 
-  /** @name PalletIbcError (679) */
+  /** @name PalletIbcError (678) */
   interface PalletIbcError extends Enum {
     readonly isProcessingError: boolean;
     readonly isDecodingError: boolean;
@@ -6214,14 +6225,15 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'ProcessingError' | 'DecodingError' | 'EncodingError' | 'ProofGenerationError' | 'ConsensusStateNotFound' | 'ChannelNotFound' | 'ClientStateNotFound' | 'ConnectionNotFound' | 'PacketCommitmentNotFound' | 'PacketReceiptNotFound' | 'PacketAcknowledgmentNotFound' | 'SendPacketError' | 'Other' | 'InvalidRoute' | 'InvalidMessageType';
   }
 
-  /** @name PalletCosmwasmCodeInfo (681) */
+  /** @name PalletCosmwasmCodeInfo (680) */
   interface PalletCosmwasmCodeInfo extends Struct {
     readonly creator: AccountId32;
+    readonly pristineCodeHash: H256;
     readonly instrumentationVersion: u16;
     readonly refcount: u32;
   }
 
-  /** @name PalletCosmwasmError (682) */
+  /** @name PalletCosmwasmError (681) */
   interface PalletCosmwasmError extends Enum {
     readonly isInstrumentation: boolean;
     readonly isVmCreation: boolean;
@@ -6253,31 +6265,31 @@ declare module '@polkadot/types/lookup' {
     readonly type: 'Instrumentation' | 'VmCreation' | 'ContractTrapped' | 'ContractHasNoInfo' | 'CodeDecoding' | 'CodeValidation' | 'CodeEncoding' | 'CodeInstrumentation' | 'InstrumentedCodeIsTooBig' | 'CodeAlreadyExists' | 'CodeNotFound' | 'ContractAlreadyExists' | 'ContractNotFound' | 'TransferFailed' | 'ChargeGas' | 'RefundGas' | 'LabelTooBig' | 'UnknownDenom' | 'StackOverflow' | 'NotEnoughFundsForUpload' | 'ContractNonceOverflow' | 'NonceOverflow' | 'RefcountOverflow' | 'VmDepthOverflow' | 'SignatureVerificationError' | 'IteratorIdOverflow' | 'IteratorNotFound';
   }
 
-  /** @name FrameSystemExtensionsCheckNonZeroSender (685) */
+  /** @name FrameSystemExtensionsCheckNonZeroSender (684) */
   type FrameSystemExtensionsCheckNonZeroSender = Null;
 
-  /** @name FrameSystemExtensionsCheckSpecVersion (686) */
+  /** @name FrameSystemExtensionsCheckSpecVersion (685) */
   type FrameSystemExtensionsCheckSpecVersion = Null;
 
-  /** @name FrameSystemExtensionsCheckTxVersion (687) */
+  /** @name FrameSystemExtensionsCheckTxVersion (686) */
   type FrameSystemExtensionsCheckTxVersion = Null;
 
-  /** @name FrameSystemExtensionsCheckGenesis (688) */
+  /** @name FrameSystemExtensionsCheckGenesis (687) */
   type FrameSystemExtensionsCheckGenesis = Null;
 
-  /** @name FrameSystemExtensionsCheckNonce (691) */
+  /** @name FrameSystemExtensionsCheckNonce (690) */
   interface FrameSystemExtensionsCheckNonce extends Compact<u32> {}
 
-  /** @name FrameSystemExtensionsCheckWeight (692) */
+  /** @name FrameSystemExtensionsCheckWeight (691) */
   type FrameSystemExtensionsCheckWeight = Null;
 
-  /** @name PalletAssetTxPaymentChargeAssetTxPayment (693) */
+  /** @name PalletAssetTxPaymentChargeAssetTxPayment (692) */
   interface PalletAssetTxPaymentChargeAssetTxPayment extends Struct {
     readonly tip: Compact<u128>;
     readonly assetId: Option<u128>;
   }
 
-  /** @name DaliRuntimeRuntime (695) */
+  /** @name DaliRuntimeRuntime (694) */
   type DaliRuntimeRuntime = Null;
 
 } // declare module

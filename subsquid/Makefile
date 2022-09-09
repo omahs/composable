@@ -22,7 +22,7 @@ codegen:
 	@npx sqd codegen
 
 
-typegen: kusamaVersions.json
+typegen: daliDevVersions.jsonl
 	@npx squid-substrate-typegen typegen.json
 
 
@@ -49,8 +49,8 @@ rebuild:
 	rm -f -r db/migrations
 	npx sqd db drop
 	npx sqd db create
+	npx npx squid-typeorm-codegen
 	npm run build
-	npx sqd codegen
 	npx sqd db create-migration Init
 	npx sqd db migrate
 

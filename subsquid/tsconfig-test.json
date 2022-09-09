@@ -15,21 +15,15 @@
       "@composable/*": [
         "./src/*"
       ],
-      "@composabletests/*": [
-        "./test/*"
-      ]
     }
   },
   "include": [
     "src",
     "src/**/*.ts",
-    "test",
-    "test/**/*.ts",
     "@types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
-    "test/**/*.d.ts",
     "src/**/*.d.ts"
   ]
 }
