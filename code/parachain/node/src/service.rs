@@ -31,7 +31,7 @@ use crate::{
 	rpc,
 	runtime::{
 		assets::ExtendWithAssetsApi, crowdloan_rewards::ExtendWithCrowdloanRewardsApi,
-		ibc::ExtendWithIbcApi, lending::ExtendWithLendingApi, pablo::ExtendWithPabloApi,
+		ibc::ExtendWithIbcApi, lending::ExtendWithLendingApi, pablo::ExtendWithPabloApi, dex_router::ExtendWithDexRouterApi
 		BaseHostRuntimeApis,
 	},
 };
@@ -288,6 +288,7 @@ where
 		+ ExtendWithPabloApi<RuntimeApi, Executor>
 		+ ExtendWithLendingApi<RuntimeApi, Executor>
 		+ ExtendWithIbcApi<RuntimeApi, Executor>,
+		+ ExtendWithDexRouter<RuntimeApi, Executor>,
 	StateBackendFor<FullBackend, OpaqueBlock>: StateBackend<BlakeTwo256>,
 	Executor: NativeExecutionDispatch + 'static,
 {

@@ -8,7 +8,7 @@ use sp_std::collections::btree_map::BTreeMap;
 // Dex Rounter Runtime API declaration. Implemented for each runtime at
 // `runtime/<runtime-name>/src/lib.rs`.
 sp_api::decl_runtime_apis! {
-	pub trait DexRouterRuntimeApi<> {
+	pub trait DexRouterRuntimeApi {
 		fn fee_for_indirect_pool();
 	}
 }

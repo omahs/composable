@@ -21,7 +21,7 @@ use crate::{
 	client::{FullBackend, FullClient},
 	runtime::{
 		assets::ExtendWithAssetsApi, crowdloan_rewards::ExtendWithCrowdloanRewardsApi,
-		ibc::ExtendWithIbcApi, lending::ExtendWithLendingApi, pablo::ExtendWithPabloApi,
+		ibc::ExtendWithIbcApi, lending::ExtendWithLendingApi, pablo::ExtendWithPabloApi, dex_router::ExtendWithDexRouterApi,
 		BaseHostRuntimeApis,
 	},
 };
@@ -67,6 +67,7 @@ where
 			+ ExtendWithPabloApi<RuntimeApi, Executor>
 			+ ExtendWithLendingApi<RuntimeApi, Executor>
 			+ ExtendWithIbcApi<RuntimeApi, Executor>,
+			+ ExtendWithDexRouterApi<RuntimeApi, Executor>,
 {
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
@@ -100,6 +101,10 @@ where
 	<FullClient<RuntimeApi, Executor> as ProvideRuntimeApi<OpaqueBlock>>::Api::extend_with_ibc_api(
 		&mut io, deps,
 	)?;
+	
+	<FellClient<RuntimeApi, Executor> as ProvideRuntimeApi<OpaqueBlock>>::Api::extend_with_dex_router_api(
+		&mut io, deps,
+	)
 
 	// Extend this RPC with a custom API by using the following syntax.
 	// `YourRpcStruct` should have a reference to a client, which is needed

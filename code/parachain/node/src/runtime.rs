@@ -241,4 +241,21 @@ define_trait! {
 			}
 		}
 	}
+
+	mod dex_router {
+		pub trait ExtendWithDexRouterApi {
+			fn extend_with_dex_router_api(io, deps);
+		}
+
+		#[cfg(feature = "composable")]
+		impl for composable_runtime {}
+
+		impl for picasso_runtime {}
+
+		impl for dali_runtime {
+			fn (io, deps) {
+				io.merge(DexRouter::new(deps.client, deps.chain_props).into_rpc())
+			}
+		}
+	}
 }
