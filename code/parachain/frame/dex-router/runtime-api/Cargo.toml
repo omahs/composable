@@ -1,0 +1,19 @@
+[package]
+authors = ["Composable Developers"]
+name = "dex-router-runtime-api"
+version = "0.1.0"
+edition = "2021"
+homepage = "https://composable.finance"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unkown-linux-gnu"]
+
+[dependencies]
+codec = { default-features = false, features = [
+  "derive",
+], package = "parity-scale-codec", version = "3.0.0" }
+composable-support = { path = "../../composable-support", default-features = false }
+composable-traits = { path = "../../composable-traits", default-features = false }
+sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
+
