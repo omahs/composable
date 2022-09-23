@@ -724,6 +724,7 @@ parameter_types! {
 }
 
 impl crowdloan_rewards::Config for Runtime {
+	const A: u128 = 100;
 	type Event = Event;
 	type Balance = Balance;
 	type RewardAsset = Assets;

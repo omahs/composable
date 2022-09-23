@@ -87,6 +87,7 @@ parameter_types! {
 }
 
 impl pallet_crowdloan_rewards::Config for Test {
+	const A: u128 = 100;
 	type Event = Event;
 	type RewardAsset = Balances;
 	type Balance = Balance;

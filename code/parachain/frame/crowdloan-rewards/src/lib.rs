@@ -134,6 +134,8 @@ pub mod pallet {
 		#[allow(missing_docs)]
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		const A: u128;
+
 		#[allow(missing_docs)]
 		type Balance: Default
 			+ Parameter
