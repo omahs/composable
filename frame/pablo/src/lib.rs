@@ -72,7 +72,7 @@ pub mod pallet {
 	};
 	use codec::FullCodec;
 	use composable_support::math::safe::{
-		safe_multiply_by_rational, SafeAdd, SafeArithmetic, SafeSub,
+		safe_multiply_by_rational, SafeAdd, SafeArithmetic, SafeDiv, SafeSub,
 	};
 	use composable_traits::{
 		currency::{CurrencyFactory, LocalAssets},
@@ -966,6 +966,21 @@ pub mod pallet {
 			Pools::<T>::contains_key(pool_id)
 		}
 
+		fn get_price_of_lp_token(pool_id: Self::PoolId) -> Result<Self::Balance, DispatchError> {
+			let pool = Self::get_pool(pool_id)?;
+			let pool_account = Self::account_id(&pool_id);
+			match pool {
+				PoolConfiguration::StableSwap(StableSwapPoolInfo { pair, lp_token, .. }) |
+				PoolConfiguration::ConstantProduct(ConstantProductPoolInfo {
+					pair,
+					lp_token,
+					..
+				}) => calculate_price_of_lp_token::<T>(pair, lp_token, &pool_account),
+				PoolConfiguration::LiquidityBootstrapping(_) =>
+					Err(Error::<T>::NoLpTokenForLbp.into()),
+			}
+		}
+
 		fn currency_pair(
 			pool_id: Self::PoolId,
 		) -> Result<CurrencyPair<Self::AssetId>, DispatchError> {
@@ -1725,6 +1740,19 @@ pub mod pallet {
 				},
 			}
 		}
+	}
+
+	/// Calculate current price of 1 LP token.
+	fn calculate_price_of_lp_token<T: Config>(
+		pair: CurrencyPair<T::AssetId>,
+		lp_token: T::AssetId,
+		pool_account: &T::AccountId,
+	) -> Result<T::Balance, DispatchError> {
+		let pool_base_aum = T::Convert::convert(T::Assets::balance(pair.base, pool_account));
+		let pool_quote_aum = T::Convert::convert(T::Assets::balance(pair.quote, pool_account));
+		let lp_total_issuance = T::Convert::convert(T::Assets::total_issuance(lp_token));
+		let pool_general_aum = pool_base_aum.safe_add(&pool_quote_aum)?;
+		Ok(T::Convert::convert(pool_general_aum.safe_div(&lp_total_issuance)?))
 	}
 
 	/// Retrieve the price(s) from the given pool calculated for the given `base_asset_id`
