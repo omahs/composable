@@ -98,4 +98,4 @@ git+file:///home/cor/dev/hyperspace?ref=refs%2fheads%2fcor%2fnixify&rev=b08ba2ef
         └───hello: package 'hello-2.12.1'
 ```
 
-
+We can now run `nix run ".#hello"` and see "Hello World!" in our temrinal.
