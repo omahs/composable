@@ -7,6 +7,8 @@
 
 mod utils;
 
+use std::ops::Deref;
+
 // use ics10_grandpa::client_def::GrandpaClient;
 use ics10_grandpa::client_state::ClientState;
 
@@ -26,8 +28,22 @@ impl light_client_common::HostFunctions for HostFunctionsManager {
 	type BlakeTwo256 = BlakeTwo256;
 }
 
-pub extern "C" fn create_client_state() -> *const ClientState<HostFunctionsManager> {
-	let client_state = ClientState::default();
+/// Opaque pointer to make my life easier in C/Go world
+#[repr(C)]
+pub struct ClientStateWrapper {
+	private: ClientState<HostFunctionsManager>,
+}
+
+impl Deref for ClientStateWrapper {
+	type Target = ClientState<HostFunctionsManager>;
+	fn deref(&self) -> &Self::Target {
+		&self.private
+	}
+}
+
+#[no_mangle]
+pub extern "C" fn create_client_state() -> *const ClientStateWrapper {
+	let client_state = ClientStateWrapper { private: ClientState::default() };
 	let boxed_client_state = Box::new(client_state);
 	Box::into_raw(boxed_client_state)
 }
