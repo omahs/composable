@@ -48,6 +48,14 @@ pub extern "C" fn create_client_state() -> *const ClientStateWrapper {
 	Box::into_raw(boxed_client_state)
 }
 
+#[no_mangle]
+pub extern "C" fn client_state_latest_height(
+	client_state: *const libc::c_void,
+) -> ibc::core::ics02_client::height::Height {
+	let client_state = client_state as *const ClientStateWrapper;
+	unsafe { client_state.as_ref().unwrap().latest_height() }
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -58,6 +66,20 @@ mod tests {
 		let client_state = create_client_state();
 		unsafe {
 			assert_eq!(client_state.as_ref().unwrap().latest_height(), Height::default());
+		}
+	}
+
+	#[test]
+	fn test_client_state_latest_height() {
+		// simple test to be able to call a method from a struct that's "hidden" as an opaque raw
+		// pointer
+		let client_state = create_client_state();
+		let client_state_ptr = &client_state as *const _;
+		unsafe {
+			assert_eq!(
+				client_state_latest_height(client_state_ptr as *const libc::c_void),
+				Height::default()
+			);
 		}
 	}
 }
