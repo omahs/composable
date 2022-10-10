@@ -24,6 +24,7 @@ std = [
     "sp-trie/std",
     "sp-finality-grandpa/std",
 ]
+grandpa-sys = ["std"]
 
 [build-dependencies]
 protobuf-src = "1.1.0"

@@ -27,6 +27,9 @@ pub mod consensus_state;
 pub mod error;
 pub mod proto;
 
+#[cfg(feature = "grandpa-sys")]
+pub mod utils;
+
 #[cfg(test)]
 mod mock;
 

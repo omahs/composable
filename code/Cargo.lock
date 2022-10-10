@@ -5379,6 +5379,7 @@ dependencies = [
  "ics10-grandpa",
  "libc",
  "light-client-common",
+ "parity-scale-codec",
  "primitive-types",
  "sp-core",
  "sp-runtime",

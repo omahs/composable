@@ -14,14 +14,17 @@ crate-type = ["staticlib"]
 
 [dependencies]
 libc = "0.2.2"
-ics10-grandpa = {path = "../ics10-grandpa"}
+ics10-grandpa = {path = "../ics10-grandpa", features = ["grandpa-sys"]}
 grandpa-light-client-primitives = {path = "../../algorithms/grandpa/primitives"}
 
 primitive-types = { version = "0.11.1" }
 ibc = { path = "../../ibc/modules", features = ["mocks"] }
 
+codec = { package = "parity-scale-codec", version = "3.0.0"}
+
 # substrate
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
+
 
 
 # TODO: remove this
