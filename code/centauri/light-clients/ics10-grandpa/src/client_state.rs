@@ -35,6 +35,7 @@ use tendermint_proto::Protobuf;
 /// Protobuf type url for GRANDPA ClientState
 pub const GRANDPA_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.grandpa.v1.ClientState";
 
+#[repr(C)]
 #[derive(PartialEq, Clone, Debug, Default, Eq)]
 pub struct ClientState<H> {
 	/// Relay chain

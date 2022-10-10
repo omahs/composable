@@ -1,0 +1,32 @@
+[package]
+name = "ics10-grandpa-sys"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# If you only wanted dynamic library, you'd use only "cdylib".
+# If you only wanted static library, you'd use only "staticlib".
+# This demo shows both. See https://doc.rust-lang.org/reference/linkage.html
+# for more information.
+crate-type = ["staticlib"]
+
+[dependencies]
+libc = "0.2.2"
+ics10-grandpa = {path = "../ics10-grandpa"}
+grandpa-light-client-primitives = {path = "../../algorithms/grandpa/primitives"}
+
+primitive-types = { version = "0.11.1" }
+
+# substrate
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
+
+
+# TODO: remove this
+light-client-common = { path = "../common" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
+
+
+#[dev-dependencies]
+ibc = { path = "../../ibc/modules", features = ["mocks"] }
