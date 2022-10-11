@@ -10,7 +10,7 @@ import {
   createStatsOverviewSlice,
   createStatsTelemetrySlice,
   createSubstrateBalancesSlice,
-  createTransfersSlice,
+  createTransfersSlice
 } from "./defi";
 
 import { AllSlices } from "./types";
@@ -30,7 +30,7 @@ export const useStore = create<AllSlices>()(
       ...createSubstrateBalancesSlice(...a),
       ...createBondsSlice(...a),
       ...createOracleSlice(...a),
-      ...createStakingRewardsSlice(...a),
+      ...createStakingRewardsSlice(...a)
     }))
   )
 );

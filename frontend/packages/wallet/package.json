@@ -2,11 +2,13 @@
   "name": "wallet",
   "version": "1.0.0",
   "dependencies": {
-    "@mui/material": "*"
+    "@mui/material": "*",
+    "zustand": "*"
   },
   "devDependencies": {
     "shared": "*",
     "eslint-config-custom": "*",
-    "tsconfig": "*"
+    "tsconfig": "*",
+    "substrate-react": "*"
   }
 }

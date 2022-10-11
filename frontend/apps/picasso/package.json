@@ -51,7 +51,8 @@
     "substrate-react": "*",
     "tokens": "*",
     "zustand": "^4.0.0",
-    "endpoints": "*"
+    "endpoints": "*",
+    "wallet": "*"
   },
   "devDependencies": {
     "@babel/core": "^7.16.7",

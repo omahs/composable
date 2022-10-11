@@ -53,7 +53,8 @@
     "tokens": "*",
     "urql": "^2.2.0",
     "uuid": "^8.3.2",
-    "endpoints": "*"
+    "endpoints": "*",
+    "wallet": "*"
   },
   "devDependencies": {
     "@babel/core": "^7.16.7",
