@@ -3,6 +3,8 @@
 // re-export this for the benchmarks tests
 pub(crate) use crate::runtime::{new_test_ext, Test};
 
+pub mod change_set;
+
 use crate::{
 	claim_of_stake,
 	runtime::*,
