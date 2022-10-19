@@ -15,6 +15,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 color-eyre = { version = "0.5.11", default-features = false }
 composable-node = { path = "parachain/node", features = ["composable", "dali"] }
+rust_decimal = { version = "1.26.1", features = ["serde-with-str"] }
 
 [features]
 builtin-wasm = ["composable-node/builtin-wasm"]
@@ -48,6 +49,7 @@ members = [
   "simnode/common",
   "utils/xcmp",
   "utils/wasm-optimizer",
+  "utils/crowdloans-json",
   "xcvm/lib/*",
   "xcvm/cosmwasm/contracts/*",
 ]
