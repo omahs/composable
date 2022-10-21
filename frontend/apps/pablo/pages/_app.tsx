@@ -1,4 +1,4 @@
-import "defi-interfaces";
+import "defi-interfsfsfaces";
 
 import * as React from "react";
 import { hotjar } from "react-hotjar";

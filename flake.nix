@@ -596,6 +596,25 @@
               '';
             };
 
+          # This and `frontend-tests` could be more granular, but for that it'd be much nicer if the frontends would have their
+          # own flakes, which perform these checks when building.
+          eslint-check = npm-bp.buildYarnPackage {
+            name = "eslint";
+            src = ./frontend;
+            nativeBuildInputs = [ pkgs.pkg-config pkgs.vips pkgs.python3 ];
+            yarnBuildMore =
+                "yarn --filter=pablo lint";
+          };
+
+          frontend-tests = npm-bp.buildYarnPackage {
+            name = "frontend tests";
+            src = ./frontend;
+            nativeBuildInputs = [ pkgs.pkg-config pkgs.vips pkgs.python3 ];
+            yarnBuildMore = ''
+              yarn --filter=pablo test && yarn --filter=picasso test
+            '';
+          };
+
           frontend-static = mkFrontendStatic {
             subsquidEndpoint = "http://localhost:4350/graphql";
             picassoEndpoint = "ws://localhost:9988";
@@ -668,6 +687,8 @@
             inherit frontend-static-firebase;
             inherit frontend-pablo-server;
             inherit frontend-picasso-server;
+            inherit eslint-check;
+            inherit frontend-tests;
 
             devnet-initialize-script-local = mkDevnetInitializeScript {
               polkadotUrl = "ws://localhost:9944";
