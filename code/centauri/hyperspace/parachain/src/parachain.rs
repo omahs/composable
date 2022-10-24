@@ -1,1 +1,1 @@
-include!(concat!(env!("OUT_DIR"), "/parachain.rs"));
+../../../../utils/composable-subxt/src/generated/picasso.rs

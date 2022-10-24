@@ -5,7 +5,7 @@ use std::{str::FromStr, sync::Arc};
 pub mod chain;
 pub mod error;
 pub mod key_provider;
-pub(crate) mod parachain;
+pub(crate) mod picasso;
 pub(crate) mod polkadot;
 pub mod provider;
 pub mod signer;
