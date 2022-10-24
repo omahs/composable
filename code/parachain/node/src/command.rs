@@ -224,6 +224,10 @@ pub fn run() -> Result<()> {
 				cmd.run(&*spec)
 			})
 		},
+		Some(Subcommand::StoreNodeMetada(store_node_metadata)) => {
+			store_node_metadata.run();
+			Ok(())
+		},
 		Some(Subcommand::Benchmark(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 

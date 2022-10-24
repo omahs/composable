@@ -1,5 +1,6 @@
 use crate::chain_spec;
 use clap::Parser;
+use polkadot_service::polkadot_runtime::Runtime;
 use std::path::PathBuf;
 
 /// Sub-commands supported by the collator.
@@ -39,6 +40,17 @@ pub enum Subcommand {
 	/// The custom benchmark subcommand benchmarking runtime pallets.
 	#[clap(subcommand)]
 	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+
+	StoreNodeMetada(StoreNodeMetadataCmd),
+}
+
+#[derive(Debug, Parser)]
+pub struct StoreNodeMetadataCmd;
+
+impl StoreNodeMetadataCmd {
+	pub fn run(&self) -> () {
+		let metdata_bytes: Vec<u8> = Runtime::metadata().try_into().unwrap();
+	}
 }
 
 #[derive(Debug, Parser)]
