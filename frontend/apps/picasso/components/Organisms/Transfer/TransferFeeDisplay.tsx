@@ -7,7 +7,7 @@ import {
 import { FeeDisplay } from "@/components";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useStore } from "@/stores/root";
-import { useExecutor } from "substrate-react";
+import { getSigner, useExecutor } from "substrate-react";
 import { useTransfer } from "@/defi/polkadot/hooks";
 import { SUBSTRATE_NETWORKS } from "@/defi/polkadot/Networks";
 import { AssetId } from "@/defi/polkadot/types";
@@ -21,10 +21,13 @@ import { useExistentialDeposit } from "@/defi/polkadot/hooks/useExistentialDepos
 import { getPaymentAsset } from "@/defi/polkadot/pallets/AssetTxPayment";
 import { AssetMetadata } from "@/defi/polkadot/Assets";
 import { Stack } from "@mui/material";
+import { APP_NAME } from "@/defi/polkadot/constants";
+import { useAllParachainProviders } from "@/defi/polkadot/context/hooks";
 
 export const TransferFeeDisplay = () => {
   const { amount, from, to, balance, account, fromProvider } = useTransfer();
   const executor = useExecutor();
+  const allProviders = useAllParachainProviders();
   const assets = useStore(
     ({ substrateBalances }) => substrateBalances.assets[from].assets
   );
@@ -37,10 +40,17 @@ export const TransferFeeDisplay = () => {
   const keepAlive = useStore((state) => state.transfers.keepAlive);
   const { existentialDeposit, feeToken } = useExistentialDeposit();
   const fee = useStore((state) => state.transfers.fee);
-  const selectedToken = useStore(state => state.transfers.selectedToken);
+  const selectedToken = useStore((state) => state.transfers.selectedToken);
   const destFee = getDestChainFee(from, to, selectedToken);
   const updateFee = useStore((state) => state.transfers.updateFee);
-  const token = useStore(state => state.transfers.selectedToken);
+  const token = useStore((state) => state.transfers.selectedToken);
+  const makeTransferCall = useStore(
+    (state) => state.transfers.makeTransferCall
+  );
+
+  const getTransferAmount = useStore(
+    (state) => state.transfers.getTransferAmount
+  );
 
   const symbol = useMemo(() => {
     let out;
@@ -64,37 +74,15 @@ export const TransferFeeDisplay = () => {
         const TARGET_ACCOUNT_ADDRESS = selectedRecipient.length
           ? selectedRecipient
           : acc.address;
-
         const TARGET_PARACHAIN_ID = SUBSTRATE_NETWORKS[to].parachainId;
-
-        // Set amount to transfer
-        const amountToTransfer = getAmountToTransfer({
-          balance,
-          amount,
-          existentialDeposit,
-          keepAlive,
-          api,
-          sourceChain: from,
-          targetChain: to,
-          tokenId: selectedToken
-        });
-
         const signerAddress = acc.address;
 
-        const { call, signer } = await getApiCallAndSigner(
-          api,
-          TARGET_ACCOUNT_ADDRESS,
-          amountToTransfer,
-          feeItemId,
-          signerAddress,
-          TARGET_PARACHAIN_ID,
-          from,
-          to,
-          hasFeeItem,
-          token
-        );
+        const call = makeTransferCall(api, TARGET_ACCOUNT_ADDRESS);
+        if (!call) return;
 
+        const signer = await getSigner(APP_NAME, signerAddress);
         const info = await exec.paymentInfo(call, acc.address, signer);
+
         updateFee({
           class: info.class.toString(),
           partialFee: fromChainIdUnit(
@@ -110,7 +98,8 @@ export const TransferFeeDisplay = () => {
       fromProvider.parachainApi,
       executor,
       account,
-      hasFeeItem && feeItem.length === 0
+      hasFeeItem && feeItem.length === 0,
+      false
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

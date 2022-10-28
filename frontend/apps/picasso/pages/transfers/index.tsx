@@ -15,15 +15,47 @@ import { getDestChainFee } from "@/defi/polkadot/pallets/Transfer";
 import { useStore } from "@/stores/root";
 import { Button, Grid, Typography } from "@mui/material";
 import { NextPage } from "next";
+import { useEffect } from "react";
+import {
+  subscribeDestinationMultiLocation,
+  subscribeMultiAsset,
+  subscribeTransferApiCall,
+} from "@/stores/defi/polkadot/transfers/subscribers";
+import { useSelectedAccount } from "@/defi/polkadot/hooks";
+import { useAllParachainProviders } from "@/defi/polkadot/context/hooks";
 
 const Transfers: NextPage = () => {
-  const { transfer, amount, from, balance } = useTransfer();
+  const { amount, from, balance, transfer } = useTransfer();
+  const allProviders = useAllParachainProviders();
+
   // For now all transactions are done with Picasso target
   // TODO: change this to get the chainApi from target (to) in store
   const fee = useStore((state) => state.transfers.fee);
-  const tokenId = useStore(state => state.transfers.selectedToken);
-  const minValue = getDestChainFee(from, "picasso", tokenId).fee.plus(fee.partialFee);
+  const tokenId = useStore((state) => state.transfers.selectedToken);
+  const minValue = getDestChainFee(from, "picasso", tokenId).fee.plus(
+    fee.partialFee
+  );
   const feeTokenId = useStore((state) => state.transfers.getFeeToken(from));
+  const selectedAccount = useSelectedAccount();
+  const makeTransferCall = useStore(
+    (state) => state.transfers.makeTransferCall
+  );
+
+  useEffect(() => {
+    if (allProviders[from].parachainApi && selectedAccount) {
+      let subscriptions: Array<Promise<() => void>> = [];
+      subscriptions.push(
+        subscribeDestinationMultiLocation(allProviders, selectedAccount.address)
+      );
+      subscriptions.push(subscribeMultiAsset(allProviders));
+
+      subscriptions.push(subscribeTransferApiCall(allProviders));
+
+      return () => {
+        subscriptions.forEach((sub) => sub.then((call) => call()));
+      };
+    }
+  }, [allProviders[from]?.apiStatus]);
 
   return (
     <Default>

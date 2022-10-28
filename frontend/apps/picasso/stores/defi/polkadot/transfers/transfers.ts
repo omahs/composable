@@ -3,7 +3,16 @@ import { SUBSTRATE_NETWORKS } from "@/defi/polkadot/Networks";
 import { AssetId, SubstrateNetworkId } from "@/defi/polkadot/types";
 import BigNumber from "bignumber.js";
 import { Token } from "tokens";
-import { StoreSlice } from "../../../types";
+import { StoreSlice } from "@/stores/types";
+import { XcmVersionedMultiLocation } from "@polkadot/types/lookup";
+import {
+  AcalaPrimitivesCurrencyCurrencyId,
+  XcmVersionedMultiAsset,
+} from "@acala-network/types/interfaces/types-lookup";
+import { u128 } from "@polkadot/types-codec";
+import { ApiPromise } from "@polkadot/api";
+import { getAmountToTransfer } from "@/defi/polkadot/pallets/Transfer";
+import { SubmittableExtrinsic } from "@polkadot/api/types";
 
 export interface TokenOption {
   tokenId: AssetId;
@@ -41,7 +50,15 @@ interface TransfersState {
     weight: BigNumber;
   };
   tokenOptions: Array<TokenOption>;
+  destinationMultiLocation: XcmVersionedMultiLocation | null;
+  transferExtrinsic: (...args: any[]) => any;
+  multiAsset: SupportedTransferMultiAssets | null;
 }
+export type SupportedTransferMultiAssets =
+  | XcmVersionedMultiAsset
+  | u128[]
+  | u128[][]
+  | AcalaPrimitivesCurrencyCurrencyId;
 
 const networks = Object.keys(SUBSTRATE_NETWORKS).map((networkId) => ({
   networkId: networkId as SubstrateNetworkId,
@@ -71,6 +88,9 @@ const initialState: TransfersState = {
     partialFee: new BigNumber(0),
     weight: new BigNumber(0),
   },
+  destinationMultiLocation: null,
+  transferExtrinsic: () => {},
+  multiAsset: null,
 };
 
 interface TransferActions {
@@ -93,6 +113,16 @@ interface TransferActions {
   updateSelectedToken: (token: AssetId) => void;
   getTransferTokenBalance: () => BigNumber;
   isTokenBalanceZero: (tokenId: AssetId) => boolean;
+  setDestinationMultiLocation: (
+    destination: XcmVersionedMultiLocation | null
+  ) => void;
+  setTransferExtrinsic: (call: any) => void;
+  setTransferMultiAsset: (asset: SupportedTransferMultiAssets | null) => void;
+  makeTransferCall: (
+    api: ApiPromise,
+    targetAddress: string | undefined
+  ) => SubmittableExtrinsic<"promise"> | undefined;
+  getTransferAmount: (api: ApiPromise) => u128;
 }
 
 export interface TransfersSlice {
@@ -181,6 +211,18 @@ export const createTransfersSlice: StoreSlice<TransfersSlice> = (set, get) => ({
       const isTokenNative = assets[tokenId].meta.supportedNetwork[from] === 1;
       return isTokenNative ? native.balance : assets[tokenId].balance;
     },
+    getTransferAmount: (api: ApiPromise) => {
+      return getAmountToTransfer({
+        amount: get().transfers.amount,
+        api,
+        balance: get().transfers.getTransferTokenBalance(),
+        existentialDeposit: get().transfers.existentialDeposit,
+        keepAlive: get().transfers.keepAlive,
+        sourceChain: get().transfers.networks.from,
+        targetChain: get().transfers.networks.to,
+        tokenId: get().transfers.selectedToken,
+      });
+    },
     isTokenBalanceZero: (tokenId: AssetId) => {
       const from = get().transfers.networks.from;
       const assets = get().substrateBalances.assets[from].assets;
@@ -189,6 +231,87 @@ export const createTransfersSlice: StoreSlice<TransfersSlice> = (set, get) => ({
 
       const balance = isTokenNative ? native.balance : assets[tokenId].balance;
       return balance.eq(0);
+    },
+    setTransferExtrinsic: (call) => {
+      set((state) => {
+        state.transfers.transferExtrinsic = call;
+      });
+    },
+    setDestinationMultiLocation: (
+      destination: XcmVersionedMultiLocation | null
+    ) => {
+      set((state) => {
+        state.transfers.destinationMultiLocation = destination;
+      });
+    },
+    setTransferMultiAsset: (asset: SupportedTransferMultiAssets | null) => {
+      set((state) => {
+        state.transfers.multiAsset = asset;
+      });
+    },
+    makeTransferCall: (api: ApiPromise, targetAddress: string | undefined) => {
+      if (!get().transfers.multiAsset) return;
+      const transferFunction = get().transfers.transferExtrinsic;
+      const selectedAddress = get().transfers.recipients.selected;
+      const recipient = selectedAddress.length
+        ? selectedAddress
+        : targetAddress;
+      const destWeight = api.createType("u64", 9000000000); // > 9000000000
+      const transferAmount = get().transfers.getTransferAmount(api);
+      if (
+        get().transfers.networks.from === "kusama" &&
+        get().transfers.networks.to === "picasso"
+      ) {
+        const feeAssetItem = api.createType("u32", 0); // First item in the list.
+        const beneficiary = api.createType("XcmVersionedMultiLocation", {
+          V0: api.createType("XcmV0MultiLocation", {
+            X1: api.createType("XcmV0Junction", {
+              AccountId32: {
+                network: api.createType("XcmV0JunctionNetworkId", "Any"),
+                id: api.createType("AccountId32"),
+              },
+            }),
+          }),
+        });
+
+        const args = [
+          get().transfers.destinationMultiLocation,
+          beneficiary,
+          get().transfers.multiAsset,
+          feeAssetItem,
+        ];
+
+        return transferFunction(...args) as SubmittableExtrinsic<"promise">;
+      }
+
+      if (
+        get().transfers.networks.from === "karura" &&
+        get().transfers.networks.to === "picasso"
+      ) {
+        return transferFunction(
+          get().transfers.multiAsset,
+          transferAmount,
+          get().transfers.destinationMultiLocation,
+          destWeight
+        ) as SubmittableExtrinsic<"promise">;
+      }
+
+      // Else state where from is Picasso
+      const args = !get().transfers.hasFeeItem
+        ? [
+            get().transfers.multiAsset,
+            transferAmount,
+            get().transfers.destinationMultiLocation,
+            destWeight,
+          ]
+        : [
+            get().transfers.multiAsset,
+            api.createType("u32", 1), // Fee item index for extrinsic
+            get().transfers.destinationMultiLocation,
+            destWeight,
+          ];
+
+      return transferFunction(...args) as SubmittableExtrinsic<"promise">;
     },
   },
 });
