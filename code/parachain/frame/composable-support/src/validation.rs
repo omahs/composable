@@ -67,7 +67,7 @@
 
 use core::{fmt, marker::PhantomData};
 
-use change_set::Diff;
+use change_set::Diffable;
 use frame_support::log;
 use scale_info::TypeInfo;
 use sp_runtime::DispatchError;
@@ -244,7 +244,7 @@ impl<T: codec::Decode, U: Validate<T, U>> codec::Decode for Validated<T, U> {
 
 /// Originally there to have `WrapperTypeEncode` work, but now also used in order to prevent
 /// .value() calls everywhere
-impl<T: Diff, U> Diff for Validated<T, U> {
+impl<T: Diffable, U> Diffable for Validated<T, U> {
 	type ChangeSet = T::ChangeSet;
 
 	fn diff(self, updated: Self) -> Self::ChangeSet {

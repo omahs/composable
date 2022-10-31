@@ -1,4 +1,4 @@
-use change_set::{ChangeSet, CheckStorage, Diff, MapChangeSet, OptionChangeSet};
+use change_set::{CheckStorage, Diff, Diffable, MapDiff, OptionDiff};
 use composable_tests_helpers::test::{block::process_and_progress_blocks, currency::PICA};
 use composable_traits::{
 	staking::{
@@ -49,14 +49,14 @@ fn test_diff() {
 
 	let expected_changes = StakeChangeSet {
 		reductions: [
-			(1, MapChangeSet::NoChange),
-			(2, MapChangeSet::Missing),
-			(3, MapChangeSet::Added(200)),
-			(4, MapChangeSet::NoChange),
+			(1, MapDiff::NoChange),
+			(2, MapDiff::Missing),
+			(3, MapDiff::Added(200)),
+			(4, MapDiff::NoChange),
 		]
 		.into_iter()
 		.collect(),
-		lock: LockChangeSet { duration: ChangeSet::Changed(2000), ..Default::default() },
+		lock: LockChangeSet { duration: Diff::Changed(2000), ..Default::default() },
 		..Default::default()
 	};
 
@@ -108,8 +108,8 @@ fn test_create_reward_pool_diff() {
 		);
 
 		// test storage that is set to 100 when creating a pool
-		assert_eq!(ArgaBlarga::<Test>::check_storage(Some(100)), OptionChangeSet::NoChange);
-		assert_eq!(ArgaBlarga::<Test>::check_storage(Some(10)), OptionChangeSet::Changed(10));
+		assert_eq!(ArgaBlarga::<Test>::check_storage(Some(100)), OptionDiff::NoChange);
+		assert_eq!(ArgaBlarga::<Test>::check_storage(Some(10)), OptionDiff::Changed(10));
 
 		// assert_eq!(ArgaBlarga::<Test>::check_storage(Some(10)), OptionChangeSet::NoChange);
 
