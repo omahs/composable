@@ -34,6 +34,8 @@ p256 = { version = "0.10.1", default-features = false, features = [
 rustc-hex = { version = "2.1.0", default-features = false }
 serde = { version = "1.0.136", features = ["derive"], optional = true }
 
+change-set = { path = "../change-set" }
+
 [dev-dependencies]
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 proptest = { version = "1.0" }

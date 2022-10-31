@@ -1,166 +1,25 @@
-use core::fmt::Debug;
-
+use change_set::{ChangeSet, CheckStorage, Diff, MapChangeSet, OptionChangeSet};
+use composable_tests_helpers::test::{block::process_and_progress_blocks, currency::PICA};
 use composable_traits::{
-	staking::{lock::Lock, Stake},
-	time::{DurationSeconds, Timestamp},
+	staking::{
+		lock::{Lock, LockChangeSet},
+		Stake, StakeChangeSet,
+	},
+	time::ONE_HOUR,
 };
-use frame_support::{
-	traits::{ConstU32, Get},
-	BoundedBTreeMap, DebugNoBound,
-};
+use frame_support::traits::ConstU32;
 use sp_runtime::Perbill;
 use sp_std::collections::btree_map::BTreeMap;
 
-use super::btree_map;
-
-#[derive(Debug)]
-pub enum AssertChanges<T> {
-	NoChange,
-	IgnoreChange,
-	ChangeTo(T),
-}
-
-#[derive(Debug, Default)]
-pub enum ChangeSet<T> {
-	#[default]
-	NoChange,
-	Changed(T),
-}
-
-pub trait Diff {
-	type ChangeSet: Debug + Default;
-
-	fn diff(self, updated: Self) -> Self::ChangeSet;
-}
-
-#[derive(Debug, Default)]
-pub enum MapChangeSet<T> {
-	Missing,
-	Added(T),
-	#[default]
-	NoChange,
-	Changed(T),
-}
-
-impl<K: Ord + Debug, V: PartialEq + Debug, S: Get<u32>> Diff for BoundedBTreeMap<K, V, S> {
-	type ChangeSet = BTreeMap<K, MapChangeSet<V>>;
-
-	fn diff(self, mut updated: Self) -> Self::ChangeSet {
-		let mut map = self
-			.into_iter()
-			.map(|(k, v)| match updated.remove(&k) {
-				Some(maybe_updated) =>
-					if maybe_updated == v {
-						(k, MapChangeSet::NoChange)
-					} else {
-						(k, MapChangeSet::Changed(maybe_updated))
-					},
-				None => (k, MapChangeSet::Missing),
-			})
-			.collect::<Self::ChangeSet>();
-
-		map.extend(updated.into_iter().map(|(k, v)| (k, MapChangeSet::Added(v))));
-
-		map
-	}
-}
-
-#[derive(DebugNoBound, Default)]
-pub struct StakeChangeSet<
-	AssetId: Diff + Ord + Debug,
-	RewardPoolId: Diff + Debug,
-	Balance: Diff + PartialEq + Debug,
-	MaxReductions: Get<u32>,
-> {
-	/// Reward Pool ID from which pool to allocate rewards for this
-	pub reward_pool_id: RewardPoolId::ChangeSet,
-
-	/// The original stake this position was created for or updated position with any extended
-	/// stake amount.
-	pub stake: Balance::ChangeSet,
-
-	/// Pool share received for this position
-	pub share: Balance::ChangeSet,
-
-	/// Reduced rewards by asset for the position (d_n)
-	pub reductions: <BoundedBTreeMap<AssetId, Balance, MaxReductions> as Diff>::ChangeSet,
-
-	/// The lock period for the stake.
-	pub lock: <Lock as Diff>::ChangeSet,
-}
-
-#[derive(Debug, Default)]
-pub struct LockChangeSet {
-	/// The date at which this NFT was minted or to which lock was extended too.
-	pub started_at: <Timestamp as Diff>::ChangeSet,
-	/// The duration for which this NFT stake was locked.
-	pub duration: <DurationSeconds as Diff>::ChangeSet,
-
-	pub unlock_penalty: <Perbill as Diff>::ChangeSet,
-}
-
-impl Diff for Lock {
-	type ChangeSet = LockChangeSet;
-
-	fn diff(self, updated: Self) -> Self::ChangeSet {
-		LockChangeSet {
-			started_at: self.started_at.diff(updated.started_at),
-			duration: self.duration.diff(updated.duration),
-			unlock_penalty: self.unlock_penalty.diff(updated.unlock_penalty),
-		}
-	}
-}
-
-impl<AssetId, RewardPoolId, Balance, MaxReductions> Diff
-	for Stake<AssetId, RewardPoolId, Balance, MaxReductions>
-where
-	AssetId: Diff + Ord + Debug + PartialEq + Eq + Clone,
-	RewardPoolId: Diff + Debug + PartialEq + Eq + Clone,
-	Balance: Diff + Debug + PartialEq + Eq + Clone,
-	MaxReductions: Get<u32>,
-{
-	type ChangeSet = StakeChangeSet<AssetId, RewardPoolId, Balance, MaxReductions>;
-
-	fn diff(self, updated: Self) -> Self::ChangeSet {
-		StakeChangeSet {
-			reward_pool_id: self.reward_pool_id.diff(updated.reward_pool_id),
-			stake: self.stake.diff(updated.stake),
-			share: self.share.diff(updated.share),
-			reductions: self.reductions.diff(updated.reductions),
-			lock: self.lock.diff(updated.lock),
-		}
-	}
-}
-
-macro_rules! impl_diff {
-	($ty: ty) => {
-		impl Diff for $ty {
-			type ChangeSet = ChangeSet<$ty>;
-
-			fn diff(self, updated: Self) -> Self::ChangeSet {
-				if self == updated {
-					ChangeSet::NoChange
-				} else {
-					ChangeSet::Changed(updated)
-				}
-			}
-		}
-	};
-}
-
-impl_diff!(u8);
-impl_diff!(u16);
-impl_diff!(u32);
-impl_diff!(u64);
-impl_diff!(u128);
-
-impl_diff!(i8);
-impl_diff!(i16);
-impl_diff!(i32);
-impl_diff!(i64);
-impl_diff!(i128);
-
-impl_diff!(Perbill);
+use crate::{
+	test::{
+		btree_map, create_default_reward_pool, mint_assets, new_test_ext,
+		prelude::stake_and_assert,
+		runtime::{self, StakingRewards, System, ALICE},
+		Test,
+	},
+	ArgaBlarga, RewardPools, Stakes,
+};
 
 #[test]
 fn test_diff() {
@@ -201,5 +60,67 @@ fn test_diff() {
 		..Default::default()
 	};
 
-	// assert_eq!(expected_changes, original.diff(new));
+	dbg!(&expected_changes);
+
+	assert_eq!(expected_changes, original.diff(new));
+}
+
+#[test]
+fn test_create_reward_pool_diff() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let value_before = Stakes::<Test>::current_value();
+
+		create_default_reward_pool();
+
+		process_and_progress_blocks::<StakingRewards, Test>(1);
+
+		mint_assets([ALICE], [PICA::ID], 100_000_000_000);
+		stake_and_assert::<Test, runtime::Event>(ALICE, PICA::ID, 100_000_000, ONE_HOUR);
+
+		assert_eq!(
+			Stakes::<Test>::check_storage(value_before),
+			BTreeMap::new(),
+			// [(
+			// 	0,
+			// 	MapChangeSet::Added(
+			// 		[(
+			// 			0,
+			// 			(Stake {
+			// 				reward_pool_id: 1,
+			// 				stake: 123,
+			// 				share: 123,
+			// 				reductions: BTreeMap::new().try_into().unwrap(),
+			// 				lock: Lock {
+			// 					started_at: 123,
+			// 					duration: 123,
+			// 					unlock_penalty: Perbill::from_rational(1_u32, 7)
+			// 				}
+			// 			})
+			// 		)]
+			// 		.into_iter()
+			// 		.collect()
+			// 	)
+			// )]
+			// .into_iter()
+			// .collect()
+		);
+
+		// test storage that is set to 100 when creating a pool
+		assert_eq!(ArgaBlarga::<Test>::check_storage(Some(100)), OptionChangeSet::NoChange);
+		assert_eq!(ArgaBlarga::<Test>::check_storage(Some(10)), OptionChangeSet::Changed(10));
+
+		// assert_eq!(ArgaBlarga::<Test>::check_storage(Some(10)), OptionChangeSet::NoChange);
+
+		// assert_eq!(
+		// 	FinancialNft::collections().collect::<BTreeSet<_>>(),
+		// 	BTreeSet::from([PICA::ID])
+		// );
+
+		// assert_eq!(
+		// 	<StakingRewards as FinancialNftProtocol>::collection_asset_ids(),
+		// 	vec![PICA::ID]
+		// );
+	});
 }

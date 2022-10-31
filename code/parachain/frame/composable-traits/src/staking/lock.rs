@@ -11,9 +11,18 @@ use crate::time::{DurationSeconds, Timestamp};
 
 /// defines staking duration, rewards and early unstake penalty
 #[derive(
-	DebugNoBound, PartialEqNoBound, EqNoBound, CloneNoBound, MaxEncodedLen, Encode, Decode, TypeInfo,
+	DebugNoBound,
+	PartialEqNoBound,
+	EqNoBound,
+	CloneNoBound,
+	MaxEncodedLen,
+	Encode,
+	Decode,
+	TypeInfo,
+	change_set_derive::ChangeSet,
 )]
 #[scale_info(skip_type_params(MaxDurationPresets))]
+#[change_set(skip_type_params(MaxDurationPresets))]
 pub struct LockConfig<MaxDurationPresets: Get<u32>> {
 	/// The possible locking duration.
 	pub duration_presets:
@@ -24,7 +33,9 @@ pub struct LockConfig<MaxDurationPresets: Get<u32>> {
 }
 
 /// staking typed fNFT, usually can be mapped to raw fNFT storage type
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo)]
+#[derive(
+	Debug, PartialEq, Eq, Copy, Clone, Encode, Decode, TypeInfo, change_set_derive::ChangeSet,
+)]
 pub struct Lock {
 	/// The date at which this NFT was minted or to which lock was extended too.
 	pub started_at: Timestamp,

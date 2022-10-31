@@ -192,10 +192,20 @@ pub enum RewardPoolConfiguration<
 /// Staking typed fNFT, usually can be mapped to raw fNFT storage type. A position identifier
 /// should exist for each position when stored in the runtime storage.
 /// TODO refer to the relevant section in the design doc.
-#[derive(DebugNoBound, PartialEqNoBound, EqNoBound, CloneNoBound, Encode, Decode, TypeInfo)]
+#[derive(
+	DebugNoBound,
+	PartialEqNoBound,
+	EqNoBound,
+	CloneNoBound,
+	Encode,
+	Decode,
+	TypeInfo,
+	change_set_derive::ChangeSet,
+)]
 #[scale_info(skip_type_params(MaxReductions))]
+#[change_set(skip_type_params(MaxReductions))]
 pub struct Stake<
-	AssetId: Debug + PartialEq + Eq + Clone,
+	AssetId: Debug + PartialEq + Eq + PartialOrd + Ord + Clone,
 	RewardPoolId: Debug + PartialEq + Eq + Clone,
 	Balance: Debug + PartialEq + Eq + Clone,
 	MaxReductions: Get<u32>,

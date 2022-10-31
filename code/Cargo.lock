@@ -1164,6 +1164,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "change-set"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "change-set-derive"
+version = "0.1.0"
+dependencies = [
+ "itertools",
+ "quote 1.0.21",
+ "syn 1.0.100",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1641,6 +1663,7 @@ dependencies = [
 name = "composable-support"
 version = "0.0.1"
 dependencies = [
+ "change-set",
  "frame-support",
  "frame-system",
  "hex",
@@ -1680,6 +1703,8 @@ name = "composable-traits"
 version = "0.0.1"
 dependencies = [
  "bitflags",
+ "change-set",
+ "change-set-derive",
  "composable-support",
  "frame-support",
  "frame-system",
@@ -2959,9 +2984,9 @@ dependencies = [
 
 [[package]]
 name = "darling"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4529658bdda7fd6769b8614be250cdcfc3aeb0ee72fe66f9e41e5e5eb73eac02"
+checksum = "b0dd3cd20dc6b5a876612a6e5accfe7f3dd883db6d07acfbf14c128f61550dfa"
 dependencies = [
  "darling_core",
  "darling_macro",
@@ -2969,9 +2994,9 @@ dependencies = [
 
 [[package]]
 name = "darling_core"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "649c91bc01e8b1eac09fb91e8dbc7d517684ca6be8ebc75bb9cafc894f9fdb6f"
+checksum = "a784d2ccaf7c98501746bf0be29b2022ba41fd62a2e622af997a03e9f972859f"
 dependencies = [
  "fnv",
  "ident_case",
@@ -2983,9 +3008,9 @@ dependencies = [
 
 [[package]]
 name = "darling_macro"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddfc69c5bfcbd2fc09a0f38451d2daf0e372e367986a83906d1b0dbc88134fb5"
+checksum = "7618812407e9402654622dd402b0a89dff9ba93badd6540781526117b92aab7e"
 dependencies = [
  "darling_core",
  "quote 1.0.21",
@@ -8810,6 +8835,7 @@ dependencies = [
 name = "pallet-staking-rewards"
 version = "0.0.1"
 dependencies = [
+ "change-set",
  "composable-support",
  "composable-tests-helpers",
  "composable-traits",

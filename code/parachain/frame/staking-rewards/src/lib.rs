@@ -435,6 +435,9 @@ pub mod pallet {
 	pub type RewardPools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, RewardPoolOf<T>>;
 
 	#[pallet::storage]
+	pub type ArgaBlarga<T: Config> = StorageValue<_, u128>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn stakes)]
 	// REVIEW(benluelo): Twox128 for the hasher?
 	pub type Stakes<T: Config> = StorageDoubleMap<
@@ -539,6 +542,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			pool_config: RewardPoolConfigurationOf<T>,
 		) -> DispatchResult {
+			ArgaBlarga::<T>::put(100);
 			T::RewardPoolCreationOrigin::ensure_origin(origin)?;
 			let _ = <Self as ManageStaking>::create_staking_pool(pool_config)?;
 			Ok(())
