@@ -1,4 +1,4 @@
-use change_set::{CheckStorage, Diff, Diffable, MapDiff, OptionDiff};
+use change_set::{CheckStorage, Diff, Diffable, MapValueDiff, OptionDiff};
 use composable_tests_helpers::test::{block::process_and_progress_blocks, currency::PICA};
 use composable_traits::{
 	staking::{
@@ -48,21 +48,38 @@ fn test_diff() {
 	};
 
 	let expected_changes = StakeChangeSet {
-		reductions: [
-			(1, MapDiff::NoChange),
-			(2, MapDiff::Missing),
-			(3, MapDiff::Added(200)),
-			(4, MapDiff::NoChange),
-		]
-		.into_iter()
-		.collect(),
-		lock: LockChangeSet { duration: Diff::Changed(2000), ..Default::default() },
+		reductions: Diff::Changed(
+			[
+				(1, MapValueDiff::NoChange),
+				(2, MapValueDiff::Missing),
+				(3, MapValueDiff::Added(200)),
+				(4, MapValueDiff::NoChange),
+			]
+			.into_iter()
+			.collect(),
+		),
+		lock: Diff::Changed(LockChangeSet { duration: Diff::Changed(2000), ..Default::default() }),
 		..Default::default()
 	};
 
 	dbg!(&expected_changes);
 
-	assert_eq!(expected_changes, original.diff(new));
+	assert_eq!(Diff::Changed(expected_changes), original.diff(new));
+}
+
+// #[macro_export]
+macro_rules! btree_map {
+  {$($k: expr => $v: expr),* $(,)?} => {
+    {
+      let mut map = ::sp_std::collections::btree_map::BTreeMap::new();
+
+      $(
+        map.insert($k, $v);
+      )*
+
+      map
+    }
+  };
 }
 
 #[test]
@@ -80,36 +97,32 @@ fn test_create_reward_pool_diff() {
 		stake_and_assert::<Test, runtime::Event>(ALICE, PICA::ID, 100_000_000, ONE_HOUR);
 
 		assert_eq!(
-			Stakes::<Test>::check_storage(value_before),
-			BTreeMap::new(),
-			// [(
-			// 	0,
-			// 	MapChangeSet::Added(
-			// 		[(
-			// 			0,
-			// 			(Stake {
-			// 				reward_pool_id: 1,
-			// 				stake: 123,
-			// 				share: 123,
-			// 				reductions: BTreeMap::new().try_into().unwrap(),
-			// 				lock: Lock {
-			// 					started_at: 123,
-			// 					duration: 123,
-			// 					unlock_penalty: Perbill::from_rational(1_u32, 7)
-			// 				}
-			// 			})
-			// 		)]
-			// 		.into_iter()
-			// 		.collect()
-			// 	)
-			// )]
-			// .into_iter()
-			// .collect()
+			Stakes::<Test>::diff_storage_changes(value_before),
+			Diff::Changed(btree_map! {
+				1 => MapValueDiff::Added(btree_map! {
+					0 => Stake {
+						reward_pool_id: 1,
+						stake: 100_000_000,
+						share: 101_000_000,
+						reductions: btree_map! {
+							1000 => 0
+						}.try_into().unwrap(),
+						lock: Lock {
+							started_at: 12,
+							duration: 3600,
+							unlock_penalty: Perbill::from_rational::<u128>(5, 100)
+						}
+					}
+				})
+			})
 		);
 
 		// test storage that is set to 100 when creating a pool
-		assert_eq!(ArgaBlarga::<Test>::check_storage(Some(100)), OptionDiff::NoChange);
-		assert_eq!(ArgaBlarga::<Test>::check_storage(Some(10)), OptionDiff::Changed(10));
+		assert_eq!(ArgaBlarga::<Test>::diff_storage_changes(Some(100)), Diff::NoChange);
+		assert_eq!(
+			ArgaBlarga::<Test>::diff_storage_changes(Some(10)),
+			Diff::Changed(OptionDiff::Changed(10))
+		);
 
 		// assert_eq!(ArgaBlarga::<Test>::check_storage(Some(10)), OptionChangeSet::NoChange);
 

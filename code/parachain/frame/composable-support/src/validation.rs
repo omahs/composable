@@ -67,7 +67,7 @@
 
 use core::{fmt, marker::PhantomData};
 
-use change_set::Diffable;
+use change_set::{Diff, Diffable};
 use frame_support::log;
 use scale_info::TypeInfo;
 use sp_runtime::DispatchError;
@@ -247,7 +247,7 @@ impl<T: codec::Decode, U: Validate<T, U>> codec::Decode for Validated<T, U> {
 impl<T: Diffable, U> Diffable for Validated<T, U> {
 	type ChangeSet = T::ChangeSet;
 
-	fn diff(self, updated: Self) -> Self::ChangeSet {
+	fn diff(self, updated: Self) -> Diff<Self::ChangeSet> {
 		self.value.diff(updated.value)
 	}
 }

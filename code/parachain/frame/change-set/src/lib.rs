@@ -15,9 +15,10 @@ use sp_std::collections::btree_map::BTreeMap;
 
 // TODO: docs lol
 pub trait Diffable: Debug {
-	type ChangeSet: PartialEq + Debug + Default;
+	// + Default
+	type ChangeSet: PartialEq + Debug;
 
-	fn diff(self, updated: Self) -> Self::ChangeSet;
+	fn diff(self, updated: Self) -> Diff<Self::ChangeSet>;
 }
 
 #[derive(Debug)]
@@ -27,19 +28,34 @@ pub enum AssertChanges<T> {
 	ChangeTo(T),
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
-pub enum Diff<T: Diffable> {
-	#[default]
+#[derive(Debug, PartialEq, Eq)]
+pub enum Diff<T> {
 	NoChange,
-	Changed(T::ChangeSet),
+	Changed(T),
 }
 
+impl<T> Default for Diff<T> {
+	fn default() -> Self {
+		Self::NoChange
+	}
+}
+
+/// Describes the diff between the values of two map-like structures.
+///
+/// Not intended to be used as a standalone diff - this should be used with it's associated key in
+/// the map.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub enum MapDiff<T: Diffable> {
+pub enum MapValueDiff<T: Diffable> {
+	/// The item under this key was not changed between the original map and the updated map.
 	#[default]
 	NoChange,
+	/// The item under this key in the original map was not found in the updated map.
 	Missing,
+	/// The item under this key was not in the original map. Contaianed is the un-diffed value, as
+	/// there is nothing to diff it against.
 	Added(T),
+	/// Th item under this key has changed between the original map and the updated map. Contained
+	/// is the diff between the original and updated value.
 	Changed(T::ChangeSet),
 }
 
@@ -54,64 +70,62 @@ impl<K: Ord + Debug, V: PartialEq + Debug + Diffable, S: Get<u32>> Diffable
 }
 
 impl<K: Ord + Debug, V: PartialEq + Debug + Diffable> Diffable for BTreeMap<K, V> {
-	type ChangeSet = BTreeMap<K, MapDiff<V>>;
+	type ChangeSet = BTreeMap<K, MapValueDiff<V>>;
 
-	fn diff(self, mut updated: Self) -> Self::ChangeSet {
+	fn diff(self, mut updated: Self) -> Diff<Self::ChangeSet> {
 		let mut map = self
 			.into_iter()
 			.map(|(k, v)| match updated.remove(&k) {
-				Some(maybe_updated) =>
-					if maybe_updated == v {
-						(k, MapDiff::NoChange)
-					} else {
-						(k, MapDiff::Changed(v.diff(maybe_updated)))
-					},
-				None => (k, MapDiff::Missing),
+				Some(maybe_updated) => match v.diff(maybe_updated) {
+					Diff::NoChange => (k, MapValueDiff::NoChange),
+					Diff::Changed(changed) => (k, MapValueDiff::Changed(changed)),
+				},
+				None => (k, MapValueDiff::Missing),
 			})
 			.collect::<Self::ChangeSet>();
 
-		map.extend(updated.into_iter().map(|(k, v)| (k, MapDiff::Added(v))));
+		map.extend(updated.into_iter().map(|(k, v)| (k, MapValueDiff::Added(v))));
 
-		map
+		if map.values().all(|v| matches!(v, MapValueDiff::NoChange)) {
+			Diff::NoChange
+		} else {
+			Diff::Changed(map)
+		}
 	}
 }
 
 impl<T: Diffable + PartialEq + Eq + Debug> Diffable for Option<T> {
 	type ChangeSet = OptionDiff<T>;
 
-	fn diff(self, updated: Self) -> Self::ChangeSet {
+	fn diff(self, updated: Self) -> Diff<Self::ChangeSet> {
 		match (self, updated) {
-			(None, None) => OptionDiff::NoChange,
-			(None, Some(v)) => OptionDiff::WasNoneNowSome(v),
-			(Some(_), None) => OptionDiff::WasSomeNowNone,
-			(Some(old), Some(new)) =>
-				if new == old {
-					OptionDiff::NoChange
-				} else {
-					OptionDiff::Changed(new)
-				},
+			(None, None) => Diff::NoChange,
+			(None, Some(v)) => Diff::Changed(OptionDiff::WasNoneNowSome(v)),
+			(Some(_), None) => Diff::Changed(OptionDiff::WasSomeNowNone),
+			(Some(old), Some(new)) => match old.diff(new) {
+				Diff::NoChange => Diff::NoChange,
+				Diff::Changed(changed) => Diff::Changed(OptionDiff::Changed(changed)),
+			},
 		}
 	}
 }
 
+/// Describes the diff between two [`Option`]s.
 #[derive(Debug, PartialEq, Eq)]
 pub enum OptionDiff<T: Diffable> {
-	NoChange,
+	/// The value was previously `Some(x)`, and is now Some(y) where `x != y`.
 	Changed(T::ChangeSet),
+	/// The value was previously `None` but is now `Some`. Contained is the un-diffed value, as
+	/// there is nothing to diff it against.
 	WasNoneNowSome(T),
+	/// The value was previously `Some`, but is now `None`.
 	WasSomeNowNone,
 }
 
-impl<T> Default for OptionDiff<T> {
-	fn default() -> Self {
-		Self::NoChange
-	}
-}
-
-macro_rules! impl_diff_with_implicit_eq {
-	($ty: ty, $ChangeSet: ty) => {
-		impl DiffTrait for $ty {
-			type ChangeSet<T: DiffTrait> = ChangeSet;
+macro_rules! impl_diff_primitives {
+	($ty: ty) => {
+		impl Diffable for $ty {
+			type ChangeSet = $ty;
 
 			fn diff(self, updated: Self) -> Diff<Self::ChangeSet> {
 				if self == updated {
@@ -125,33 +139,32 @@ macro_rules! impl_diff_with_implicit_eq {
 }
 
 // unsigned
-impl_diff_with_implicit_eq!(u8);
-impl_diff_with_implicit_eq!(u16);
-impl_diff_with_implicit_eq!(u32);
-impl_diff_with_implicit_eq!(u64);
-impl_diff_with_implicit_eq!(u128);
+impl_diff_primitives!(u8);
+impl_diff_primitives!(u16);
+impl_diff_primitives!(u32);
+impl_diff_primitives!(u64);
+impl_diff_primitives!(u128);
 
 // signed
-impl_diff_with_implicit_eq!(i8);
-impl_diff_with_implicit_eq!(i16);
-impl_diff_with_implicit_eq!(i32);
-impl_diff_with_implicit_eq!(i64);
-impl_diff_with_implicit_eq!(i128);
+impl_diff_primitives!(i8);
+impl_diff_primitives!(i16);
+impl_diff_primitives!(i32);
+impl_diff_primitives!(i64);
+impl_diff_primitives!(i128);
 
 // other types that work with this macro
-impl_diff_with_implicit_eq!(Perbill);
-impl_diff_with_implicit_eq!(FixedU128);
-impl_diff_with_implicit_eq!(FixedU64);
+impl_diff_primitives!(Perbill);
+impl_diff_primitives!(FixedU128);
+impl_diff_primitives!(FixedU64);
 
 // STORAGE
 
 pub trait CheckStorage {
 	type Value: Diffable;
-	type Diff<T: Diffable>;
 
 	fn current_value() -> Self::Value;
 
-	fn check_storage(expected: Self::Value) -> Self::Diff<Self::Value> {
+	fn diff_storage_changes(expected: Self::Value) -> Diff<<Self::Value as Diffable>::ChangeSet> {
 		expected.diff(Self::current_value())
 	}
 }
@@ -211,12 +224,7 @@ where
 
 		for (k1, k2, v) in Self::iter() {
 			dbg!(&k1, &k2);
-			found_map
-				.entry(k1)
-				.and_modify(|e: &mut BTreeMap<Key2, Value>| {
-					e.insert(k2, v);
-				})
-				.or_insert_with(BTreeMap::<Key2, Value>::new);
+			found_map.entry(k1).or_insert_with(BTreeMap::<Key2, Value>::new).insert(k2, v);
 		}
 
 		found_map

@@ -13,7 +13,7 @@ pub fn derive_change_set(input: TokenStream) -> TokenStream {
 	// Parse the input tokens into a syntax tree
 	let mut input = parse_macro_input!(input as DeriveInput);
 
-	let diff_path = syn::parse_str::<TypeParamBound>("::change_set::Diff")
+	let diff_path = syn::parse_str::<TypeParamBound>("::change_set::Diffable")
 		.expect("parsing known literal should not fail; qed;");
 
 	let change_set_struct_name = format_ident!("{}ChangeSet", input.ident.to_string());
@@ -41,7 +41,9 @@ pub fn derive_change_set(input: TokenStream) -> TokenStream {
 			let fields = struct_data.fields.clone().into_iter().map(|field| {
 				let ty = field.ty;
 				Field {
-					ty: Type::Verbatim(quote! { <#ty as ::change_set::Diff>::ChangeSet }),
+					ty: Type::Verbatim(
+						quote! { ::change_set::Diff<<#ty as ::change_set::Diffable>::ChangeSet> },
+					),
 					..field
 				}
 			});
@@ -49,7 +51,7 @@ pub fn derive_change_set(input: TokenStream) -> TokenStream {
 			let params = struct_generics.params.clone();
 			let where_clause = struct_generics.where_clause.clone();
 
-			let impl_fields = struct_data.fields.clone().into_iter().map(|field| {
+			let impl_fields = struct_data.fields.into_iter().map(|field| {
 				let name = field.ident;
 
 				quote! {
@@ -80,12 +82,18 @@ pub fn derive_change_set(input: TokenStream) -> TokenStream {
 					#( #fields ),*
 				}
 
-				impl<#params> ::change_set::Diff for #original_struct_name<#( #param_names ),*> #where_clause {
+				impl<#params> ::change_set::Diffable for #original_struct_name<#( #param_names ),*> #where_clause {
 					type ChangeSet = #change_set_struct_name<#( #param_names_clone ),*>;
 
-					fn diff(self, updated: Self) -> Self::ChangeSet {
-						Self::ChangeSet {
-							#( #impl_fields ),*
+					fn diff(self, updated: Self) -> ::change_set::Diff<Self::ChangeSet> {
+						if self == updated {
+							::change_set::Diff::NoChange
+						} else {
+							::change_set::Diff::Changed(
+								Self::ChangeSet {
+									#( #impl_fields ),*
+								}
+							)
 						}
 					}
 				}
