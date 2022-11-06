@@ -13,7 +13,7 @@ use crate::{
 		add_to_rewards_pot_and_assert, create_rewards_pool_and_assert, split_and_assert,
 		stake_and_assert, unstake_and_assert,
 	},
-	Config, RewardPoolConfigurationOf, RewardPools, Stakes,
+	Config, PalletStorages, RewardPoolConfigurationOf, RewardPools, Stakes,
 };
 
 use composable_support::validation::TryIntoValidated;

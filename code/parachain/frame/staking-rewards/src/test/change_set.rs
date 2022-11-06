@@ -1,4 +1,6 @@
-use change_set::{CheckStorage, Diff, Diffable, MapValueDiff, OptionDiff};
+use change_set::{
+	CheckStorage, Diff, Diffable, MapValueDiff, OptionDiff, PalletStorage, StorageTester,
+};
 use composable_tests_helpers::test::{block::process_and_progress_blocks, currency::PICA};
 use composable_traits::{
 	staking::{
@@ -12,14 +14,61 @@ use sp_runtime::Perbill;
 use sp_std::collections::btree_map::BTreeMap;
 
 use crate::{
-	test::{
-		btree_map, create_default_reward_pool, mint_assets, new_test_ext,
-		prelude::stake_and_assert,
-		runtime::{self, StakingRewards, System, ALICE},
-		Test,
-	},
-	ArgaBlarga, RewardPools, Stakes,
+	runtime::{self, StakingRewards, System, ALICE},
+	test::{btree_map, create_default_reward_pool, mint_assets, new_test_ext, Test},
+	test_helpers::stake_and_assert,
+	ArgaBlarga, PalletStorages, RewardPools, RewardsPotIsEmpty, StakeOf, Stakes,
 };
+
+// #[macro_export]
+macro_rules! btree_map {
+  {$($k: expr => $v: expr),* $(,)?} => {
+    {
+      let mut map = ::sp_std::collections::btree_map::BTreeMap::new();
+
+      $(
+        map.insert($k, $v);
+      )*
+
+      map
+    }
+  };
+}
+
+fn t() {
+	// let r: <Stakes<Test> as CheckStorage>::Value = 1_u128;
+	let stake = StakeOf::<Test> {
+		reward_pool_id: 0_u128,
+		stake: 100_u128,
+		share: 100_u128,
+		reductions: btree_map! {}.try_into().unwrap(),
+		lock: Lock {
+			started_at: 100_u64,
+			duration: 100_u64,
+			unlock_penalty: Perbill::from_percent(10),
+		},
+	};
+
+	let a = btree_map! {
+		0_u128 => btree_map! {
+			0_u64 => stake,
+		}
+	};
+	let b = Some(100_u128);
+	let c = btree_map! {
+		0_u128 => btree_map! {
+			0_u128 => (),
+		}
+	};
+
+	// let t = <PalletStorages<Test> as PalletStorage>::check_storages((a, (b, (c,))));
+	// (RewardsPotIsEmpty<Test>,)
+
+	let st /* StorageTester<(), PalletStorages<Test>> */ =
+		StorageTester::<PalletStorages<Test>, ()>::new()
+			.push_storage_check::<ArgaBlarga<Test>, _>(b)
+			.push_storage_check::<Stakes<Test>, _>(a);
+}
 
 #[test]
 fn test_diff() {
@@ -67,21 +116,6 @@ fn test_diff() {
 	assert_eq!(Diff::Changed(expected_changes), original.diff(new));
 }
 
-// #[macro_export]
-macro_rules! btree_map {
-  {$($k: expr => $v: expr),* $(,)?} => {
-    {
-      let mut map = ::sp_std::collections::btree_map::BTreeMap::new();
-
-      $(
-        map.insert($k, $v);
-      )*
-
-      map
-    }
-  };
-}
-
 #[test]
 fn test_create_reward_pool_diff() {
 	new_test_ext().execute_with(|| {
@@ -94,7 +128,7 @@ fn test_create_reward_pool_diff() {
 		process_and_progress_blocks::<StakingRewards, Test>(1);
 
 		mint_assets([ALICE], [PICA::ID], 100_000_000_000);
-		stake_and_assert::<Test, runtime::Event>(ALICE, PICA::ID, 100_000_000, ONE_HOUR);
+		stake_and_assert::<Test>(ALICE, PICA::ID, 100_000_000, ONE_HOUR);
 
 		assert_eq!(
 			Stakes::<Test>::diff_storage_changes(value_before),

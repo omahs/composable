@@ -430,6 +430,9 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
+	pub(crate) type PalletStorages<T> = (Stakes<T>, (ArgaBlarga<T>, (RewardsPotIsEmpty<T>, ())));
+	// pub(crate) type PalletStorages<T> = (ArgaBlarga<T>, (RewardsPotIsEmpty<T>,));
+
 	#[pallet::storage]
 	#[pallet::getter(fn pools)]
 	pub type RewardPools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, RewardPoolOf<T>>;
