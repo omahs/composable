@@ -1,0 +1,13 @@
+on:
+  push:
+    # Pattern matched against refs/tags
+    tags:
+      - 'fe-v[0-9]+\.[0-9]+-picasso-[0-9]'
+    branches:
+      - 'release-*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -X POST -d {} ${{ secrets.FRONTEND_PRODUCTION_PICASSO_DEPLOY_HOOK }}
