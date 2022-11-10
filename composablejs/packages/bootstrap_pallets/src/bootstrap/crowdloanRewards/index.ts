@@ -18,7 +18,7 @@ function toPalletCrowdloanRewardsModelsRemoteAccount(
       api.createType("PalletCrowdloanRewardsModelsRemoteAccount", {
         Ethereum: account
       }),
-      api.createType("u128", toChainUnits(reward).toString()),
+      api.createType("u128", toChainUnits(reward).toFixed(0)),
       api.createType("u32", vestingPeriod)
     ] as [PalletCrowdloanRewardsModelsRemoteAccount, u128, u32];
   } else {
@@ -26,7 +26,7 @@ function toPalletCrowdloanRewardsModelsRemoteAccount(
       api.createType("PalletCrowdloanRewardsModelsRemoteAccount", {
         RelayChain: api.createType("AccountId32", account).toU8a()
       }),
-      api.createType("u128", toChainUnits(reward).toString()),
+      api.createType("u128", toChainUnits(reward).toFixed(0)),
       api.createType("u32", vestingPeriod)
     ] as [PalletCrowdloanRewardsModelsRemoteAccount, u128, u32];
   }
@@ -35,39 +35,40 @@ function toPalletCrowdloanRewardsModelsRemoteAccount(
 export async function bootstrapCrowdloanRewards(api: ApiPromise, walletSudo: KeyringPair): Promise<void> {
   const allRewards = Object.entries(rewards);
 
-  const STEP = 5;
+  const STEP = 1000;
+  let amount = new BigNumber(0);
+  const txCalls = [];
   for (let i = 0; i < allRewards.length; i += STEP) {
-    let accountsOfBatch: [PalletCrowdloanRewardsModelsRemoteAccount, u128, u32][] = [];
-    
+    const accountsOfBatch: [PalletCrowdloanRewardsModelsRemoteAccount, u128, u32][] = [];
+
     let accIndex = i;
-    let amount = new BigNumber(0);
     while (accIndex < allRewards.length && accIndex < STEP + i) {
       amount = amount.plus(allRewards[accIndex][1]);
-      accountsOfBatch.push(toPalletCrowdloanRewardsModelsRemoteAccount(
-        api,
-        allRewards[accIndex][0],
-        allRewards[accIndex][1],
-        config.crowdloanRewards.vestingPeriod
-      ))
+      accountsOfBatch.push(
+        toPalletCrowdloanRewardsModelsRemoteAccount(
+          api,
+          allRewards[accIndex][0],
+          allRewards[accIndex][1],
+          config.crowdloanRewards.vestingPeriod
+        )
+      );
       accIndex = accIndex + 1;
     }
 
-    logger.info(`Adding Funds to Crowdloan: ${amount.toString()}`);
-    await addFundsToCrowdloan(
-      api,
-      walletSudo,
-      api.createType("u128", toChainUnits(amount).toString()),
-      config.crowdloanRewards.palletAccountId
-    );
-
-    logger.info(`Populating Accounts: ${accIndex}`);
-    await sendAndWaitForSuccess(
-      api,
-      walletSudo,
-      api.events.sudo.Sudid.is,
-      api.tx.sudo.sudo(api.tx.crowdloanRewards.populate(accountsOfBatch))
-    );
+    txCalls.push(api.tx.sudo.sudoUncheckedWeight(api.tx.crowdloanRewards.populate(accountsOfBatch), 1));
   }
+
+  logger.info(`Populating Accounts: ${allRewards.length}`);
+  await sendAndWaitForSuccess(api, walletSudo, api.events.utility.BatchCompleted.is, api.tx.utility.batch(txCalls));
+
+  logger.info(`Adding Funds to Crowdloan: ${toChainUnits(amount).toFixed(0)}`);
+  const totalPICA = amount.toFixed(0);
+  await addFundsToCrowdloan(
+    api,
+    walletSudo,
+    api.createType("u128", toChainUnits(totalPICA).toFixed(0)),
+    config.crowdloanRewards.palletAccountId
+  );
 
   logger.info(`Initializing Crowdloan Rewards`);
   await initialize(api, walletSudo);

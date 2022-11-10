@@ -29,7 +29,7 @@ export async function mintAssetsToWallets(
         api,
         sudoKey,
         api.events.sudo.Sudid.is,
-        api.tx.sudo.sudo(api.tx.assets.mintInto(asset, wallet.publicKey, amount.toString()))
+        api.tx.sudo.sudo(api.tx.assets.mintInto(asset, wallet.publicKey, amount.toFixed(0)))
       );
 
       logger.log("info", `Minted ${fromChainUnits(amount.toString()).toString()} ${asset} for ${encodeAddress(
