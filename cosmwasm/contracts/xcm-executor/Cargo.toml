@@ -10,12 +10,10 @@ crate-type = ["cdylib"]
 cosmwasm-std = { version = "1.1.5", features = ["staking", "stargate"] }
 serde = { version = "1.0.147", default-features = false, features = ["derive"] }
 cw-storage-plus = "0.16.0"
-# wasm-api
-#xcm = { git = "https://github.com/paritytech/polkadot", default-features = false }
-#sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "master" }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.25" }
 
 parity-scale-codec = { version = "3.1.5", default-features = false, features = [ "derive" ] }
+
 
 [dev-dependencies]
 cw-multi-test = "0.16.0"

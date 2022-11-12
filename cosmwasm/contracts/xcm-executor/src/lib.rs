@@ -5,6 +5,8 @@ use cosmwasm_std::{
 mod contract;
 mod msg;
 
+use msg::*;
+
 #[entry_point]
 pub fn instantiate(deps: DepsMut, env: Env, info: MessageInfo, msg: Empty)
   -> StdResult<Response>
@@ -13,8 +15,19 @@ pub fn instantiate(deps: DepsMut, env: Env, info: MessageInfo, msg: Empty)
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: msg::QueryMsg)
+pub fn query(deps: Deps, env: Env, msg: QueryMsg)
   -> StdResult<Binary>
 {
     contract::query(deps, env, msg)
+}
+
+#[entry_point]
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> StdResult<Response> {
+
+  contract::execute(deps, env, info, msg)
 }

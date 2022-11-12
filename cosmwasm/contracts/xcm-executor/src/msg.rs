@@ -15,3 +15,10 @@ pub enum QueryMsg {
         // owner, cw20, treasury, transactor addresses
     },
 }
+
+#[derive(Serialize, Deserialize)]
+pub enum ExecuteMsg {
+    ExecuteXcmInCredit {
+        msg : Vec<u8>
+    },
+}
