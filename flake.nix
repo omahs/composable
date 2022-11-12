@@ -81,6 +81,7 @@
 
           subxt = pkgs.callPackage ./code/utils/composable-subxt/subxt.nix { };
           junod = pkgs.callPackage ./code/xcvm/cosmos/junod.nix { };
+          wasmd = pkgs.callPackage ./contrats/cosmwasm/wasmd.nix { };
           gex = pkgs.callPackage ./code/xcvm/cosmos/gex.nix { };
           wasmswap = pkgs.callPackage ./code/xcvm/cosmos/wasmswap.nix {
             crane = crane.nightly;
