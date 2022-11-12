@@ -48,7 +48,7 @@
         ./devnet-tools.nix
         ./devnets.nix
         ./docker.nix
-        ./code/xcvm/cosmos/cosmwasm/wasmd.nix
+        ./code/xcvm/cosmos/cosmwasm.nix
         ./docs/docs.nix
         ./fmt.nix
         ./frontend/frontend.nix

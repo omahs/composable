@@ -48,15 +48,7 @@
 
       wasm = default.overrideAttrs (base: {
         buildInputs = base.buildInputs ++ [ pkgs.grub2 ]
-          ++ (with self'.packages; [ subwasm wasm-optimizer subxt ]);
-      });
-
-      cosmwasm = wasm.overrideAttrs (base: {
-        buildInputs = base.buildInputs ++ (with self'.packages; [ wasmd gex ]);
-        shellHook = ''
-          echo "wasmd alice key:"
-          echo "clip hire initial neck maid actor venue client foam budget lock catalog sweet steak waste crater broccoli pipe steak sister coyote moment obvious choose" | junod keys add alice --recover --keyring-backend test || true
-        '';
+          ++ (with self'.packages; [ subwasm wasm-optimizer ]);
       });
 
       xcvm = wasm.overrideAttrs (base: {
