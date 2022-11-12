@@ -1,0 +1,15 @@
+[package]
+name = "xcm-executor"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cosmwasm-std = { version = "1.1.5", features = ["staking", "stargate"] }
+
+serde = { version = "1.0.147", default-features = false, features = ["derive"] }
+
+[dev-dependencies]
+cw-multi-test = "0.16.0"
