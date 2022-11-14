@@ -28,10 +28,7 @@ cw-multi-test = "0.16.0"
 
 [features]
 default = []
-std = [
-    "parity-scale-codec/std", 
-     "xcm/std", 
-    ]
+std = ["parity-scale-codec/std", "xcm/std"]
 no_std = ["cosmwasm-std/no_std"]
 
 [profile.release]
