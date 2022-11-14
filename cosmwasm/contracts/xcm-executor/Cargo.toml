@@ -4,16 +4,24 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-cosmwasm-std = { version = "1.1.5", features = ["staking", "stargate"] }
-serde = { version = "1.0.147", default-features = false, features = ["derive"] }
-cw-storage-plus = "0.16.0"
+cosmwasm-std = { git = "https://github.com/ComposableFi/cosmwasm.git", branch = "main", features = [
+    "staking",
+    "stargate",
+    "no_std",
+], default-features = false }
+serde = { version = "1.0.147", default-features = false, features = [
+    "derive",
+    "alloc",
+] }
+cw-storage-plus = { version = "0.16.0", default-features = false }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.25" }
 
-parity-scale-codec = { version = "3.1.5", default-features = false, features = [ "derive" ] }
-
+parity-scale-codec = { version = "3.1.5", default-features = false, features = [
+    "derive",
+] }
 
 [dev-dependencies]
 cw-multi-test = "0.16.0"
@@ -21,6 +29,16 @@ cw-multi-test = "0.16.0"
 [features]
 default = ["std"]
 std = [
- "parity-scale-codec/std",
-"xcm/std",
-]
+    "parity-scale-codec/std", 
+    "xcm/std", 
+    ]
+no_std = ["cosmwasm-std/no_std"]
+
+[profile.release]
+lto = true
+debug = false
+debug-assertions = false
+opt-level = "s"
+overflow-checks = false
+panic = "abort"
+rpath = false

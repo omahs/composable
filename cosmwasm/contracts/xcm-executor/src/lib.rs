@@ -1,7 +1,9 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 use cosmwasm_std::{
     entry_point, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 };
 
+mod prelude;
 mod contract;
 mod msg;
 

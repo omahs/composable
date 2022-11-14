@@ -3,6 +3,7 @@ use cosmwasm_std::{
     StdResult,
 };
 
+use crate::prelude::*;
 use crate::msg::*;
 
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {

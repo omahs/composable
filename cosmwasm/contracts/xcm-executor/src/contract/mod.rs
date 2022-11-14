@@ -7,11 +7,12 @@ pub mod execute;
 
 pub use execute::execute;
 use crate::msg::*;
+use crate::prelude::*;
 
 pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     let resp = match msg {
         Metadata => QueryResp {
-            message: "Hello World".to_owned(),
+            message: "Hello World".to_string(),
         },
     };
 

@@ -2,7 +2,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo,
     Response, StdResult,
 };
-use serde::{Deserialize, Serialize};
+use crate::prelude::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct QueryResp {
