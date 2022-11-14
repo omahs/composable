@@ -70,6 +70,8 @@ use sp_std::{
 
 #[frame_support::pallet]
 pub mod pallet {
+	use core::num::NonZeroU64;
+
 	pub use crate::weights::WeightInfo;
 
 	use composable_support::{
@@ -123,6 +125,9 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub fn deposit_event)]
 	pub enum Event<T: Config> {
+		TestEvent {
+			non_zero_u64: NonZeroU64,
+		},
 		/// Pool with specified id `T::AssetId` was created successfully by `T::AccountId`.
 		RewardPoolCreated {
 			/// The staked asset of the pool, also used as the pool's id.
