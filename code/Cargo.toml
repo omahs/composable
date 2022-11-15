@@ -70,6 +70,7 @@ panic = "abort"
 rpath = false
 
 [patch.crates-io]
+scale-info = { git = "https://github.com/benluelo/scale-info", branch = "v2.2.0/non-zero-type-info-fix" }
 serde-json-wasm = { git = "https://github.com/hussein-aitlahcen/serde-json-wasm", rev = "1608a13d2a2ba90605d9626a51ff6667aca5a2d6" }
 sp-application-crypto = { git = "https://github.com/ComposableFi/substrate", rev = "9bdc51acad943bd07fae159f59564a1b464d33b5" }
 sp-arithmetic = { git = "https://github.com/ComposableFi/substrate", rev = "9bdc51acad943bd07fae159f59564a1b464d33b5" }

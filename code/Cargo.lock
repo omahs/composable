@@ -12653,8 +12653,7 @@ dependencies = [
 [[package]]
 name = "scale-info"
 version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "333af15b02563b8182cd863f925bd31ef8fa86a0e095d30c091956057d436153"
+source = "git+https://github.com/benluelo/scale-info?branch=v2.2.0/non-zero-type-info-fix#f3338ef9f7782c73ebb932060329e9c188032dc8"
 dependencies = [
  "bitvec",
  "cfg-if 1.0.0",
@@ -12667,8 +12666,7 @@ dependencies = [
 [[package]]
 name = "scale-info-derive"
 version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53f56acbd0743d29ffa08f911ab5397def774ad01bab3786804cf6ee057fb5e1"
+source = "git+https://github.com/benluelo/scale-info?branch=v2.2.0/non-zero-type-info-fix#f3338ef9f7782c73ebb932060329e9c188032dc8"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2 1.0.43",
