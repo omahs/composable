@@ -32,6 +32,8 @@ function toPalletCrowdloanRewardsModelsRemoteAccount(
   }
 }
 
+const decimals = 100000000000;
+
 export async function bootstrapCrowdloanRewards(api: ApiPromise, walletSudo: KeyringPair): Promise<void> {
   const allRewards = Object.entries(rewards);
 
