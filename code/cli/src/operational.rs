@@ -394,7 +394,7 @@ pub fn fund_dust(
 		)
 	};
 
-  // Ensure unique accounts get dusted
+	// Ensure unique accounts get dusted
 	let all_accounts = [
 		INVESTORS.iter().map(|(account, _)| account).collect::<HashSet<_>>(),
 		INFRASTRUCTURE_PROVIDERS
