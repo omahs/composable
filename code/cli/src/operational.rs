@@ -130,7 +130,7 @@ const INVESTORS: &[(&str, Amount<Raw>)] = &[
 const MISSING_INVESTORS: &[Amount<Raw>] = &[
 	// ("KYePjPUEkZFEr9xvtu3fN7WZmcVRXn4UaMBaHUDPMSt96rn", Amount::new(1666667)),
 	// Common(InvalidAccount(\"KYePjPUEkZFEr9xvtu3fN7WZmcVRXn4UaMBaHUDPMSt96rn\"))
-	// Invalid account, must reask
+	// Invalid account, must ask for a new one
 	Amount::new(1_666_667),
 	// Missing
 	Amount::new(16_666_667),

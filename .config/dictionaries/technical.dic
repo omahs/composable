@@ -100,6 +100,7 @@ composabletests
 containerd
 containrrr # `containrrr/watchtower` docker image
 contentful
+contribs
 coreutils
 cosm
 Cosmoverse
@@ -209,6 +210,8 @@ mlength
 mlengthmod
 mload
 msapplication
+msig
+MSIG
 mstore
 Multiaddr
 multiassets
@@ -282,6 +285,7 @@ popout
 postinfo
 powd
 powf
+powi
 prebaked
 preclaim
 preclaims
@@ -305,6 +309,7 @@ reduxjs
 registryaddr
 rekt
 remappings
+reqwest
 resourcemonitor
 revhash
 rewardaccumulationhook
@@ -414,6 +419,7 @@ uptodate # used throughout our codebase
 urql
 USDCUSDT
 usermod
+utilisuba
 vadimcn
 Varint
 # various rust methods and types
