@@ -49,6 +49,7 @@ members = [
   "utils/wasm-optimizer",
   "xcvm/lib/*",
   "xcvm/cosmwasm/contracts/*",
+  "cli"
 ]
 
 [profile.release]
