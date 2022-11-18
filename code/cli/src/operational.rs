@@ -235,6 +235,24 @@ const LIQUIDITY_PROGRAMS_MSIG_FUNDS: Amount<Raw> = Amount::new(1_500_000_000);
 const TEAM_MSIG_THRESHOLD: u16 = 3;
 const TEAM_MSIG_FUNDS: Amount<Raw> = Amount::new(2_000_000_000);
 
+const INVESTORS_VESTING_START_YEAR: u32 = 2023;
+const INVESTORS_VESTING_START_MONTH: u32 = 04;
+const INVESTORS_VESTING_START_DAY: u32 = 01;
+
+const INVESTORS_VESTING_END_YEAR: u32 = 2025;
+const INVESTORS_VESTING_END_MONTH: u32 = 01;
+const INVESTORS_VESTING_END_DAY: u32 = 01;
+
+const INFRA_PROVIDERS_VESTING_START_YEAR: u32 = 2023;
+const INFRA_PROVIDERS_VESTING_START_MONTH: u32 = 04;
+const INFRA_PROVIDERS_VESTING_START_DAY: u32 = 01;
+
+const INFRA_PROVIDERS_VESTING_END_YEAR: u32 = 2023;
+const INFRA_PROVIDERS_VESTING_END_MONTH: u32 = 07;
+const INFRA_PROVIDERS_VESTING_END_DAY: u32 = 01;
+
+const VESTING_CLAIM_STEP_DAYS: u32 = 1;
+
 const ORACLE_FUNDS: Amount<Raw> = Amount::new(72_132_699);
 
 const fn _infrastructure_total_funds() -> Amount<Raw> {
@@ -468,8 +486,18 @@ pub fn fund_investors(
 	)?;
 	log::info!("Minted investors funds, tx={:?}", tx_hash);
 
-	let start_date = NaiveDate::from_ymd(2023, 04, 01).and_hms(0, 0, 0);
-	let end_date = NaiveDate::from_ymd(2025, 01, 01).and_hms(0, 0, 0);
+	let start_date = NaiveDate::from_ymd(
+		INVESTORS_VESTING_START_YEAR as _,
+		INVESTORS_VESTING_START_MONTH,
+		INVESTORS_VESTING_START_DAY,
+	)
+	.and_hms(0, 0, 0);
+	let end_date = NaiveDate::from_ymd(
+		INVESTORS_VESTING_END_YEAR as _,
+		INVESTORS_VESTING_END_MONTH,
+		INVESTORS_VESTING_END_DAY,
+	)
+	.and_hms(0, 0, 0);
 	let number_of_days = (end_date - start_date).num_days();
 
 	let batch_vesting = INVESTORS
@@ -479,7 +507,7 @@ pub fn fund_investors(
 			let schedule = VestingScheduleInfo::<u32, u64, u128> {
 				window: VestingWindow::MomentBased {
 					start: start_date.timestamp() as u64,
-					period: Duration::days(1).num_seconds() as u64,
+					period: Duration::days(VESTING_CLAIM_STEP_DAYS as _).num_seconds() as u64,
 				},
 				period_count: number_of_days as u32,
 				per_period: u128::from(Amount::<Canonical>::from(*reward)) /
@@ -553,8 +581,18 @@ pub fn fund_infra_providers(
 	)?;
 	log::info!("Minted infra providers funds, tx={:?}", tx_hash);
 
-	let start_date = NaiveDate::from_ymd(2023, 04, 01).and_hms(0, 0, 0);
-	let end_date = NaiveDate::from_ymd(2023, 07, 01).and_hms(0, 0, 0);
+	let start_date = NaiveDate::from_ymd(
+		INFRA_PROVIDERS_VESTING_START_YEAR as _,
+		INFRA_PROVIDERS_VESTING_START_MONTH,
+		INFRA_PROVIDERS_VESTING_START_DAY,
+	)
+	.and_hms(0, 0, 0);
+	let end_date = NaiveDate::from_ymd(
+		INFRA_PROVIDERS_VESTING_END_YEAR as _,
+		INFRA_PROVIDERS_VESTING_END_MONTH,
+		INFRA_PROVIDERS_VESTING_END_DAY,
+	)
+	.and_hms(0, 0, 0);
 	let number_of_days = (end_date - start_date).num_days();
 
 	let batch_vesting = INFRASTRUCTURE_PROVIDERS
@@ -564,7 +602,7 @@ pub fn fund_infra_providers(
 			let schedule = VestingScheduleInfo::<u32, u64, u128> {
 				window: VestingWindow::MomentBased {
 					start: start_date.timestamp() as u64,
-					period: Duration::days(1).num_seconds() as u64,
+					period: Duration::days(VESTING_CLAIM_STEP_DAYS as _).num_seconds() as u64,
 				},
 				period_count: number_of_days as u32,
 				per_period: u128::from(Amount::<Canonical>::from(*reward)) /
