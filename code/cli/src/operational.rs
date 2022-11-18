@@ -438,10 +438,10 @@ pub fn fund_dust(
 pub fn fund_investors(
 	api: Api<sp_core::sr25519::Pair, WsRpcClient, AssetTipExtrinsicParams>,
 ) -> Result<(), OperationalError> {
-	let treasury_msig = multi_account_id(
+	let team_msig = multi_account_id(
 		Ss58AddressFormatRegistry::PicassoAccount,
-		TREASURY_MSIG,
-		TREASURY_MSIG_THRESHOLD,
+		TEAM_MSIG,
+		TEAM_MSIG_THRESHOLD,
 	)?;
 
 	let total_funds = _investor_total_funds();
@@ -458,7 +458,7 @@ pub fn fund_investors(
 					"Assets",
 					"mint_into",
 					CurrencyId::PICA,
-					GenericAddress::Id(treasury_msig.clone()),
+					GenericAddress::Id(team_msig.clone()),
 					Compact(u128::from(Amount::<Canonical>::from(total_funds)))
 				)
 			)
@@ -467,22 +467,6 @@ pub fn fund_investors(
 		),
 	)?;
 	log::info!("Minted investors funds, tx={:?}", tx_hash);
-
-	let fund_account = |account, currency: CurrencyId, amount: Amount<Raw>| {
-		compose_call!(
-			api.metadata,
-			"Sudo",
-			"sudo",
-			compose_call!(
-				api.metadata,
-				"Assets",
-				"mint_into",
-				currency,
-				GenericAddress::Id(account),
-				Compact(u128::from(Amount::<Canonical>::from(amount)))
-			)
-		)
-	};
 
 	let start_date = NaiveDate::from_ymd(2023, 04, 01).and_hms(0, 0, 0);
 	let end_date = NaiveDate::from_ymd(2025, 01, 01).and_hms(0, 0, 0);
@@ -509,7 +493,7 @@ pub fn fund_investors(
 					api.metadata,
 					"Vesting",
 					"vested_transfer",
-					GenericAddress::Id(treasury_msig.clone()),
+					GenericAddress::Id(team_msig.clone()),
 					GenericAddress::Id(account),
 					CurrencyId::PICA,
 					schedule
@@ -533,43 +517,16 @@ pub fn fund_investors(
 	)?;
 	log::info!("Batch vesting submitted, hash={:?}", tx_hash);
 
-	// For missing investors, we submit to the team multisig
-	let team_msig = multi_account_id(
-		Ss58AddressFormatRegistry::PicassoAccount,
-		TEAM_MSIG,
-		TEAM_MSIG_THRESHOLD,
-	)?;
-
-	let batch_missing_investors = MISSING_INVESTORS
-		.iter()
-		.map(|reward| fund_account(team_msig.clone(), CurrencyId::PICA, *reward))
-		.collect::<Vec<_>>();
-
-	log::info!("Submitting batch mint...");
-	let tx_hash = api_wrap::<_, OperationalError>(
-		api.send_extrinsic(
-			compose_extrinsic!(
-				api,
-				"Utility",
-				"batch_all",
-				Batch { calls: batch_missing_investors }
-			)
-			.hex_encode(),
-			XtStatus::InBlock,
-		),
-	)?;
-	log::info!("Batch mint submitted, hash={:?}", tx_hash);
-
 	Ok(())
 }
 
 pub fn fund_infra_providers(
 	api: Api<sp_core::sr25519::Pair, WsRpcClient, AssetTipExtrinsicParams>,
 ) -> Result<(), OperationalError> {
-	let treasury_msig = multi_account_id(
+	let team_msig = multi_account_id(
 		Ss58AddressFormatRegistry::PicassoAccount,
-		TREASURY_MSIG,
-		TREASURY_MSIG_THRESHOLD,
+		TEAM_MSIG,
+		TEAM_MSIG_THRESHOLD,
 	)?;
 
 	let total_funds = _infrastructure_total_funds();
@@ -586,7 +543,7 @@ pub fn fund_infra_providers(
 					"Assets",
 					"mint_into",
 					CurrencyId::PICA,
-					GenericAddress::Id(treasury_msig.clone()),
+					GenericAddress::Id(team_msig.clone()),
 					Compact(u128::from(Amount::<Canonical>::from(total_funds)))
 				)
 			)
@@ -621,7 +578,7 @@ pub fn fund_infra_providers(
 					api.metadata,
 					"Vesting",
 					"vested_transfer",
-					GenericAddress::Id(treasury_msig.clone()),
+					GenericAddress::Id(team_msig.clone()),
 					GenericAddress::Id(account),
 					CurrencyId::PICA,
 					schedule
