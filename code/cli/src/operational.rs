@@ -412,19 +412,24 @@ pub fn fund_dust(
 		)
 	};
 
+	let investors_account =
+		INVESTORS.iter().cloned().map(|(account, _)| account).collect::<Vec<_>>();
+	let infra_providers_account = INFRASTRUCTURE_PROVIDERS
+		.iter()
+		.cloned()
+		.map(|(account, _)| account)
+		.collect::<Vec<_>>();
+
 	// Ensure unique accounts get dusted
 	let all_accounts = [
-		INVESTORS.iter().map(|(account, _)| account).collect::<HashSet<_>>(),
-		INFRASTRUCTURE_PROVIDERS
-			.iter()
-			.map(|(account, _)| account)
-			.collect::<HashSet<_>>(),
-		NATIVE_COUNCIL.iter().collect::<HashSet<_>>(),
-		TECH_COUNCIL.iter().collect::<HashSet<_>>(),
-		TREASURY_MSIG.iter().collect::<HashSet<_>>(),
-		ECOSYSTEM_INCENTIVES_MSIG.iter().collect::<HashSet<_>>(),
-		LIQUIDITY_PROGRAMS_MSIG.iter().collect::<HashSet<_>>(),
-		TEAM_MSIG.iter().collect::<HashSet<_>>(),
+		&investors_account,
+		&infra_providers_account,
+		NATIVE_COUNCIL,
+		TECH_COUNCIL,
+		TREASURY_MSIG,
+		ECOSYSTEM_INCENTIVES_MSIG,
+		LIQUIDITY_PROGRAMS_MSIG,
+		TEAM_MSIG,
 	]
 	.iter()
 	.cloned()
