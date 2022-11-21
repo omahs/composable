@@ -210,8 +210,7 @@ const TEAM_MSIG: &[&str] = &[
 	"5E9sbF2Ty4eq6oE69kX7EVBNc4CFZMzYn7B9gyyHc9natSEu",
 ];
 
-const OPERATIONAL_TOTAL_ACCOUNTS: usize = INFRASTRUCTURE_PROVIDERS.len() +
-	INVESTORS.len() +
+const OPERATIONAL_TOTAL_ACCOUNTS: usize = INVESTORS.len() +
 	NATIVE_COUNCIL.len() +
 	TECH_COUNCIL.len() +
 	TREASURY_MSIG.len() +
@@ -413,15 +412,9 @@ pub fn fund_dust(
 
 	let investors_account =
 		INVESTORS.iter().cloned().map(|(account, _)| account).collect::<Vec<_>>();
-	let infra_providers_account = INFRASTRUCTURE_PROVIDERS
-		.iter()
-		.cloned()
-		.map(|(account, _)| account)
-		.collect::<Vec<_>>();
 
 	let operational_accounts = [
 		&investors_account,
-		&infra_providers_account,
 		NATIVE_COUNCIL,
 		TECH_COUNCIL,
 		TREASURY_MSIG,
@@ -507,101 +500,6 @@ pub fn fund_investors(
 		.iter()
 		.map(|(investor_account, reward)| {
 			let account = extract_account(investor_account)?;
-			let schedule = VestingScheduleInfo::<u32, u64, u128> {
-				window: VestingWindow::MomentBased {
-					start: start_date.timestamp() as u64,
-					period: Duration::days(VESTING_CLAIM_STEP_DAYS as _).num_seconds() as u64,
-				},
-				period_count: number_of_days as u32,
-				per_period: u128::from(Amount::<Canonical>::from(*reward)) /
-					(number_of_days as u128),
-			};
-			Ok(compose_call!(
-				api.metadata,
-				"Sudo",
-				"sudo",
-				compose_call!(
-					api.metadata,
-					"Vesting",
-					"vested_transfer",
-					GenericAddress::Id(team_msig.clone()),
-					GenericAddress::Id(account),
-					CurrencyId::PICA,
-					schedule
-				)
-			))
-		})
-		.collect::<Result<Vec<_>, OperationalError>>()?;
-
-	log::info!("Submitting batch vesting...");
-	let tx_hash = api_wrap::<_, OperationalError>(
-		api.send_extrinsic(
-			compose_extrinsic!(
-				api,
-				"Utility",
-				"batch_all",
-				Batch { calls: batch_vesting.to_vec() }
-			)
-			.hex_encode(),
-			XtStatus::InBlock,
-		),
-	)?;
-	log::info!("Batch vesting submitted, hash={:?}", tx_hash);
-
-	Ok(())
-}
-
-pub fn fund_infra_providers(
-	api: Api<sp_core::sr25519::Pair, WsRpcClient, AssetTipExtrinsicParams>,
-) -> Result<(), OperationalError> {
-	let team_msig = multi_account_id(
-		Ss58AddressFormatRegistry::PicassoAccount,
-		TEAM_MSIG,
-		TEAM_MSIG_THRESHOLD,
-	)?;
-
-	let total_funds = _infrastructure_total_funds();
-
-	log::info!("Minting infra providers amount on treasury...");
-	let tx_hash = api_wrap::<_, OperationalError>(
-		api.send_extrinsic(
-			compose_extrinsic!(
-				api,
-				"Sudo",
-				"sudo",
-				compose_call!(
-					api.metadata,
-					"Assets",
-					"mint_into",
-					CurrencyId::PICA,
-					GenericAddress::Id(team_msig.clone()),
-					Compact(u128::from(Amount::<Canonical>::from(total_funds)))
-				)
-			)
-			.hex_encode(),
-			XtStatus::InBlock,
-		),
-	)?;
-	log::info!("Minted infra providers funds, tx={:?}", tx_hash);
-
-	let start_date = NaiveDate::from_ymd(
-		INFRA_PROVIDERS_VESTING_START_YEAR as _,
-		INFRA_PROVIDERS_VESTING_START_MONTH,
-		INFRA_PROVIDERS_VESTING_START_DAY,
-	)
-	.and_hms(0, 0, 0);
-	let end_date = NaiveDate::from_ymd(
-		INFRA_PROVIDERS_VESTING_END_YEAR as _,
-		INFRA_PROVIDERS_VESTING_END_MONTH,
-		INFRA_PROVIDERS_VESTING_END_DAY,
-	)
-	.and_hms(0, 0, 0);
-	let number_of_days = (end_date - start_date).num_days();
-
-	let batch_vesting = INFRASTRUCTURE_PROVIDERS
-		.iter()
-		.map(|(infra_provider_account, reward)| {
-			let account = extract_account(infra_provider_account)?;
 			let schedule = VestingScheduleInfo::<u32, u64, u128> {
 				window: VestingWindow::MomentBased {
 					start: start_date.timestamp() as u64,

@@ -14,7 +14,6 @@ const COMMAND_CROWDLOAN: &str = "crowdloan";
 const COMMAND_CROWDLOAN_SEED: &str = "seed";
 const COMMAND_OPERATIONAL: &str = "operational";
 const COMMAND_OPERATIONAL_FUND_INVESTORS: &str = "fund-investors";
-const COMMAND_OPERATIONAL_FUND_INFRA_PROVIDERS: &str = "fund-infra-providers";
 const COMMAND_OPERATIONAL_FUND_MULTISIGS: &str = "fund-multisigs";
 const COMMAND_OPERATIONAL_FUND_DUST: &str = "fund-dust";
 const COMMAND_OPERATIONAL_SETUP_NATIVE_COUNCIL: &str = "setup-native-council";
@@ -50,7 +49,6 @@ fn main() -> Result<(), std::io::Error> {
 			Command::new(COMMAND_OPERATIONAL)
 				.subcommand_required(true)
 				.subcommand(Command::new(COMMAND_OPERATIONAL_FUND_INVESTORS))
-				.subcommand(Command::new(COMMAND_OPERATIONAL_FUND_INFRA_PROVIDERS))
 				.subcommand(Command::new(COMMAND_OPERATIONAL_FUND_MULTISIGS))
 				.subcommand(Command::new(COMMAND_OPERATIONAL_FUND_DUST))
 				.subcommand(Command::new(COMMAND_OPERATIONAL_SETUP_NATIVE_COUNCIL))
@@ -78,9 +76,6 @@ fn main() -> Result<(), std::io::Error> {
 		Some((cmd, sub_args)) if cmd == COMMAND_OPERATIONAL => match sub_args.subcommand() {
 			Some((sub_cmd, _)) if sub_cmd == COMMAND_OPERATIONAL_FUND_INVESTORS =>
 				wrap_cmd(sub_cmd, operational::fund_investors(api)),
-
-			Some((sub_cmd, _)) if sub_cmd == COMMAND_OPERATIONAL_FUND_INFRA_PROVIDERS =>
-				wrap_cmd(sub_cmd, operational::fund_infra_providers(api)),
 
 			Some((sub_cmd, _)) if sub_cmd == COMMAND_OPERATIONAL_FUND_MULTISIGS =>
 				wrap_cmd(sub_cmd, operational::fund_multisigs(api)),
