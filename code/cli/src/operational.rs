@@ -15,7 +15,7 @@ use substrate_api_client::{
 };
 
 const INFRASTRUCTURE_PROVIDERS: &[(&str, Amount<Raw>)] = &[
-	("GD9KC9dXozLHS1SaPyyE3f7dQgAw3vK9G4RByPbnzhV6ewF", Amount::new(1_000_000)),
+	("5xD9TpbabV6VdC2F9RL5yQA61DPzWfWn1U6b76ckZBeQL2vo", Amount::new(1_000_000)),
 	("5wyRiyzsTWvXcb7BpHYjDs7GgK3VpbccRTdonv2Wvow7GAkg", Amount::new(2_962_963)),
 	("5CGCdbYh9KwmSM8NYPCRuz4tUqnbfAUtNy4Ei5Rg2qujatqR", Amount::new(1_000_000)),
 	("5zEddnhFgz8yyAXwMDew9SMNQveGmcEP73CThfYh6DfkQXMH", Amount::new(8_000_000)),
@@ -48,7 +48,7 @@ const INFRASTRUCTURE_PROVIDERS: &[(&str, Amount<Raw>)] = &[
 ];
 
 const INVESTORS: &[(&str, Amount<Raw>)] = &[
-	("dmvS51yf9ptp4zguXDKa5VAr2E5CmRhhbxjNd6HjJXn1GuPsF", Amount::new(25000000)),
+	("5v5AKbVaHzCx3p56gdnXHczQehRZv6s32rUT2Es2jVfzne9N", Amount::new(25000000)),
 	("E5AAy3dEK6ni44J7cSQYGVSGthkLVGaAeSH77dsyJj5ZGpF", Amount::new(13333333)),
 	("5woSpAuR2waSjktAcSMGtAi4n43fN6V4issAMJ8N168KZfqW", Amount::new(100000000)),
 	("133SJBiEn4BFZwCo8xvPj4rfs28dsGb4SsxHySx8AsycFUAk", Amount::new(24000000)),
