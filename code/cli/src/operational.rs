@@ -419,8 +419,7 @@ pub fn fund_dust(
 		.map(|(account, _)| account)
 		.collect::<Vec<_>>();
 
-	// Ensure unique accounts get dusted
-	let all_accounts = [
+	let operational_accounts = [
 		&investors_account,
 		&infra_providers_account,
 		NATIVE_COUNCIL,
@@ -429,15 +428,15 @@ pub fn fund_dust(
 		ECOSYSTEM_INCENTIVES_MSIG,
 		LIQUIDITY_PROGRAMS_MSIG,
 		TEAM_MSIG,
-	]
-	.iter()
-	.cloned()
-	.flatten()
-	.collect::<HashSet<_>>();
+	];
 
-	assert!(all_accounts.len() <= OPERATIONAL_TOTAL_ACCOUNTS);
+	assert!(operational_accounts.len() == OPERATIONAL_TOTAL_ACCOUNTS);
 
-	let normalized_accounts = all_accounts
+	// Ensure unique accounts get dusted
+	let unique_operational_accounts =
+		operational_accounts.iter().cloned().flatten().collect::<HashSet<_>>();
+
+	let normalized_accounts = unique_operational_accounts
 		.into_iter()
 		.map(|account_ss58| extract_account(account_ss58))
 		.collect::<Result<Vec<_>, _>>()?;
