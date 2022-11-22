@@ -16,7 +16,7 @@ use crate::common::api_wrap;
 const REWARDS_PERMALINK: &str = "https://raw.githubusercontent.com/ComposableFi/composable/f887b58833f8a1ea82cdf0ffd93e3848174a5185/composablejs/packages/bootstrap_pallets/src/constants/rewards.json";
 const REWARDS_DIGEST_SHA256: &str =
 	"69e2fb1b8fbbeb0028c6c841c744a7c5744c06c4947a8673d8c9f6198ab458bb";
-const REWARDS_VESTING_PERIOD_48_WEEKS: u64 = 29030000000;
+const REWARDS_VESTING_PERIOD_48_WEEKS: u64 = 29030400000;
 // Submit 1000 rewards
 const REWARDS_BATCH_POPULATE_SIZE: usize = 2000;
 const REWARDS_TOTAL_EXPECTED: u128 = 3000000000000000009314;
