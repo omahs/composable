@@ -94,6 +94,7 @@ const INVESTORS: &[(&str, Amount<Raw>)] = &[
 	("5yFTVTjVvtnHjNrLYkuGBzDc76qN6U27FjQgThRC9bu1HZCH", Amount::new(333333)),
 	("5xUUtcenugieijDo1VvnoF3Ms7EazvrZzjfZyXG5nRVj5jrJ", Amount::new(6250000)),
 	("16A5r6WjR2DxE5iezedrEEf4aSrKkNMwF1Py8ir52pk1Z5oN", Amount::new(13333333)),
+	("5utPhSsz5E3QrxifY4ZuFogoqEm5Q8SoGSHuitd448rSGtvU", Amount::new(1_666_667)),
 	("5F1KmMJx937D4oh2n1d4eDDRqTzJAsDFU2mm2nCFbAJcnXpk", Amount::new(2666667)),
 	("5y4qrzALpE8AzJ76ShUq7QvsfxqfVPW8AmjABSiPMDAgjcco", Amount::new(52501400)),
 	("5yTcSpSi3FtfiA7pCMhVGYx7hoEJNwK5N3mdBNeFtaaGkGz1", Amount::new(52501400)),
@@ -112,12 +113,13 @@ const INVESTORS: &[(&str, Amount<Raw>)] = &[
 	("156Ponz56YTrQhWj3CkZ2ytJPSBiiYUW2Lc7MVvSHHTz85nV", Amount::new(1250000)),
 	("14So37oczpZCDsebC3EmamfNRtejdGL1ZxqELqM2NxKpPkw3", Amount::new(1250000)),
 	("5HQSKEsdjU4S5kM5tHyxcuSKNK5Le8TRDCKYPagmNuZhF6ZP", Amount::new(166667)),
-	("16FuYp917DBuRxzBvVas4VbaFm9aHRRsPFUnJMWNQ9E8wPfv", Amount::new(33333333)),
+	("5HKcQUswFRvRzRyfxrXrvLmRQ99vb7sjJkkJ94X1r4Ccku4B", Amount::new(33333333)),
 	("5yyASSiHJCr4DvB5a9XzRPi8Wx9smBF5qtW9441SiFQasYKB", Amount::new(66666667)),
 	("Ehbzk43EGrPFCfiiDKNSoYME3pYfWotYZY8bRawgTMG5vUi", Amount::new(13333333)),
 	("5G8sYDcPHNFbWo3QkW31y8J5kzdbefnZp6pRZEDjaPsDPhh2", Amount::new(3333333)),
 	("5GgjZECB6XsH3iao7rg6dDbMG9urjsWVjinDBF2ngqWFxyoC", Amount::new(1333333)),
 	("5y9TtLhzzYg4RoQfRxovKRU5jUyD2ckSQ5iRqjuFwo6xbQFy", Amount::new(12500000)),
+	("5zEmyotMQSzczb4scMPukPvRt7s3V7HFb2z9s8emTV1drpU1", Amount::new(16_666_667)),
 	("5GBjnZwBiuAQKnR5nybF8RdJkrobDzaHBuwEyuFABvS3tDR6", Amount::new(16666667)),
 	("DbJbiPedCn22Bk4AFPneoudGEoQ9bN3DctMaBsJD3JXt8pK", Amount::new(1875000)),
 	("5wfGoM2XDBCKXnbZQHsZHzhjKLvdQM23TcT421YJ7K8sCxFh", Amount::new(12500000)),
@@ -125,15 +127,6 @@ const INVESTORS: &[(&str, Amount<Raw>)] = &[
 	("HfQ2voxoqYBMFYW1KReRiVS7PRKKoViyESBRdnkBCuzQyqs", Amount::new(8333333)),
 	("168MYZighTqrCNFqdu6BdiXvESsTXSsN8UuTrUGqJMgkuJrB", Amount::new(7333333)),
 	("15JZBR1PBubuDG3fjnE5oWQ44fP5yXnnkhTcAb3PvqDM24XD", Amount::new(5000000)),
-];
-
-const MISSING_INVESTORS: &[Amount<Raw>] = &[
-	// ("KYePjPUEkZFEr9xvtu3fN7WZmcVRXn4UaMBaHUDPMSt96rn", Amount::new(1666667)),
-	// Common(InvalidAccount(\"KYePjPUEkZFEr9xvtu3fN7WZmcVRXn4UaMBaHUDPMSt96rn\"))
-	// Invalid account, must ask for a new one
-	Amount::new(1_666_667),
-	// Missing
-	Amount::new(16_666_667),
 ];
 
 const NATIVE_COUNCIL: &[&str] = &[
@@ -275,11 +268,6 @@ const fn _investor_total_funds() -> Amount<Raw> {
 	while i < INVESTORS.len() {
 		let (_, reward) = INVESTORS[i];
 		amount = amount + reward;
-		i += 1;
-	}
-	i = 0;
-	while i < MISSING_INVESTORS.len() {
-		amount = amount + MISSING_INVESTORS[i];
 		i += 1;
 	}
 	amount
