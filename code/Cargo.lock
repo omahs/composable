@@ -1410,33 +1410,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "composable-cli"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap 4.0.26",
- "composable-support",
- "composable-traits",
- "env_logger",
- "hex",
- "itertools",
- "log 0.4.17",
- "pallet-crowdloan-rewards",
- "parity-scale-codec",
- "primitives",
- "reqwest",
- "serde",
- "serde_json",
- "serde_with",
- "sha256",
- "sp-core",
- "sp-keyring",
- "sp-runtime",
- "ss58-registry",
- "substrate-api-client",
-]
-
-[[package]]
 name = "composable-maths"
 version = "0.0.1"
 dependencies = [
@@ -1538,6 +1511,33 @@ dependencies = [
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
+]
+
+[[package]]
+name = "composable-ops"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap 4.0.26",
+ "composable-support",
+ "composable-traits",
+ "env_logger",
+ "hex",
+ "itertools",
+ "log 0.4.17",
+ "pallet-crowdloan-rewards",
+ "parity-scale-codec",
+ "primitives",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "sha256",
+ "sp-core",
+ "sp-keyring",
+ "sp-runtime",
+ "ss58-registry",
+ "substrate-api-client",
 ]
 
 [[package]]

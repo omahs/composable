@@ -1,5 +1,5 @@
 [package]
-name = "composable-cli"
+name = "composable-ops"
 version = "0.1.0"
 edition = "2021"
 authors = [ "Composable Developers" ]

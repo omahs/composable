@@ -49,7 +49,7 @@ const INFRASTRUCTURE_PROVIDERS: &[(&str, Amount<Raw>)] = &[
 
 const INVESTORS: &[(&str, Amount<Raw>)] = &[
 	("5v5AKbVaHzCx3p56gdnXHczQehRZv6s32rUT2Es2jVfzne9N", Amount::new(25000000)),
-	("E5AAy3dEK6ni44J7cSQYGVSGthkLVGaAeSH77dsyJj5ZGpF", Amount::new(13333333)),
+	("5v5AKbVaHzCx3p56gdnXHczQehRZv6s32rUT2Es2jVfzne9N", Amount::new(13333333)),
 	("5woSpAuR2waSjktAcSMGtAi4n43fN6V4issAMJ8N168KZfqW", Amount::new(100000000)),
 	("133SJBiEn4BFZwCo8xvPj4rfs28dsGb4SsxHySx8AsycFUAk", Amount::new(24000000)),
 	("5wAUXbMNm3D6ZaEUxg9bMRDuCvFqEzBUNQUz143sy2f6LhFN", Amount::new(12500000)),
