@@ -211,7 +211,6 @@ mlengthmod
 mload
 msapplication
 msig
-MSIG
 mstore
 Multiaddr
 multiassets
