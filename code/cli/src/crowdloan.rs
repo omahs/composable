@@ -24,7 +24,6 @@ const REWARDS_TOTAL_CONTRIBUTOR_EXPECTED: usize = 10685;
 // Kusama
 const RELAYCHAIN_ADDRESS_FORMAT: Ss58AddressFormatRegistry =
 	Ss58AddressFormatRegistry::KusamaAccount;
-const PARACHAIN_DECIMALS: u32 = 12;
 
 type CanonicalContributorAccount = RemoteAccount<AccountId32>;
 type CanonicalContributorAmount = u128;
@@ -60,7 +59,7 @@ fn reward_canonicalize(
 ) -> Result<(CanonicalContributorAccount, CanonicalContributorAmount), CrowdloanError> {
 	let reward = (str::parse::<f64>(&reward)
 		.map_err(|_| CrowdloanError::InvalidContributorReward)? *
-		10f64.powi(PARACHAIN_DECIMALS as i32)) as u128;
+		10f64.powi(CurrencyId::decimals() as i32)) as u128;
 	match account.strip_prefix("0x") {
 		Some(ethereum_address_src) => {
 			let ethereum_address = TryInto::<[u8; 20]>::try_into(

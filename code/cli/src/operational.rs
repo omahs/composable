@@ -214,7 +214,6 @@ const OPERATIONAL_TOTAL_ACCOUNTS: usize = INVESTORS.len() +
 const OPERATIONAL_DUST: Amount<Raw> = Amount::new(5);
 
 const TREASURY_MSIG_THRESHOLD: u16 = 8;
-// The value was rounded up to fit the perfect amount: 200 -> 201
 const TREASURY_MSIG_FUNDS: Amount<Raw> = Amount::new(1_800_297_201);
 
 const ECOSYSTEM_INCENTIVES_MSIG_THRESHOLD: u16 = 8;
@@ -409,13 +408,16 @@ pub fn fund_dust(
 		ECOSYSTEM_INCENTIVES_MSIG,
 		LIQUIDITY_PROGRAMS_MSIG,
 		TEAM_MSIG,
-	];
+	]
+	.iter()
+	.cloned()
+	.flatten()
+	.collect::<Vec<_>>();
 
-	assert!(operational_accounts.len() == OPERATIONAL_TOTAL_ACCOUNTS);
+	assert_eq!(operational_accounts.iter().len(), OPERATIONAL_TOTAL_ACCOUNTS);
 
 	// Ensure unique accounts get dusted
-	let unique_operational_accounts =
-		operational_accounts.iter().cloned().flatten().collect::<HashSet<_>>();
+	let unique_operational_accounts = operational_accounts.iter().collect::<HashSet<_>>();
 
 	let normalized_accounts = unique_operational_accounts
 		.into_iter()
