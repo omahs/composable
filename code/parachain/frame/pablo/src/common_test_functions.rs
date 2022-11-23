@@ -59,12 +59,13 @@ pub fn common_add_remove_lp(
 		false
 	));
 	assert_last_event::<Test, _>(|e| {
-		matches!(e.event,
-            mock::Event::Pablo(crate::Event::LiquidityAdded { who, pool_id, base_amount, quote_amount, .. })
-            if who == ALICE
-            && pool_id == actual_pool_id
-            && base_amount == first_asset_amount
-            && quote_amount == second_asset_amount)
+		matches!(&e.event,
+			mock::Event::Pablo(crate::Event::LiquidityAdded { who, pool_id, assets, .. })
+			if who == &ALICE
+			&& pool_id == &actual_pool_id
+			&& assets.get(&pair[0]) == Some(&first_asset_amount)
+			&& assets.get(&pair[1]) == Some(&second_asset_amount)
+		)
 	});
 
 	let pool = Pablo::pools(actual_pool_id).expect("pool not found");
@@ -88,12 +89,13 @@ pub fn common_add_remove_lp(
 		false
 	));
 	assert_last_event::<Test, _>(|e| {
-		matches!(e.event,
-            mock::Event::Pablo(crate::Event::LiquidityAdded { who, pool_id, base_amount, quote_amount, .. })
-			if who == BOB
-				&& pool_id == actual_pool_id
-				&& base_amount == next_first_asset_amount
-				&& quote_amount == next_second_asset_amount)
+		matches!(&e.event,
+			mock::Event::Pablo(crate::Event::LiquidityAdded { who, pool_id, assets, .. })
+			if who == &BOB
+				&& pool_id == &actual_pool_id
+				&& assets.get(&pair[0]) == Some(&next_first_asset_amount)
+				&& assets.get(&pair[1]) == Some(&next_second_asset_amount)
+		)
 	});
 	let lp = Tokens::balance(lp_token, &BOB);
 	assert!(expected_lp_check(next_first_asset_amount, next_second_asset_amount, lp));

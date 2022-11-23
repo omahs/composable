@@ -82,7 +82,7 @@ impl<T: Config> DualAssetConstantProduct<T> {
 		assets: BTreeMap<T::AssetId, T::Balance>,
 		min_mint_amount: T::Balance,
 		keep_alive: bool,
-	) -> Result<(T::Balance, T::Balance, T::Balance), DispatchError> {
+	) -> Result<T::Balance, DispatchError> {
 		// TODO (vim): Pool weight validation is missing, which would cause the received LP tokens
 		//  to be higher than expected if the base token has more than what is allowed by the pool
 		//  weight.
@@ -119,7 +119,7 @@ impl<T: Config> DualAssetConstantProduct<T> {
 		T::Assets::transfer(*first_asset, who, &pool_account, *first_asset_amount, keep_alive)?;
 		T::Assets::transfer(*second_asset, who, &pool_account, *second_asset_amount, keep_alive)?;
 		T::Assets::mint_into(pool.lp_token, who, amount_of_lp_token_to_mint)?;
-		Ok((*first_asset_amount, quote_amount, amount_of_lp_token_to_mint))
+		Ok(amount_of_lp_token_to_mint)
 	}
 
 	pub(crate) fn remove_liquidity(
@@ -128,7 +128,7 @@ impl<T: Config> DualAssetConstantProduct<T> {
 		pool_account: T::AccountId,
 		lp_amount: T::Balance,
 		min_receive: BTreeMap<T::AssetId, T::Balance>,
-	) -> Result<(T::Balance, T::Balance, T::Balance), DispatchError> {
+	) -> Result<T::Balance, DispatchError> {
 		let lp_issued = T::Assets::total_issuance(pool.lp_token);
 		let pool_assets = Self::get_pool_balances(&pool, &pool_account);
 		// TODO (vim): Business logic of calculating redeemable amounts must be called here
@@ -140,7 +140,7 @@ impl<T: Config> DualAssetConstantProduct<T> {
 		T::Assets::transfer(assets[1], &pool_account, who, *second_asset_amount, false)?;
 		T::Assets::burn_from(pool.lp_token, who, lp_amount)?;
 
-		Ok((*first_asset_amount, *second_asset_amount, lp_issued.safe_sub(&lp_amount)?))
+		Ok(lp_issued.safe_sub(&lp_amount)?)
 	}
 
 	pub(crate) fn do_swap(

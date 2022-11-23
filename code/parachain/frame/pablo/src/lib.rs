@@ -144,17 +144,15 @@ pub mod pallet {
 			pool_id: T::PoolId,
 			/// Owner of the pool.
 			owner: T::AccountId,
-			// Pool assets
+			/// Pool assets
 			assets: CurrencyPair<AssetIdOf<T>>,
 		},
 		/// The sale ended, the funds repatriated and the pool deleted.
 		PoolDeleted {
 			/// Pool that was removed.
 			pool_id: T::PoolId,
-			/// Amount of base asset repatriated.
-			base_amount: T::Balance,
-			/// Amount of quote asset repatriated.
-			quote_amount: T::Balance,
+			/// Assets repatriated
+			assets: BTreeMap<T::AssetId, BalanceOf<T>>,
 		},
 
 		/// Liquidity added into the pool `T::PoolId`.
@@ -163,10 +161,8 @@ pub mod pallet {
 			who: T::AccountId,
 			/// Pool id to which liquidity added.
 			pool_id: T::PoolId,
-			/// Amount of base asset deposited.
-			base_amount: T::Balance,
-			/// Amount of quote asset deposited.
-			quote_amount: T::Balance,
+			/// Assets added
+			assets: BTreeMap<T::AssetId, BalanceOf<T>>,
 			/// Amount of minted lp.
 			minted_lp: T::Balance,
 		},
@@ -176,10 +172,8 @@ pub mod pallet {
 			who: T::AccountId,
 			/// Pool id to which liquidity added.
 			pool_id: T::PoolId,
-			/// Amount of base asset removed from pool.
-			base_amount: T::Balance,
-			/// Amount of quote asset removed from pool.
-			quote_amount: T::Balance,
+			/// Assets removed
+			assets: BTreeMap<T::AssetId, BalanceOf<T>>,
 			/// Updated lp token supply.
 			total_issuance: T::Balance,
 		},
@@ -1013,13 +1007,13 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			let pool = Self::get_pool(pool_id)?;
 			let pool_account = Self::account_id(&pool_id);
-			let (added_base_amount, added_quote_amount, minted_lp) = match pool {
+			let minted_lp = match pool {
 				PoolConfiguration::DualAssetConstantProduct(info) =>
 					DualAssetConstantProduct::<T>::add_liquidity(
 						who,
 						info,
 						pool_account,
-						assets,
+						assets.clone(),
 						min_mint_amount,
 						keep_alive,
 					)?,
@@ -1028,8 +1022,7 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::LiquidityAdded {
 				who: who.clone(),
 				pool_id,
-				base_amount: added_base_amount,
-				quote_amount: added_quote_amount,
+				assets,
 				minted_lp,
 			});
 			Ok(())
@@ -1043,25 +1036,23 @@ pub mod pallet {
 			min_receive: BTreeMap<Self::AssetId, Self::Balance>,
 		) -> Result<(), DispatchError> {
 			let redeemable_assets =
-				Self::redeemable_assets_for_lp_tokens(pool_id, lp_amount, min_receive)?;
+				Self::redeemable_assets_for_lp_tokens(pool_id, lp_amount, min_receive.clone())?;
 			let pool = Self::get_pool(pool_id)?;
 			let pool_account = Self::account_id(&pool_id);
 			match pool {
 				PoolConfiguration::DualAssetConstantProduct(info) => {
-					let (base_amount, quote_amount, updated_lp) =
-						DualAssetConstantProduct::<T>::remove_liquidity(
-							who,
-							info,
-							pool_account,
-							lp_amount,
-							redeemable_assets.assets,
-						)?;
+					let updated_lp = DualAssetConstantProduct::<T>::remove_liquidity(
+						who,
+						info,
+						pool_account,
+						lp_amount,
+						redeemable_assets.assets,
+					)?;
 					Self::update_twap(pool_id)?;
 					Self::deposit_event(Event::<T>::LiquidityRemoved {
 						pool_id,
 						who: who.clone(),
-						base_amount,
-						quote_amount,
+						assets: min_receive,
 						total_issuance: updated_lp,
 					});
 				},
