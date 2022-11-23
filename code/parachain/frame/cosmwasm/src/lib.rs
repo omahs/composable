@@ -1251,12 +1251,17 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Recover a secp256k1 public key from a message_hash and signature.
+		///
+		/// `recovery_param` must be 0 or 1. Other values are not supported by CosmWasm.
+		///
+		/// Returns the public key in compressed form which can directly be used in
+		/// `secp256k1_verify`
 		pub(crate) fn do_secp256k1_recover_pubkey(
 			message_hash: &[u8],
 			signature: &[u8],
 			recovery_param: u8,
 		) -> Result<Vec<u8>, ()> {
-			// `recovery_param` must be 0 or 1. Other values are not supported from CosmWasm.
 			if recovery_param >= 2 {
 				return Err(())
 			}
@@ -1285,17 +1290,27 @@ pub mod pallet {
 				.map_err(|_| ())
 		}
 
+		/// ECDSA secp256k1 verification.
+		///
+		/// The signature and public key are in "Cosmos" format:
+		/// - signature:  Serialized "compact" signature (64 bytes).
+		/// - public key: [Serialized according to SEC 2](https://www.oreilly.com/library/view/programming-bitcoin/9781492031482/ch04.html)
+		/// (33 or 65 bytes).
 		pub(crate) fn do_secp256k1_verify(
 			message_hash: &[u8],
 			signature: &[u8],
 			public_key: &[u8],
 		) -> bool {
+			if signature.len() != SUBSTRATE_ECDSA_SIGNATURE_LEN - 1 {
+				return false
+			}
+
 			let message_hash = match message_hash.try_into() {
 				Ok(message_hash) => message_hash,
 				Err(_) => return false,
 			};
 
-			// We are expecting 64 bytes long public keys but the substrate function use an
+			// We are expecting 64 bytes long signature but the substrate function use an
 			// additional byte for recovery id. So we insert a dummy byte.
 			let signature = {
 				let mut signature_inner = [0_u8; SUBSTRATE_ECDSA_SIGNATURE_LEN];
@@ -1303,6 +1318,7 @@ pub mod pallet {
 				ecdsa::Signature(signature_inner)
 			};
 
+			// Both 33 and 65 byte public keys are supported
 			let public_key = match libsecp256k1::PublicKey::parse_slice(public_key, None) {
 				Ok(public_key) => ecdsa::Public::from_raw(public_key.serialize_compressed()),
 				Err(_) => return false,
@@ -1311,6 +1327,25 @@ pub mod pallet {
 			sp_io::crypto::ecdsa_verify_prehashed(&signature, &message_hash, &public_key)
 		}
 
+		/// Performs concurrent batch Ed25519 signature verification.
+		///
+		/// Three Variants are suppported in the input for convenience:
+		///  - Equal number of messages, signatures, and public keys which is Nth message is
+		///    verified with Nth signature-public key pair.
+		///  - One message, and an equal number of signatures and public keys: multisig verification
+		///    of a single message.
+		///  - One public key, and an equal number of messages and signatures: Verification of
+		///    multiple messages, all signed with the same private key.
+		///
+		/// Any other variants of input vectors result in an error.
+		///
+		/// Notes:
+		///  - The "one-message, with zero signatures and zero public keys" case, is considered the
+		///    empty case.
+		///  - The "one-public key, with zero messages and zero signatures" case, is considered the
+		///    empty
+		/// case.
+		///  - The empty case (no messages, no signatures and no public keys) returns true.
 		pub(crate) fn do_ed25519_batch_verify(
 			messages: &[&[u8]],
 			signatures: &[&[u8]],
