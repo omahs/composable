@@ -199,6 +199,7 @@ declare module '@polkadot/api-base/types/errors' {
       IteratorNotFound: AugmentedError<ApiType>;
       LabelTooBig: AugmentedError<ApiType>;
       NonceOverflow: AugmentedError<ApiType>;
+      NotAuthorized: AugmentedError<ApiType>;
       NotEnoughFundsForUpload: AugmentedError<ApiType>;
       RefcountOverflow: AugmentedError<ApiType>;
       RefundGas: AugmentedError<ApiType>;
@@ -206,6 +207,7 @@ declare module '@polkadot/api-base/types/errors' {
       StackOverflow: AugmentedError<ApiType>;
       TransferFailed: AugmentedError<ApiType>;
       UnknownDenom: AugmentedError<ApiType>;
+      Unsupported: AugmentedError<ApiType>;
       VmCreation: AugmentedError<ApiType>;
       VMDepthOverflow: AugmentedError<ApiType>;
       /**
@@ -447,6 +449,10 @@ declare module '@polkadot/api-base/types/errors' {
        **/
       NoRouteFound: AugmentedError<ApiType>;
       /**
+       * Only dual asset pools supported
+       **/
+      OnlyDualAssetPoolsSupported: AugmentedError<ApiType>;
+      /**
        * Unexpected node found while route validation.
        **/
       UnexpectedNodeFoundWhileValidation: AugmentedError<ApiType>;
@@ -508,90 +514,6 @@ declare module '@polkadot/api-base/types/errors' {
        * Not found
        **/
       NoneError: AugmentedError<ApiType>;
-      /**
-       * Generic error
-       **/
-      [key: string]: AugmentedError<ApiType>;
-    };
-    ibc: {
-      /**
-       * Channel not found
-       **/
-      ChannelNotFound: AugmentedError<ApiType>;
-      /**
-       * Client state not found
-       **/
-      ClientStateNotFound: AugmentedError<ApiType>;
-      /**
-       * Connection not found
-       **/
-      ConnectionNotFound: AugmentedError<ApiType>;
-      /**
-       * Client consensus state not found for height
-       **/
-      ConsensusStateNotFound: AugmentedError<ApiType>;
-      /**
-       * Error decoding some type
-       **/
-      DecodingError: AugmentedError<ApiType>;
-      /**
-       * Error encoding some type
-       **/
-      EncodingError: AugmentedError<ApiType>;
-      /**
-       * Invalid message for extrinsic
-       **/
-      InvalidMessageType: AugmentedError<ApiType>;
-      /**
-       * Invalid route
-       **/
-      InvalidRoute: AugmentedError<ApiType>;
-      /**
-       * Other forms of errors
-       **/
-      Other: AugmentedError<ApiType>;
-      /**
-       * Packet Acknowledgment wasn't found
-       **/
-      PacketAcknowledgmentNotFound: AugmentedError<ApiType>;
-      /**
-       * Packet commitment wasn't found
-       **/
-      PacketCommitmentNotFound: AugmentedError<ApiType>;
-      /**
-       * Packet receipt wasn't found
-       **/
-      PacketReceiptNotFound: AugmentedError<ApiType>;
-      /**
-       * Error processing ibc messages
-       **/
-      ProcessingError: AugmentedError<ApiType>;
-      /**
-       * Error generating trie proof
-       **/
-      ProofGenerationError: AugmentedError<ApiType>;
-      /**
-       * Error constructing packet
-       **/
-      SendPacketError: AugmentedError<ApiType>;
-      /**
-       * Generic error
-       **/
-      [key: string]: AugmentedError<ApiType>;
-    };
-    ibcPing: {
-      /**
-       * Error opening channel
-       **/
-      ChannelInitError: AugmentedError<ApiType>;
-      /**
-       * Invalid params passed
-       **/
-      InvalidParams: AugmentedError<ApiType>;
-      /**
-       * Error registering packet
-       **/
-      PacketSendError: AugmentedError<ApiType>;
       /**
        * Generic error
        **/
@@ -1240,7 +1162,15 @@ declare module '@polkadot/api-base/types/errors' {
       [key: string]: AugmentedError<ApiType>;
     };
     stakingRewards: {
+      /**
+       * Some operation resulted in an arithmetic overflow.
+       **/
+      ArithmeticError: AugmentedError<ApiType>;
       BackToTheFuture: AugmentedError<ApiType>;
+      /**
+       * The duration provided was not valid for the pool.
+       **/
+      DurationPresetNotFound: AugmentedError<ApiType>;
       /**
        * Invalid end block number provided for creating a pool.
        **/
@@ -1254,10 +1184,6 @@ declare module '@polkadot/api-base/types/errors' {
        * Reward's max limit reached.
        **/
       MaxRewardLimitReached: AugmentedError<ApiType>;
-      /**
-       * No duration presets configured.
-       **/
-      NoDurationPresetsConfigured: AugmentedError<ApiType>;
       /**
        * No duration presets were provided upon pool creation.
        **/
@@ -1473,48 +1399,6 @@ declare module '@polkadot/api-base/types/errors' {
        **/
       MaxLocksExceeded: AugmentedError<ApiType>;
       TooManyReserves: AugmentedError<ApiType>;
-      /**
-       * Generic error
-       **/
-      [key: string]: AugmentedError<ApiType>;
-    };
-    transfer: {
-      /**
-       * Error opening channel
-       **/
-      ChannelInitError: AugmentedError<ApiType>;
-      /**
-       * Unable to get client revision number
-       **/
-      FailedToGetRevisionNumber: AugmentedError<ApiType>;
-      /**
-       * Invalid amount
-       **/
-      InvalidAmount: AugmentedError<ApiType>;
-      /**
-       * Invalid asset id
-       **/
-      InvalidAssetId: AugmentedError<ApiType>;
-      /**
-       * Invalid Ibc denom
-       **/
-      InvalidIbcDenom: AugmentedError<ApiType>;
-      /**
-       * Invalid params passed
-       **/
-      InvalidParams: AugmentedError<ApiType>;
-      /**
-       * Invalid timestamp
-       **/
-      InvalidTimestamp: AugmentedError<ApiType>;
-      /**
-       * The interchain token transfer was not successfully initiated
-       **/
-      TransferFailed: AugmentedError<ApiType>;
-      /**
-       * Error Decoding utf8 bytes
-       **/
-      Utf8Error: AugmentedError<ApiType>;
       /**
        * Generic error
        **/
