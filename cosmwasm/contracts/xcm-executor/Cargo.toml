@@ -18,6 +18,7 @@ serde = { version = "1.0.147", default-features = false, features = [
 ] }
 cw-storage-plus = { version = "0.16.0", default-features = false }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "gav-xcm-v3" }
+cw20 = { git = "https://github.com/CosmWasm/cw-plus", default-features = false}
 
 parity-scale-codec = { version = "3.1.5", default-features = false, features = [
     "derive",

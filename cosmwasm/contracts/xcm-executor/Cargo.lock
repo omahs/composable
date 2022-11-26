@@ -496,6 +496,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw20"
+version = "0.16.0"
+source = "git+https://github.com/CosmWasm/cw-plus#7949844d1dba108e225d10844804f2cf6a1b0181"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cw-utils",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "cxx"
 version = "1.0.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2546,6 +2558,7 @@ dependencies = [
  "cosmwasm-std 1.1.5 (git+https://github.com/ComposableFi/cosmwasm.git?branch=main)",
  "cw-multi-test",
  "cw-storage-plus",
+ "cw20",
  "parity-scale-codec",
  "serde",
  "xcm",

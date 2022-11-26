@@ -6,6 +6,7 @@ use cosmwasm_std::{
 mod prelude;
 mod contract;
 mod msg;
+//mod state;
 
 use msg::*;
 
