@@ -446,7 +446,7 @@ checksum = "7192aec80d0c01a0e5941392eea7e2b7e212ee74ca7f430bfdc899420c055ef6"
 dependencies = [
  "anyhow",
  "cosmwasm-std 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "cw-storage-plus",
+ "cw-storage-plus 0.16.0",
  "cw-utils",
  "derivative",
  "itertools",
@@ -465,6 +465,18 @@ dependencies = [
  "cosmwasm-std 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "cw-storage-plus"
+version = "1.0.0"
+source = "git+https://github.com/CosmWasm/cw-storage-plus#5d33f97af07f83d33c2684a0f9139739f4013b8e"
+dependencies = [
+ "cosmwasm-std 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "k256",
+ "schemars",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -490,7 +502,7 @@ checksum = "91398113b806f4d2a8d5f8d05684704a20ffd5968bf87e3473e1973710b884ad"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "cw-storage-plus",
+ "cw-storage-plus 0.16.0",
  "schemars",
  "serde",
 ]
@@ -2557,7 +2569,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-std 1.1.5 (git+https://github.com/ComposableFi/cosmwasm.git?branch=main)",
  "cw-multi-test",
- "cw-storage-plus",
+ "cw-storage-plus 1.0.0",
  "cw20",
  "parity-scale-codec",
  "serde",
