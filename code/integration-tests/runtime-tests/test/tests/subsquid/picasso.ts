@@ -9,10 +9,11 @@ import {
 
 import { client } from "@composable/utils/subsquid/apollo/apolloGraphql";
 import { getNewConnection } from "@composable/utils/connectionHelper";
-import { sendAndWaitForSuccess } from "@composable/utils/polkadotjs";
+import { sendAndWaitForSuccess, waitForBlocks } from "@composable/utils/polkadotjs";
 import { getDevWallets } from "@composable/utils/walletHelper";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { mintAssetsToWallet } from "@composable/utils/mintingHelper";
+import { GET_TOTAL_VALUE_LOCKED, TotalValueLocked } from "@composable/utils/subsquid/apollo/queries/totalValueLocked";
 
 describe("Picasso overview stats", function () {
   let api: ApiPromise;
@@ -62,6 +63,19 @@ describe("Picasso overview stats", function () {
     expect(data.overviewStats.totalValueLocked).to.equal("0");
     expect(data.overviewStats.transactionsCount).not.to.equal(0);
   });
+});
+
+describe("Daily active users", function () {
+  let api: ApiPromise;
+
+  before("Setting up the tests", async function () {
+    const { newClient } = await getNewConnection();
+    api = newClient;
+  });
+
+  after("Closing the connection", async function () {
+    await api.disconnect();
+  });
 
   it("Gets active user chart for last day", async function () {
     const { data: dayData } = await client.query<ActiveUsers>({ query: GET_ACTIVE_USERS, variables: { range: "day" } });
@@ -106,5 +120,147 @@ describe("Picasso overview stats", function () {
     expect(activeUsers.length).to.equal(12);
     // Last month should have some activity
     expect(activeUsers[activeUsers.length - 1].count).not.to.equal(0);
+  });
+});
+
+describe("Total value locked", function () {
+  let api: ApiPromise;
+  let sudoKey: KeyringPair, bobKey: KeyringPair;
+
+  before("Setting up the tests", async function () {
+    const { newClient, newKeyring } = await getNewConnection();
+    api = newClient;
+
+    const { devWalletAlice, devWalletBob } = getDevWallets(newKeyring);
+    sudoKey = devWalletAlice;
+    bobKey = devWalletBob.derive("/tests/assets/transferTestSenderWallet");
+  });
+
+  after("Closing the connection", async function () {
+    await api.disconnect();
+  });
+
+  it("Set up locked value tests", async function () {
+    this.timeout(2 * 60 * 1000);
+    await mintAssetsToWallet(api, sudoKey, sudoKey, [1, 4], BigInt(1_000_000_000_000_000));
+
+    const from = api.createType("MultiAddress", {
+      id: sudoKey.address
+    });
+    const beneficiary = api.createType("MultiAddress", {
+      id: bobKey.address
+    });
+    const asset = api.createType("u128", 1);
+    const currentBlock = await waitForBlocks(api);
+    const startBlock = Number(currentBlock) + 2;
+    const windowPeriod = 1;
+    const vestingPeriodCount = 10;
+    const perPeriodAmount = 1_000_000_000_000;
+    const scheduleInfo = api.createType("ComposableTraitsVestingVestingScheduleInfo", {
+      window: api.createType("ComposableTraitsVestingVestingWindow", {
+        blockNumberBased: {
+          start: api.createType("u32", startBlock),
+          period: api.createType("u32", windowPeriod)
+        }
+      }),
+      periodCount: vestingPeriodCount,
+      perPeriod: api.createType("u128", perPeriodAmount)
+    });
+
+    await sendAndWaitForSuccess(
+      api,
+      sudoKey,
+      api.events.vesting.VestingScheduleAdded.is,
+      api.tx.sudo.sudo(api.tx.vesting.vestedTransfer(from, beneficiary, asset, scheduleInfo))
+    );
+  });
+
+  it("Gets total value locked for last day", async function () {
+    const { data: dayDataAll } = await client.query<TotalValueLocked>({
+      query: GET_TOTAL_VALUE_LOCKED,
+      variables: { range: "day" }
+    });
+    const { totalValueLocked: totalValueLockedAll } = dayDataAll;
+
+    // Should have one entry per hour
+    expect(totalValueLockedAll.length).to.equal(24);
+    expect(totalValueLockedAll.every(({ source }) => source === "All")).to.be.true;
+
+    const { data: dayDataVesting } = await client.query<TotalValueLocked>({
+      query: GET_TOTAL_VALUE_LOCKED,
+      variables: { range: "day", source: "VestingSchedules" }
+    });
+    const { totalValueLocked: totalValueLockedVesting } = dayDataVesting;
+
+    expect(totalValueLockedVesting.length).to.equal(24);
+    expect(totalValueLockedVesting.every(({ source }) => source === "VestingSchedules")).to.be.true;
+
+    // Note: locked value will be 0 for now, as we don't have the Oracle to get asset prices
+  });
+
+  it("Gets total value locked for last week", async function () {
+    // Note: locked value will be 0 for now, as we don't have the Oracle to get asset prices
+    const { data: weekDataAll } = await client.query<TotalValueLocked>({
+      query: GET_TOTAL_VALUE_LOCKED,
+      variables: { range: "week" }
+    });
+    const { totalValueLocked: totalValueLockedAll } = weekDataAll;
+
+    // Should have one entry per day
+    expect(totalValueLockedAll.length).to.equal(7);
+    expect(totalValueLockedAll.every(({ source }) => source === "All")).to.be.true;
+
+    const { data: weekDataVesting } = await client.query<TotalValueLocked>({
+      query: GET_TOTAL_VALUE_LOCKED,
+      variables: { range: "week", source: "VestingSchedules" }
+    });
+    const { totalValueLocked: totalValueLockedVesting } = weekDataVesting;
+
+    expect(totalValueLockedVesting.length).to.equal(7);
+    expect(totalValueLockedVesting.every(({ source }) => source === "VestingSchedules")).to.be.true;
+  });
+
+  it("Gets total value locked for last month", async function () {
+    // Note: locked value will be 0 for now, as we don't have the Oracle to get asset prices
+    const { data: monthDataAll } = await client.query<TotalValueLocked>({
+      query: GET_TOTAL_VALUE_LOCKED,
+      variables: { range: "month" }
+    });
+    const { totalValueLocked: totalValueLockedAll } = monthDataAll;
+
+    // Should have one entry per day
+    expect(totalValueLockedAll.length).to.equal(30);
+    expect(totalValueLockedAll.every(({ source }) => source === "All")).to.be.true;
+
+    const { data: monthDataVesting } = await client.query<TotalValueLocked>({
+      query: GET_TOTAL_VALUE_LOCKED,
+      variables: { range: "month", source: "VestingSchedules" }
+    });
+    const { totalValueLocked: totalValueLockedVesting } = monthDataVesting;
+
+    expect(totalValueLockedVesting.length).to.equal(30);
+    expect(totalValueLockedVesting.every(({ source }) => source === "VestingSchedules")).to.be.true;
+  });
+
+  it("Gets total value locked for last year", async function () {
+    // Note: locked value will be 0 for now, as we don't have the Oracle to get asset prices
+    const { data: yearDataAll } = await client.query<TotalValueLocked>({
+      query: GET_TOTAL_VALUE_LOCKED,
+      variables: { range: "year" }
+    });
+    const { totalValueLocked: totalValueLockedAll } = yearDataAll;
+
+    // Should have one entry per month
+    expect(totalValueLockedAll.length).to.equal(12);
+    expect(totalValueLockedAll.every(({ source }) => source === "All")).to.be.true;
+
+    const { data: yearDataVesting } = await client.query<TotalValueLocked>({
+      query: GET_TOTAL_VALUE_LOCKED,
+      variables: { range: "year", source: "VestingSchedules" }
+    });
+    const { totalValueLocked: totalValueLockedVesting } = yearDataVesting;
+
+    expect(totalValueLockedVesting.length).to.equal(12);
+    expect(totalValueLockedVesting.every(({ source }) => source === "VestingSchedules")).to.be.true;
   });
 });
