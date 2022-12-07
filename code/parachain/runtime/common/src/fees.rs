@@ -50,8 +50,13 @@ pub fn multi_existential_deposits<AssetsRegistry>(_currency_id: &CurrencyId) -> 
 pub fn multi_existential_deposits<AssetsRegistry: AssetRatioInspect<AssetId = CurrencyId>>(
 	currency_id: &CurrencyId,
 ) -> Balance {
-	PriceConverter::<AssetsRegistry>::to_asset_balance(NATIVE_EXISTENTIAL_DEPOSIT, *currency_id)
-		.unwrap_or(Balance::MAX)
+	let to_asset_balance = PriceConverter::<AssetsRegistry>::to_asset_balance(
+		NATIVE_EXISTENTIAL_DEPOSIT,
+		*currency_id,
+	)
+	.unwrap_or(Balance::MAX);
+
+	dbg!(currency_id, to_asset_balance).1
 }
 
 pub struct PriceConverter<AssetsRegistry>(PhantomData<AssetsRegistry>);
@@ -82,7 +87,8 @@ impl WellKnownForeignToNativePriceConverter {
 	}
 
 	pub fn to_asset_balance(balance: NativeBalance, asset_id: CurrencyId) -> Option<Balance> {
-		Self::get_ratio(asset_id).and_then(|ratio| {
+		dbg!(Self::get_ratio(asset_id)).and_then(|ratio| {
+			dbg!(ratio);
 			safe_multiply_by_rational(balance, ratio.n.into(), ratio.d.into()).ok()
 		})
 	}
@@ -100,10 +106,18 @@ impl<AssetsRegistry: AssetRatioInspect<AssetId = CurrencyId>>
 		native_amount: NativeBalance,
 		asset_id: CurrencyId,
 	) -> Result<Balance, Self::Error> {
-		AssetsRegistry::get_ratio(asset_id)
-			.and_then(|x| safe_multiply_by_rational(native_amount, x.n().into(), x.d().into()).ok())
+		let maybe_ratio = AssetsRegistry::get_ratio(asset_id);
+		dbg!(maybe_ratio);
+		maybe_ratio
+			.and_then(|x| {
+				dbg!(x);
+				dbg!(safe_multiply_by_rational(native_amount, x.n().into(), x.d().into()).ok())
+			})
 			.or_else(|| {
-				WellKnownForeignToNativePriceConverter::to_asset_balance(native_amount, asset_id)
+				dbg!(WellKnownForeignToNativePriceConverter::to_asset_balance(
+					native_amount,
+					asset_id
+				))
 			})
 			.ok_or(DispatchError::Other(cross_chain_errors::ASSET_PRICE_NOT_FOUND))
 	}

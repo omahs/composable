@@ -1,11 +1,16 @@
+#![allow(clippy::disallowed_methods)]
+
 use composable_tests_helpers::test::{
 	block::{next_block, process_and_progress_blocks},
-	currency::{BTC, USDT},
+	currency::{BTC, PICA, USDT},
 	helper::RuntimeTrait,
 };
 use frame_support::{
 	assert_ok,
-	traits::fungibles::{Inspect, Mutate},
+	traits::{
+		fungibles::{Inspect, Mutate},
+		TryCollect,
+	},
 };
 use sp_runtime::Permill;
 use sp_std::collections::btree_map::BTreeMap;

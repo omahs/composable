@@ -33,6 +33,8 @@ sp-io = { default-features = false, git = "https://github.com/paritytech/substra
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 
+composable-tests-helpers = { path = "../composable-tests-helpers", optional = true }
+
 [dev-dependencies]
 composable-tests-helpers = { path = "../composable-tests-helpers" }
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
@@ -65,3 +67,4 @@ std = [
   "composable-maths/std",
   "rust_decimal/std",
 ]
+testing = ["composable-tests-helpers"]

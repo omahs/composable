@@ -203,7 +203,7 @@ impl<T: Config> DualAssetConstantProduct<T> {
 			Error::<T>::CannotRespectMinimumRequested
 		);
 
-		T::Assets::mint_into(pool.lp_token, who, amount_of_lp_token_to_mint)?;
+		T::Assets::mint_into(dbg!(pool.lp_token), who, amount_of_lp_token_to_mint)?;
 
 		Ok(amount_of_lp_token_to_mint)
 	}

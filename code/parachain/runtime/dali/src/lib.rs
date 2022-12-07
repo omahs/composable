@@ -30,6 +30,9 @@ mod versions;
 mod weights;
 pub mod xcmp;
 
+#[cfg(test)]
+mod testing;
+
 pub use versions::*;
 
 use lending::MarketId;

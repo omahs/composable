@@ -38,6 +38,9 @@ mod mock_fnft;
 #[cfg(test)]
 mod test;
 
+#[cfg(feature = "testing")]
+pub mod testing;
+
 pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
@@ -414,6 +417,7 @@ pub mod pallet {
 			keep_alive: bool,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			dbg!();
 			<Self as Amm>::add_liquidity(&who, pool_id, assets, min_mint_amount, keep_alive)?;
 			Ok(())
 		}
@@ -887,8 +891,10 @@ pub mod pallet {
 			min_mint_amount: Self::Balance,
 			keep_alive: bool,
 		) -> Result<(), DispatchError> {
+			dbg!();
 			let pool = Self::get_pool(pool_id)?;
 			let pool_account = Self::account_id(&pool_id);
+			dbg!();
 			let minted_lp = match pool {
 				PoolConfiguration::DualAssetConstantProduct(info) =>
 					DualAssetConstantProduct::<T>::add_liquidity(
@@ -904,6 +910,7 @@ pub mod pallet {
 						keep_alive,
 					)?,
 			};
+			dbg!(minted_lp);
 			Self::update_twap(pool_id)?;
 			Self::deposit_event(Event::<T>::LiquidityAdded {
 				who: who.clone(),
