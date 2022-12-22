@@ -18,6 +18,7 @@ env:
   CACHIX_COMPRESSION_LEVEL: 3
   NIXOPS_STATE_URL: gs://composable-state
   NIXOPS_STATE_FILE: persistent.deployment.nixops
+  NIXPKGS_ALLOW_INSECURE: 1
 
 jobs:
   cache:
