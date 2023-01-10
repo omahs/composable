@@ -15,7 +15,7 @@ benchmarks! {
 		let created_nft_id = 1_u64.into();
 		Fnft::<T>::mint_into(&collection_id, &created_nft_id, &user1)?;
 
-		Fnft::<T>::set_attribute(
+		Fnft::<T>::set_attribute( 
 			&collection_id,
 			&created_nft_id,
 			&1_u32.encode(),
