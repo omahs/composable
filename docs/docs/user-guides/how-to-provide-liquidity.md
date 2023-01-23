@@ -26,11 +26,7 @@ For a step by step tutorial on how to swap tokens on Pablo, explore this guide.
 
 [app.pablo.finance]: https://app.pablo.finance
 
-3. Choose one of the availabe pools, currently:
-
-- KSM/USDT
-- PICA/USDT 
-- PICA/KSM
+3. Choose one of the availabe pools
 
 ![pica_ksm_pool](./images-how-to-provide-liquidity/pica-ksm-pool.png)
 
