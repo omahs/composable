@@ -47,7 +47,7 @@ Transfer `amount` of the `asset` from `origin` to `dest`. This requires root.
 
 [`force_transfer_native`](https://dali.devnets.composablefinance.ninja/doc/pallet_assets/pallet/enum.Call.html#variant.force_transfer_native)
 
-Transfer `amount` of the the native asset from `origin` to `dest`. This requires root.
+Transfer `amount` of the native asset from `origin` to `dest`. This requires root.
 
 ### Errors
 
